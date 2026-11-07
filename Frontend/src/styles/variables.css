@@ -1,0 +1,92 @@
+:root {
+  /* Color Palette - Institutional Navy & Blue Accent */
+  --color-primary: #1e3a8a;          /* Deep institutional navy */
+  --color-primary-hover: #1e40af;    /* Navy hover */
+  --color-primary-light: #eff6ff;    /* Very light navy tint */
+  --color-primary-border: #bfdbfe;
+  
+  --color-accent: #2563eb;           /* Blue 600 */
+  --color-accent-hover: #1d4ed8;     /* Blue 700 */
+  --color-accent-subtle: #dbeafe;
+
+  /* Neutral Surface & Backgrounds */
+  --bg-app: #f8fafc;                 /* Slate 50 */
+  --bg-surface: #ffffff;             /* Pure white card */
+  --bg-surface-hover: #f8fafc;
+  --bg-muted: #f1f5f9;               /* Slate 100 */
+  --bg-subtle: #e2e8f0;              /* Slate 200 */
+  --bg-sidebar: #0f172a;             /* Dark Navy Slate 900 for modern ERP feel */
+  --bg-sidebar-hover: #1e293b;       /* Slate 800 */
+  --bg-sidebar-active: #2563eb;      /* Brand Blue */
+  --text-sidebar: #e2e8f0;
+  --text-sidebar-muted: #94a3b8;
+
+  /* Text Colors */
+  --text-primary: #0f172a;           /* Slate 900 */
+  --text-secondary: #475569;         /* Slate 600 */
+  --text-muted: #64748b;             /* Slate 500 */
+  --text-placeholder: #94a3b8;       /* Slate 400 */
+  --text-inverse: #ffffff;
+
+  /* Status Colors */
+  --color-success: #059669;          /* Emerald 600 */
+  --color-success-bg: #ecfdf5;       /* Emerald 50 */
+  --color-success-border: #a7f3d0;   /* Emerald 200 */
+  --color-success-text: #065f46;
+
+  --color-warning: #d97706;          /* Amber 600 */
+  --color-warning-bg: #fffbeb;       /* Amber 50 */
+  --color-warning-border: #fde68a;   /* Amber 200 */
+  --color-warning-text: #92400e;
+
+  --color-danger: #dc2626;           /* Red 600 */
+  --color-danger-bg: #fef2f2;        /* Red 50 */
+  --color-danger-border: #fecaca;    /* Red 200 */
+  --color-danger-text: #991b1b;
+  --color-danger-hover: #b91c1c;
+
+  --color-info: #0284c7;             /* Sky 600 */
+  --color-info-bg: #f0f9ff;          /* Sky 50 */
+  --color-info-border: #bae6fd;      /* Sky 200 */
+  --color-info-text: #075985;
+
+  /* Borders & Dividers */
+  --border-color: #e2e8f0;           /* Slate 200 */
+  --border-color-subtle: #f1f5f9;    /* Slate 100 */
+  --border-color-focus: #3b82f6;     /* Blue 500 */
+  --border-radius-xs: 4px;
+  --border-radius-sm: 6px;
+  --border-radius-md: 8px;
+  --border-radius-lg: 12px;
+  --border-radius-xl: 16px;
+  --border-radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-xs: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
+  --shadow-sm: 0 1px 3px 0 rgba(15, 23, 42, 0.08), 0 1px 2px -1px rgba(15, 23, 42, 0.08);
+  --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.04);
+  --shadow-modal: 0 20px 25px -5px rgba(15, 23, 42, 0.15), 0 8px 10px -6px rgba(15, 23, 42, 0.1);
+
+  /* Typography */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-2xl: 48px;
+
+  /* Layout dimensions */
+  --sidebar-width: 260px;
+  --sidebar-collapsed-width: 72px;
+  --header-height: 64px;
+
+  /* Transitions */
+  --transition-fast: 150ms ease-in-out;
+  --transition-normal: 250ms ease-in-out;
+}
+

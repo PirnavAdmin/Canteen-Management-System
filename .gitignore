@@ -1,0 +1,27 @@
+## .NET Core
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+*.user
+*.userosscache
+*.sln.docstates
+
+## Visual Studio
+.vs/
+.vscode/
+
+## Node / Frontend
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+## Environment & Secrets
+.env
+.env.local
+.env.production
+
+## OS generated files
+.DS_Store
+Thumbs.db
