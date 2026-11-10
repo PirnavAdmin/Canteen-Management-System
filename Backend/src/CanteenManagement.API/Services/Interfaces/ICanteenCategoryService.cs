@@ -10,5 +10,9 @@ namespace CanteenManagement.API.Services.Interfaces
         Task<ApiResponse<CanteenCategoryResponseDto>> CreateAsync(int institutionId, CreateCanteenCategoryDto dto);
         Task<ApiResponse<bool>> UpdateAsync(int categoryId, int institutionId, UpdateCanteenCategoryDto dto);
         Task<ApiResponse<bool>> ToggleStatusAsync(int categoryId, int institutionId, bool isActive);
+        Task<ApiResponse<CanteenCategoryStatsDto>> GetStatsAsync(int institutionId);
+        Task<ApiResponse<int>> GetNextDisplayOrderAsync(int institutionId);
+        Task<ApiResponse<bool>> CheckNameExistsAsync(int institutionId, string name, int? excludeCategoryId = null);
+        Task<ApiResponse<IEnumerable<CanteenCategoryLookupDto>>> GetLookupAsync(int institutionId);
     }
 }

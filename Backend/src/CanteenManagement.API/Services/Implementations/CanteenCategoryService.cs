@@ -133,5 +133,61 @@ namespace CanteenManagement.API.Services.Implementations
                 return ApiResponse<bool>.Fail("An error occurred while updating category status.");
             }
         }
+
+        public async Task<ApiResponse<CanteenCategoryStatsDto>> GetStatsAsync(int institutionId)
+        {
+            try
+            {
+                var stats = await _repository.GetStatsAsync(institutionId);
+                return ApiResponse<CanteenCategoryStatsDto>.Ok(stats, "Category statistics retrieved successfully.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving category stats for InstitutionId {InstitutionId}", institutionId);
+                return ApiResponse<CanteenCategoryStatsDto>.Fail("Failed to retrieve category statistics.");
+            }
+        }
+
+        public async Task<ApiResponse<int>> GetNextDisplayOrderAsync(int institutionId)
+        {
+            try
+            {
+                var nextOrder = await _repository.GetNextDisplayOrderAsync(institutionId);
+                return ApiResponse<int>.Ok(nextOrder, "Next display order retrieved successfully.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving next display order for InstitutionId {InstitutionId}", institutionId);
+                return ApiResponse<int>.Fail("Failed to retrieve next display order.");
+            }
+        }
+
+        public async Task<ApiResponse<bool>> CheckNameExistsAsync(int institutionId, string name, int? excludeCategoryId = null)
+        {
+            try
+            {
+                var exists = await _repository.ExistsByNameAsync(institutionId, name, excludeCategoryId);
+                return ApiResponse<bool>.Ok(exists, exists ? "Category name already exists." : "Category name is available.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking category name '{Name}' for InstitutionId {InstitutionId}", name, institutionId);
+                return ApiResponse<bool>.Fail("Failed to check category name availability.");
+            }
+        }
+
+        public async Task<ApiResponse<IEnumerable<CanteenCategoryLookupDto>>> GetLookupAsync(int institutionId)
+        {
+            try
+            {
+                var lookup = await _repository.GetLookupAsync(institutionId);
+                return ApiResponse<IEnumerable<CanteenCategoryLookupDto>>.Ok(lookup, "Active categories lookup retrieved successfully.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving category lookup for InstitutionId {InstitutionId}", institutionId);
+                return ApiResponse<IEnumerable<CanteenCategoryLookupDto>>.Fail("Failed to retrieve category lookup.");
+            }
+        }
     }
 }

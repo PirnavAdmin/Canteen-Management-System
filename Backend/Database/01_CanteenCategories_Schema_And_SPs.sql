@@ -162,6 +162,36 @@ BEGIN
 END //
 DELIMITER ;
 
+-- 8. Stored Procedure: sp_GetCanteenCategoryStats (Top 4 KPI Metric Cards)
+DROP PROCEDURE IF EXISTS `sp_GetCanteenCategoryStats`;
+DELIMITER //
+CREATE PROCEDURE `sp_GetCanteenCategoryStats`(
+    IN p_InstitutionId INT
+)
+BEGIN
+    SELECT 
+        COUNT(*) AS TotalCategories,
+        COUNT(CASE WHEN IsActive = 1 THEN 1 END) AS ActiveCategories,
+        0 AS LinkedFoodItems,
+        COALESCE(MAX(DisplayOrder), 0) AS DisplayOrderDepth
+    FROM CanteenCategories
+    WHERE InstitutionId = p_InstitutionId;
+END //
+DELIMITER ;
+
+-- 9. Stored Procedure: sp_GetNextCategoryDisplayOrder (Auto-fill Next Display Order Rank)
+DROP PROCEDURE IF EXISTS `sp_GetNextCategoryDisplayOrder`;
+DELIMITER //
+CREATE PROCEDURE `sp_GetNextCategoryDisplayOrder`(
+    IN p_InstitutionId INT
+)
+BEGIN
+    SELECT COALESCE(MAX(DisplayOrder), 0) + 1 AS NextDisplayOrder
+    FROM CanteenCategories
+    WHERE InstitutionId = p_InstitutionId;
+END //
+DELIMITER ;
+
 -- Seed Initial Categories (Optional / Safe)
 INSERT INTO `CanteenCategories` (`InstitutionId`, `Name`, `Description`, `DisplayOrder`, `IsActive`, `CreatedAt`)
 VALUES 

@@ -105,5 +105,44 @@ namespace CanteenManagement.API.Repositories.Implementations
 
             return count > 0;
         }
+
+        public async Task<CanteenCategoryStatsDto> GetStatsAsync(int institutionId)
+        {
+            using var connection = _connectionFactory.CreateConnection();
+            var parameters = new DynamicParameters();
+            parameters.Add("p_InstitutionId", institutionId);
+
+            var stats = await connection.QueryFirstOrDefaultAsync<CanteenCategoryStatsDto>(
+                "sp_GetCanteenCategoryStats",
+                parameters,
+                commandType: CommandType.StoredProcedure);
+
+            return stats ?? new CanteenCategoryStatsDto();
+        }
+
+        public async Task<int> GetNextDisplayOrderAsync(int institutionId)
+        {
+            using var connection = _connectionFactory.CreateConnection();
+            var parameters = new DynamicParameters();
+            parameters.Add("p_InstitutionId", institutionId);
+
+            return await connection.ExecuteScalarAsync<int>(
+                "sp_GetNextCategoryDisplayOrder",
+                parameters,
+                commandType: CommandType.StoredProcedure);
+        }
+
+        public async Task<IEnumerable<CanteenCategoryLookupDto>> GetLookupAsync(int institutionId)
+        {
+            using var connection = _connectionFactory.CreateConnection();
+            var parameters = new DynamicParameters();
+            parameters.Add("p_InstitutionId", institutionId);
+            parameters.Add("p_IsActive", 1); // Only active categories for dropdown
+
+            return await connection.QueryAsync<CanteenCategoryLookupDto>(
+                "sp_GetCanteenCategories",
+                parameters,
+                commandType: CommandType.StoredProcedure);
+        }
     }
 }

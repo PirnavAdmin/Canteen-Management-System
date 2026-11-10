@@ -11,5 +11,8 @@ namespace CanteenManagement.API.Repositories.Interfaces
         Task<bool> UpdateAsync(int categoryId, int institutionId, UpdateCanteenCategoryDto dto);
         Task<bool> ToggleStatusAsync(int categoryId, int institutionId, bool isActive);
         Task<bool> ExistsByNameAsync(int institutionId, string name, int? excludeCategoryId = null);
+        Task<CanteenCategoryStatsDto> GetStatsAsync(int institutionId);
+        Task<int> GetNextDisplayOrderAsync(int institutionId);
+        Task<IEnumerable<CanteenCategoryLookupDto>> GetLookupAsync(int institutionId);
     }
 }

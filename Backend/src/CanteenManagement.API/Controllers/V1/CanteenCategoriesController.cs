@@ -10,6 +10,7 @@ namespace CanteenManagement.API.Controllers.V1
     [ApiVersion("1.0")]
     [Route("api/v{version:apiVersion}/canteen-categories")]
     [Produces("application/json")]
+    [Tags("Categories Management")]
     public class CanteenCategoriesController : ControllerBase
     {
         private readonly ICanteenCategoryService _service;
@@ -142,6 +143,63 @@ namespace CanteenManagement.API.Controllers.V1
                 return BadRequest(response);
             }
 
+            return Ok(response);
+        }
+
+        /// <summary>
+        /// 6. GET /api/v1/canteen-categories/stats
+        /// Returns statistics for the top 4 KPI metric cards (Total, Active, Linked Items, Order Depth).
+        /// </summary>
+        [HttpGet("stats")]
+        [ProducesResponseType(typeof(ApiResponse<CanteenCategoryStatsDto>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetStats()
+        {
+            var institutionId = GetInstitutionId();
+            var response = await _service.GetStatsAsync(institutionId);
+            return Ok(response);
+        }
+
+        /// <summary>
+        /// 7. GET /api/v1/canteen-categories/next-display-order
+        /// Auto-fills the next display order rank (e.g., 8) for the create category screen.
+        /// </summary>
+        [HttpGet("next-display-order")]
+        [ProducesResponseType(typeof(ApiResponse<int>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetNextDisplayOrder()
+        {
+            var institutionId = GetInstitutionId();
+            var response = await _service.GetNextDisplayOrderAsync(institutionId);
+            return Ok(response);
+        }
+
+        /// <summary>
+        /// 8. GET /api/v1/canteen-categories/check-name
+        /// Real-time check to prevent duplicate category names on input blur.
+        /// </summary>
+        [HttpGet("check-name")]
+        [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> CheckName([FromQuery] string name, [FromQuery] int? excludeCategoryId = null)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                return BadRequest(ApiResponse<bool>.Fail("Category name is required."));
+            }
+
+            var institutionId = GetInstitutionId();
+            var response = await _service.CheckNameExistsAsync(institutionId, name, excludeCategoryId);
+            return Ok(response);
+        }
+
+        /// <summary>
+        /// 9. GET /api/v1/canteen-categories/lookup
+        /// Lightweight dropdown list of active categories for food item mapping.
+        /// </summary>
+        [HttpGet("lookup")]
+        [ProducesResponseType(typeof(ApiResponse<IEnumerable<CanteenCategoryLookupDto>>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetLookup()
+        {
+            var institutionId = GetInstitutionId();
+            var response = await _service.GetLookupAsync(institutionId);
             return Ok(response);
         }
     }

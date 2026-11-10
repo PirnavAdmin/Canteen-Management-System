@@ -22,6 +22,8 @@ dist-ssr/
 .env.local
 .env.production
 
-## OS generated files
+## OS & Zip generated files
 .DS_Store
 Thumbs.db
+*.zip
+
