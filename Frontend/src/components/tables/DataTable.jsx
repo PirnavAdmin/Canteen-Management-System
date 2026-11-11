@@ -16,7 +16,8 @@ export const DataTable = ({
 }) => {
   return (
     <div style={{
-      backgroundColor: '#ffffff',
+      backgroundColor: 'var(--bg-surface)',
+      color: 'var(--text-primary)',
       borderRadius: 'var(--border-radius-lg)',
       border: '1px solid var(--border-color)',
       boxShadow: 'var(--shadow-xs)',
@@ -40,8 +41,8 @@ export const DataTable = ({
                     scope="col"
                     onClick={() => isSortable && onSort(col.key)}
                     style={{
-                      padding: '12px 16px',
-                      fontSize: '12px',
+                      padding: '9px 12px',
+                      fontSize: '11.5px',
                       fontWeight: 600,
                       color: 'var(--text-secondary)',
                       textTransform: 'uppercase',
@@ -120,11 +121,12 @@ export const DataTable = ({
                       <td
                         key={col.key}
                         style={{
-                          padding: '14px 16px',
-                          fontSize: '13.5px',
+                          padding: '8px 12px',
+                          fontSize: '13px',
                           color: 'var(--text-primary)',
                           textAlign: col.align || 'left',
-                          verticalAlign: 'middle'
+                          verticalAlign: 'middle',
+                          width: col.width || 'auto'
                         }}
                       >
                         {col.render ? col.render(row[col.key], row, index) : row[col.key]}

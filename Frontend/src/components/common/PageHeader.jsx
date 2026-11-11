@@ -1,24 +1,22 @@
 import React from 'react';
-import { Breadcrumb } from './Breadcrumb';
 
 export const PageHeader = ({
   title,
   description,
-  breadcrumbItems,
   actions,
   badge
 }) => {
   return (
-    <div style={{ marginBottom: '24px' }}>
-      {breadcrumbItems && <Breadcrumb items={breadcrumbItems} />}
+    <div style={{ marginBottom: '20px' }}>
+      {/* Navigation path removed as requested for a cleaner, compact workspace */}
       <div style={{
         display: 'flex',
-        alignItems: 'flex-start',
+        alignItems: 'center',
         justifyContent: 'space-between',
         flexWrap: 'wrap',
         gap: '16px'
       }}>
-        <div>
+        <div style={{ flex: 1, minWidth: '260px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <h1 style={{
               fontSize: '22px',
@@ -33,17 +31,18 @@ export const PageHeader = ({
           </div>
           {description && (
             <p style={{
-              fontSize: '13.5px',
+              fontSize: '13px',
               color: 'var(--text-secondary)',
               marginTop: '4px',
-              marginBottom: 0
+              marginBottom: 0,
+              maxWidth: '800px'
             }}>
               {description}
             </p>
           )}
         </div>
         {actions && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
             {actions}
           </div>
         )}
@@ -51,4 +50,6 @@ export const PageHeader = ({
     </div>
   );
 };
+
+export default PageHeader;
 

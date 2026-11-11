@@ -40,7 +40,7 @@ export const FilterDropdown = ({
             fontSize: '13px',
             fontWeight: 500,
             color: 'var(--text-primary)',
-            backgroundColor: '#ffffff',
+            backgroundColor: 'var(--bg-surface)',
             border: '1px solid var(--border-color)',
             borderRadius: 'var(--border-radius-md)',
             cursor: 'pointer',

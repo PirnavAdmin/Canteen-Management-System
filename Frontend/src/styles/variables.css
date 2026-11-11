@@ -1,4 +1,5 @@
-:root {
+:root,
+[data-theme="light"] {
   /* Color Palette - Institutional Navy & Blue Accent */
   --color-primary: #1e3a8a;          /* Deep institutional navy */
   --color-primary-hover: #1e40af;    /* Navy hover */
@@ -9,17 +10,26 @@
   --color-accent-hover: #1d4ed8;     /* Blue 700 */
   --color-accent-subtle: #dbeafe;
 
-  /* Neutral Surface & Backgrounds */
+  /* Neutral Surface & Backgrounds (Light Theme) */
   --bg-app: #f8fafc;                 /* Slate 50 */
   --bg-surface: #ffffff;             /* Pure white card */
-  --bg-surface-hover: #f8fafc;
+  --bg-surface-hover: #f1f5f9;
   --bg-muted: #f1f5f9;               /* Slate 100 */
   --bg-subtle: #e2e8f0;              /* Slate 200 */
-  --bg-sidebar: #0f172a;             /* Dark Navy Slate 900 for modern ERP feel */
-  --bg-sidebar-hover: #1e293b;       /* Slate 800 */
-  --bg-sidebar-active: #2563eb;      /* Brand Blue */
-  --text-sidebar: #e2e8f0;
-  --text-sidebar-muted: #94a3b8;
+  
+  /* Sidebar Styles - Professional Light Shade */
+  --bg-sidebar: #f8fafc;             /* Light professional slate-50 shade */
+  --bg-sidebar-hover: #e2e8f0;       /* Slate 200 hover with clear contrast */
+  --bg-sidebar-active: #2563eb;      /* Brand Blue active item */
+  --text-sidebar: #0f172a;           /* Crisp Slate 900 text */
+  --text-sidebar-muted: #334155;     /* Slate 700 with full contrast */
+  --text-sidebar-hover: #0f172a;     /* Solid Slate 900 on hover - never white */
+  --sidebar-border: #e2e8f0;         /* Slate 200 divider */
+  --brand-title-color: #0f172a;      /* Dark navy title */
+  --institution-badge-bg: #f1f5f9;   /* Subtle footer badge */
+  --institution-name-color: #1e293b; /* Dark institution text */
+  --header-bg: #ffffff;
+  --modal-bg: #ffffff;
 
   /* Text Colors */
   --text-primary: #0f172a;           /* Slate 900 */
@@ -88,5 +98,79 @@
   /* Transitions */
   --transition-fast: 150ms ease-in-out;
   --transition-normal: 250ms ease-in-out;
+}
+
+[data-theme="dark"] {
+  /* Color Palette */
+  --color-primary: #3b82f6;          /* Vibrant blue in dark mode */
+  --color-primary-hover: #60a5fa;
+  --color-primary-light: rgba(59, 130, 246, 0.15);
+  --color-primary-border: rgba(59, 130, 246, 0.35);
+  
+  --color-accent: #3b82f6;
+  --color-accent-hover: #2563eb;
+  --color-accent-subtle: rgba(59, 130, 246, 0.2);
+
+  /* Neutral Surface & Backgrounds (Dark Theme) */
+  --bg-app: #0b1120;                 /* Midnight Deep Slate 950 */
+  --bg-surface: #1e293b;             /* Slate 800 cards */
+  --bg-surface-hover: #334155;       /* Slate 700 */
+  --bg-muted: #1e293b;               /* Slate 800 */
+  --bg-subtle: #334155;              /* Slate 700 */
+  
+  /* Sidebar Styles - Modern Dark ERP */
+  --bg-sidebar: #0f172a;             /* Deep Slate 900 */
+  --bg-sidebar-hover: #1e293b;       /* Slate 800 hover */
+  --bg-sidebar-active: #2563eb;      /* Brand Blue active item */
+  --text-sidebar: #f8fafc;           /* Bright text */
+  --text-sidebar-muted: #94a3b8;     /* Slate 400 */
+  --text-sidebar-hover: #ffffff;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --brand-title-color: #ffffff;
+  --institution-badge-bg: rgba(0, 0, 0, 0.3);
+  --institution-name-color: #e2e8f0;
+  --header-bg: #0f172a;
+  --modal-bg: #1e293b;
+
+  /* Text Colors */
+  --text-primary: #f8fafc;           /* Slate 50 */
+  --text-secondary: #cbd5e1;         /* Slate 300 */
+  --text-muted: #94a3b8;             /* Slate 400 */
+  --text-placeholder: #64748b;       /* Slate 500 */
+  --text-inverse: #0f172a;
+
+  /* Status Colors */
+  --color-success: #10b981;
+  --color-success-bg: rgba(16, 185, 129, 0.15);
+  --color-success-border: rgba(16, 185, 129, 0.3);
+  --color-success-text: #6ee7b7;
+
+  --color-warning: #f59e0b;
+  --color-warning-bg: rgba(245, 158, 11, 0.15);
+  --color-warning-border: rgba(245, 158, 11, 0.3);
+  --color-warning-text: #fcd34d;
+
+  --color-danger: #ef4444;
+  --color-danger-bg: rgba(239, 68, 68, 0.15);
+  --color-danger-border: rgba(239, 68, 68, 0.3);
+  --color-danger-text: #fca5a5;
+  --color-danger-hover: #dc2626;
+
+  --color-info: #38bdf8;
+  --color-info-bg: rgba(56, 189, 248, 0.15);
+  --color-info-border: rgba(56, 189, 248, 0.3);
+  --color-info-text: #7dd3fc;
+
+  /* Borders & Dividers */
+  --border-color: #334155;           /* Slate 700 */
+  --border-color-subtle: #1e293b;    /* Slate 800 */
+  --border-color-focus: #60a5fa;
+
+  /* Shadows for dark mode */
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.35);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.6);
+  --shadow-modal: 0 20px 25px -5px rgba(0, 0, 0, 0.7);
 }
 

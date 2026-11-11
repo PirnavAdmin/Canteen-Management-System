@@ -10,7 +10,8 @@ export const StatCard = ({
 }) => {
   return (
     <div style={{
-      backgroundColor: '#ffffff',
+      backgroundColor: 'var(--bg-surface)',
+      color: 'var(--text-primary)',
       borderRadius: 'var(--border-radius-lg)',
       border: '1px solid var(--border-color)',
       padding: '20px',

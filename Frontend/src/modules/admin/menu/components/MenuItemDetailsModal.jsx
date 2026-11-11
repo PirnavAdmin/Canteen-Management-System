@@ -1,5 +1,5 @@
 import React from 'react';
-import { X } from 'lucide-react';
+import { X, Utensils, MapPin } from 'lucide-react';
 import { Button } from '../../../../components/common/Button';
 import { StatusBadge } from '../../../../components/common/StatusBadge';
 import { formatCurrency } from '../../../../utils/formatters';
@@ -22,15 +22,17 @@ export const MenuItemDetailsModal = ({ isOpen, onClose, item }) => {
       padding: '16px'
     }}>
       <div style={{
-        backgroundColor: '#ffffff',
+        backgroundColor: 'var(--modal-bg)',
+        color: 'var(--text-primary)',
         borderRadius: 'var(--border-radius-xl)',
-        maxWidth: '600px',
+        maxWidth: '620px',
         width: '100%',
         maxHeight: '90vh',
         display: 'flex',
         flexDirection: 'column',
         boxShadow: 'var(--shadow-modal)',
-        overflow: 'hidden'
+        overflow: 'hidden',
+        border: '1px solid var(--border-color)'
       }}>
         {/* Header */}
         <div style={{
@@ -80,6 +82,89 @@ export const MenuItemDetailsModal = ({ isOpen, onClose, item }) => {
 
         {/* Content */}
         <div style={{ padding: '20px 24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* Medium Size Dish Photo Showcase */}
+          <div style={{
+            position: 'relative',
+            width: '100%',
+            height: '210px',
+            borderRadius: 'var(--border-radius-lg)',
+            overflow: 'hidden',
+            backgroundColor: 'var(--bg-muted)',
+            border: '1px solid var(--border-color)',
+            boxShadow: 'var(--shadow-xs)'
+          }}>
+            {item.imageUrl ? (
+              <img
+                src={item.imageUrl}
+                alt={item.name}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover'
+                }}
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  if (e.currentTarget.nextElementSibling) {
+                    e.currentTarget.nextElementSibling.style.display = 'flex';
+                  }
+                }}
+              />
+            ) : null}
+            <div style={{
+              display: item.imageUrl ? 'none' : 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '100%',
+              height: '100%',
+              backgroundColor: 'var(--bg-muted)',
+              color: 'var(--text-muted)',
+              gap: '8px'
+            }}>
+              <Utensils size={36} style={{ opacity: 0.6 }} />
+              <span style={{ fontSize: '12px' }}>No dish photo uploaded</span>
+            </div>
+
+            {/* Medium image overlay pill with outlet and dietary type */}
+            <div style={{
+              position: 'absolute',
+              bottom: '10px',
+              left: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '4px 10px',
+              borderRadius: 'var(--border-radius-full)',
+              backgroundColor: 'rgba(15, 23, 42, 0.75)',
+              backdropFilter: 'blur(4px)',
+              color: '#ffffff',
+              fontSize: '11.5px',
+              fontWeight: 500
+            }}>
+              <MapPin size={12} style={{ color: '#38bdf8' }} />
+              <span>{item.outletName || 'Campus Canteen'}</span>
+            </div>
+
+            <div style={{
+              position: 'absolute',
+              top: '10px',
+              right: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '4px 10px',
+              borderRadius: 'var(--border-radius-full)',
+              backgroundColor: 'rgba(15, 23, 42, 0.75)',
+              backdropFilter: 'blur(4px)',
+              color: '#ffffff',
+              fontSize: '11.5px',
+              fontWeight: 600
+            }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: typeColor }} />
+              <span>{item.foodType}</span>
+            </div>
+          </div>
+
           {/* Price & status highlight banner */}
           <div style={{
             display: 'flex',

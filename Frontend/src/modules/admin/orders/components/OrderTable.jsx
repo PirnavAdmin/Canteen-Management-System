@@ -41,11 +41,30 @@ export const OrderTable = ({
       key: 'customer',
       header: 'Customer',
       render: (val) => (
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', maxWidth: '160px', overflow: 'hidden' }}>
+          <span
+            title={val.name}
+            style={{
+              fontSize: '13px',
+              fontWeight: 600,
+              color: 'var(--text-primary)',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            }}
+          >
             {val.name}
           </span>
-          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+          <span
+            title={`${val.role} • ${val.rollNo || val.department}`}
+            style={{
+              fontSize: '11px',
+              color: 'var(--text-muted)',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            }}
+          >
             {val.role} • {val.rollNo || val.department}
           </span>
         </div>
@@ -55,7 +74,18 @@ export const OrderTable = ({
       key: 'outletName',
       header: 'Outlet',
       render: (val) => (
-        <span style={{ fontSize: '12.5px', color: 'var(--text-secondary)' }}>
+        <span
+          title={val}
+          style={{
+            fontSize: '12px',
+            color: 'var(--text-secondary)',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            display: 'block',
+            maxWidth: '140px'
+          }}
+        >
           {val}
         </span>
       )
@@ -63,11 +93,24 @@ export const OrderTable = ({
     {
       key: 'items',
       header: 'Items',
-      render: (items) => (
-        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', maxWidth: '200px' }} className="text-truncate">
-          {items.map(i => `${i.name} (x${i.quantity})`).join(', ')}
-        </div>
-      )
+      render: (items) => {
+        const itemStr = items.map(i => `${i.name} (x${i.quantity})`).join(', ');
+        return (
+          <div
+            title={itemStr}
+            style={{
+              fontSize: '12px',
+              color: 'var(--text-secondary)',
+              maxWidth: '190px',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            }}
+          >
+            {itemStr}
+          </div>
+        );
+      }
     },
     {
       key: 'slot',
