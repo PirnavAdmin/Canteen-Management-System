@@ -2,6 +2,23 @@
  * Common formatting utilities
  */
 
+import { CURRENCY } from '../constants/appConstants';
+
+export const formatCurrency = (amount) => {
+  const num = Number(amount);
+  if (isNaN(num)) return `${CURRENCY.SYMBOL}0.00`;
+  return `${CURRENCY.SYMBOL}${num.toLocaleString('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })}`;
+};
+
+export const formatNumber = (val) => {
+  const num = Number(val);
+  if (isNaN(num)) return '0';
+  return num.toLocaleString('en-IN');
+};
+
 export const formatTime12Hour = (time24) => {
   if (!time24) return '--:--';
   const parts = time24.split(':');
@@ -43,6 +60,7 @@ export const formatDate = (dateString) => {
   if (!dateString) return '--';
   try {
     const d = new Date(dateString);
+    if (isNaN(d.getTime())) return dateString;
     return d.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
@@ -53,3 +71,19 @@ export const formatDate = (dateString) => {
   }
 };
 
+export const formatDateTime = (dateString) => {
+  if (!dateString) return '--';
+  try {
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return dateString;
+    return d.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch {
+    return dateString;
+  }
+};

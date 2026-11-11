@@ -1,10 +1,41 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Utensils, LayoutGrid, PlusCircle, Store, X, Building2 } from 'lucide-react';
+import {
+  Utensils,
+  X,
+  Building2,
+  LayoutDashboard,
+  UtensilsCrossed,
+  ShoppingBag,
+  Clock,
+  Boxes,
+  BarChart3,
+  MessageSquareWarning,
+  Store,
+  Layers,
+  Settings
+} from 'lucide-react';
 import styles from '../../styles/layout.module.css';
-import { APP_CONFIG } from '../../constants/navigation';
+import { APP_CONFIG, ADMIN_NAV_CONFIG } from '../../constants/navigation';
+import { useAuth } from '../../hooks/useAuth';
+
+// Icon mapping registry
+const ICON_MAP = {
+  LayoutDashboard,
+  UtensilsCrossed,
+  ShoppingBag,
+  Clock,
+  Boxes,
+  BarChart3,
+  MessageSquareWarning,
+  Store,
+  Layers,
+  Settings
+};
 
 export const Sidebar = ({ isOpen, onClose }) => {
+  const { hasPermission } = useAuth();
+
   return (
     <>
       {isOpen && <div className={styles.backdrop} onClick={onClose} />}
@@ -29,57 +60,35 @@ export const Sidebar = ({ isOpen, onClose }) => {
         </div>
 
         <nav className={styles.sidebarNav}>
-          {/* Canteen Management Section */}
-          <div className={styles.navGroup}>
-            <div className={styles.navGroupLabel}>Canteen Management</div>
-            <NavLink
-              to="/canteen"
-              end
-              onClick={onClose}
-              className={({ isActive }) =>
-                `${styles.navItem} ${isActive ? styles.navItemActive : ''}`
-              }
-            >
-              <Store className={styles.navIcon} />
-              <span>Canteen List</span>
-            </NavLink>
-            <NavLink
-              to="/canteen/create"
-              onClick={onClose}
-              className={({ isActive }) =>
-                `${styles.navItem} ${isActive ? styles.navItemActive : ''}`
-              }
-            >
-              <PlusCircle className={styles.navIcon} />
-              <span>Add Canteen</span>
-            </NavLink>
-          </div>
+          {ADMIN_NAV_CONFIG.map((group) => {
+            // Filter items based on authenticated role permissions
+            const visibleItems = group.items.filter(item => hasPermission(item.permission));
+            if (visibleItems.length === 0) return null;
 
-          {/* Categories Management Section */}
-          <div className={styles.navGroup}>
-            <div className={styles.navGroupLabel}>Categories Management</div>
-            <NavLink
-              to="/categories"
-              end
-              onClick={onClose}
-              className={({ isActive }) =>
-                `${styles.navItem} ${isActive ? styles.navItemActive : ''}`
-              }
-            >
-              <LayoutGrid className={styles.navIcon} />
-              <span>Category List</span>
-            </NavLink>
-            <NavLink
-              to="/categories/create"
-              onClick={onClose}
-              className={({ isActive }) =>
-                `${styles.navItem} ${isActive ? styles.navItemActive : ''}`
-              }
-            >
-              <PlusCircle className={styles.navIcon} />
-              <span>Add Category</span>
-            </NavLink>
-          </div>
+            return (
+              <div key={group.group} className={styles.navGroup}>
+                <div className={styles.navGroupLabel}>{group.group}</div>
+                {visibleItems.map((item) => {
+                  const IconComponent = ICON_MAP[item.icon] || Store;
+
+                  return (
+                    <NavLink
+                      key={item.id}
+                      to={item.path}
+                      onClick={onClose}
+                      className={({ isActive }) =>
+                        `${styles.navItem} ${isActive ? styles.navItemActive : ''}`
+                      }
+                      title={item.description}
+                    >
+                      <IconComponent className={styles.navIcon} />
+                      <span>{item.label}</span>
+                    </NavLink>
+                  );
+                })}
+              </div>
+            );
+          })}
         </nav>
 
         <div className={styles.sidebarFooter}>
@@ -97,3 +106,4 @@ export const Sidebar = ({ isOpen, onClose }) => {
   );
 };
 
+export default Sidebar;

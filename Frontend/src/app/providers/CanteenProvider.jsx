@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { canteenService } from '../../modules/canteen/services/canteenService';
+import { canteenService } from '../../modules/admin/outlets/services/canteenService';
 import { useToast } from './ToastProvider';
 
 const CanteenContext = createContext(null);

@@ -1,5 +1,5 @@
 import React from 'react';
-import { DAYS_OF_WEEK } from '../../modules/canteen/constants/canteenConstants';
+import { DAYS_OF_WEEK } from '../../modules/admin/outlets/constants/canteenConstants';
 
 export const WorkingDaysSelector = ({
   value = [],

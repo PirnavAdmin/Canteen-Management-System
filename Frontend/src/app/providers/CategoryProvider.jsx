@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { categoryService } from '../../modules/categories/services/categoryService';
+import { categoryService } from '../../modules/admin/categories/services/categoryService';
 import { useToast } from './ToastProvider';
 
 const CategoryContext = createContext(null);
