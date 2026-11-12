@@ -99,7 +99,7 @@ export const WorkingDaysSelector = ({
         padding: '10px 12px',
         borderRadius: 'var(--border-radius-md)',
         border: `1px solid ${error ? 'var(--color-danger)' : 'var(--border-color)'}`,
-        backgroundColor: disabled ? 'var(--bg-muted)' : '#ffffff'
+        backgroundColor: disabled ? 'var(--bg-muted)' : 'var(--bg-surface)'
       }}>
         {DAYS_OF_WEEK.map((day) => {
           const isSelected = selectedDays.includes(day);
@@ -115,7 +115,7 @@ export const WorkingDaysSelector = ({
                 fontSize: '12.5px',
                 fontWeight: isSelected ? 600 : 400,
                 border: isSelected ? '1px solid var(--color-accent)' : '1px solid var(--border-color)',
-                backgroundColor: isSelected ? 'var(--color-accent)' : '#ffffff',
+                backgroundColor: isSelected ? 'var(--color-accent)' : 'var(--bg-surface)',
                 color: isSelected ? '#ffffff' : 'var(--text-secondary)',
                 cursor: disabled ? 'not-allowed' : 'pointer',
                 transition: 'all var(--transition-fast)'

@@ -47,7 +47,7 @@ export const FormTextarea = ({
           fontSize: '13.5px',
           borderRadius: 'var(--border-radius-md)',
           border: `1px solid ${error ? 'var(--color-danger)' : 'var(--border-color)'}`,
-          backgroundColor: disabled ? 'var(--bg-muted)' : '#ffffff',
+          backgroundColor: disabled ? 'var(--bg-muted)' : 'var(--bg-surface)',
           color: disabled ? 'var(--text-muted)' : 'var(--text-primary)',
           outline: 'none',
           resize: 'vertical',

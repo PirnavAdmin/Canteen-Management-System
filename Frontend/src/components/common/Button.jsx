@@ -44,7 +44,7 @@ export const Button = ({
       borderColor: 'var(--color-primary)'
     },
     secondary: {
-      backgroundColor: '#ffffff',
+      backgroundColor: 'var(--bg-surface)',
       color: 'var(--text-primary)',
       borderColor: 'var(--border-color)',
       boxShadow: 'var(--shadow-xs)'

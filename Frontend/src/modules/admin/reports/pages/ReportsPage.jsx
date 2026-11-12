@@ -90,7 +90,7 @@ export const ReportsPage = () => {
 
       {/* Report Data Table */}
       <div style={{
-        backgroundColor: '#ffffff',
+        backgroundColor: 'var(--bg-surface)',
         borderRadius: 'var(--border-radius-lg)',
         border: '1px solid var(--border-color)',
         overflow: 'hidden'

@@ -32,7 +32,7 @@ export const PrivacyDsarTab = ({ initialData = {}, onSavePrivacy, onUpdateDsar }
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Privacy Governance Card */}
       <form onSubmit={handleSavePolicy} style={{
-        backgroundColor: '#ffffff',
+        backgroundColor: 'var(--bg-surface)',
         borderRadius: 'var(--border-radius-lg)',
         border: '1px solid var(--border-color)',
         padding: '24px',
@@ -56,14 +56,14 @@ export const PrivacyDsarTab = ({ initialData = {}, onSavePrivacy, onUpdateDsar }
         {/* Retention Policy Alert */}
         <div style={{
           padding: '12px 16px',
-          backgroundColor: '#eff6ff',
-          border: '1px solid #bfdbfe',
+          backgroundColor: 'var(--color-info-bg)',
+          border: '1px solid var(--color-info-border)',
           borderRadius: 'var(--border-radius-md)',
           display: 'flex',
           alignItems: 'flex-start',
           gap: '10px',
           fontSize: '12.5px',
-          color: '#1e3a8a',
+          color: 'var(--color-info-text)',
           lineHeight: 1.5
         }}>
           <Lock size={16} style={{ marginTop: '2px', flexShrink: 0 }} />
@@ -146,7 +146,7 @@ export const PrivacyDsarTab = ({ initialData = {}, onSavePrivacy, onUpdateDsar }
 
       {/* DSAR Requests Table */}
       <div style={{
-        backgroundColor: '#ffffff',
+        backgroundColor: 'var(--bg-surface)',
         borderRadius: 'var(--border-radius-lg)',
         border: '1px solid var(--border-color)',
         padding: '20px',

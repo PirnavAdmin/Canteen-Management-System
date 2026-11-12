@@ -38,9 +38,9 @@ export const StatusBadge = ({ status, size = 'md' }) => {
       <span
         style={{
           ...style,
-          backgroundColor: '#f8fafc',
-          color: '#64748b',
-          border: '1px solid #cbd5e1'
+          backgroundColor: 'var(--bg-muted)',
+          color: 'var(--text-muted)',
+          border: '1px solid var(--border-color)'
         }}
       >
         <XCircle size={size === 'sm' ? 12 : 13} />

@@ -235,9 +235,9 @@ export const MenuItemDetailsModal = ({ isOpen, onClose, item }) => {
                     key={a}
                     style={{
                       padding: '3px 8px',
-                      backgroundColor: '#fef2f2',
-                      border: '1px solid #fecaca',
-                      color: '#991b1b',
+                      backgroundColor: 'var(--color-danger-bg)',
+                      border: '1px solid var(--color-danger-border)',
+                      color: 'var(--color-danger-text)',
                       borderRadius: 'var(--border-radius-sm)',
                       fontSize: '11.5px',
                       fontWeight: 500

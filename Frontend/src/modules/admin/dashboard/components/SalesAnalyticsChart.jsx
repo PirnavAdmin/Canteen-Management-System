@@ -15,7 +15,7 @@ export const SalesAnalyticsChart = ({ data = [] }) => {
 
   return (
     <div style={{
-      backgroundColor: '#ffffff',
+      backgroundColor: 'var(--bg-surface)',
       borderRadius: 'var(--border-radius-lg)',
       border: '1px solid var(--border-color)',
       padding: '16px 20px',

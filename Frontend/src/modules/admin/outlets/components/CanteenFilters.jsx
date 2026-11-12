@@ -29,7 +29,7 @@ export const CanteenFilters = ({
       flexWrap: 'wrap',
       gap: '12px',
       padding: '16px 20px',
-      backgroundColor: '#ffffff',
+      backgroundColor: 'var(--bg-surface)',
       border: '1px solid var(--border-color)',
       borderBottom: 'none',
       borderTopLeftRadius: 'var(--border-radius-lg)',

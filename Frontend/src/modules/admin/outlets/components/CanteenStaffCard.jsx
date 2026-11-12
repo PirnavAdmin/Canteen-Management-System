@@ -163,7 +163,7 @@ export const CanteenStaffCard = ({
                     padding: '12px 14px',
                     borderRadius: 'var(--border-radius-md)',
                     border: '1px solid var(--border-color)',
-                    backgroundColor: '#ffffff'
+                    backgroundColor: 'var(--bg-surface)'
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>

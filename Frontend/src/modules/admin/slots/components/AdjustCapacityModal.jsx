@@ -46,7 +46,9 @@ export const AdjustCapacityModal = ({ isOpen, onClose, slot, onSaveCapacity }) =
       padding: '16px'
     }}>
       <div style={{
-        backgroundColor: '#ffffff',
+        backgroundColor: 'var(--modal-bg)',
+        color: 'var(--text-primary)',
+        border: '1px solid var(--border-color)',
         borderRadius: 'var(--border-radius-xl)',
         maxWidth: '460px',
         width: '100%',

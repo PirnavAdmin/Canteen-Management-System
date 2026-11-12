@@ -64,7 +64,9 @@ export const StockMovementModal = ({ isOpen, onClose, item, defaultType = 'Stock
       padding: '16px'
     }}>
       <div style={{
-        backgroundColor: '#ffffff',
+        backgroundColor: 'var(--modal-bg)',
+        color: 'var(--text-primary)',
+        border: '1px solid var(--border-color)',
         borderRadius: 'var(--border-radius-xl)',
         maxWidth: '520px',
         width: '100%',

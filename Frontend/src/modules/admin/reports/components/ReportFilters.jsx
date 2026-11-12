@@ -65,7 +65,7 @@ export const ReportFilters = ({
             fontSize: '13px',
             border: '1px solid var(--border-color)',
             borderRadius: 'var(--border-radius-md)',
-            backgroundColor: '#ffffff'
+            backgroundColor: 'var(--bg-surface)'
           }}
         >
           <option value="ALL">All Campus Outlets</option>
@@ -89,7 +89,7 @@ export const ReportFilters = ({
             fontSize: '13px',
             border: '1px solid var(--border-color)',
             borderRadius: 'var(--border-radius-md)',
-            backgroundColor: '#ffffff'
+            backgroundColor: 'var(--bg-surface)'
           }}
         >
           <option value="today">Today</option>
@@ -114,7 +114,7 @@ export const ReportFilters = ({
             fontSize: '13px',
             border: '1px solid var(--border-color)',
             borderRadius: 'var(--border-radius-md)',
-            backgroundColor: '#ffffff'
+            backgroundColor: 'var(--bg-surface)'
           }}
         >
           <option value="ALL">All Payment Channels</option>

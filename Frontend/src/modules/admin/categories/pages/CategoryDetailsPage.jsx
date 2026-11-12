@@ -236,7 +236,7 @@ export const CategoryDetailsPage = () => {
       {/* Audit Metadata Footer */}
       <div style={{
         padding: '16px 20px',
-        backgroundColor: '#ffffff',
+        backgroundColor: 'var(--bg-surface)',
         borderRadius: 'var(--border-radius-md)',
         border: '1px solid var(--border-color)',
         display: 'flex',

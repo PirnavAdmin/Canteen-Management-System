@@ -48,7 +48,7 @@ export const Pagination = ({
       gap: '12px',
       padding: '14px 20px',
       borderTop: '1px solid var(--border-color)',
-      backgroundColor: '#ffffff',
+      backgroundColor: 'var(--bg-surface)',
       borderBottomLeftRadius: 'var(--border-radius-lg)',
       borderBottomRightRadius: 'var(--border-radius-lg)'
     }}>
@@ -69,7 +69,7 @@ export const Pagination = ({
                 fontSize: '12px',
                 border: '1px solid var(--border-color)',
                 borderRadius: 'var(--border-radius-sm)',
-                backgroundColor: '#ffffff',
+                backgroundColor: 'var(--bg-surface)',
                 color: 'var(--text-primary)',
                 cursor: 'pointer'
               }}
@@ -96,7 +96,7 @@ export const Pagination = ({
             padding: '6px 10px',
             borderRadius: 'var(--border-radius-sm)',
             border: '1px solid var(--border-color)',
-            backgroundColor: '#ffffff',
+            backgroundColor: 'var(--bg-surface)',
             color: currentPage <= 1 ? 'var(--text-placeholder)' : 'var(--text-primary)',
             cursor: currentPage <= 1 ? 'not-allowed' : 'pointer',
             fontSize: '12.5px',
@@ -153,7 +153,7 @@ export const Pagination = ({
             padding: '6px 10px',
             borderRadius: 'var(--border-radius-sm)',
             border: '1px solid var(--border-color)',
-            backgroundColor: '#ffffff',
+            backgroundColor: 'var(--bg-surface)',
             color: currentPage >= totalPages ? 'var(--text-placeholder)' : 'var(--text-primary)',
             cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer',
             fontSize: '12.5px',

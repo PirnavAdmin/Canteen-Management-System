@@ -18,7 +18,7 @@ export const EmptyState = ({
       justifyContent: 'center',
       padding: '48px 24px',
       textAlign: 'center',
-      backgroundColor: '#ffffff',
+      backgroundColor: 'var(--bg-surface)',
       borderRadius: 'var(--border-radius-lg)',
       border: '1px dashed var(--border-color)'
     }}>

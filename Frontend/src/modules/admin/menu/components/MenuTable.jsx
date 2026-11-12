@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Eye, Edit, Power, Globe, GlobeLock, Trash2, Utensils, MoreVertical } from 'lucide-react';
+import { Eye, Edit, Power, Globe, GlobeLock, Trash2, Utensils, MoreVertical, X } from 'lucide-react';
 import { DataTable } from '../../../../components/tables/DataTable';
 import { StatusBadge } from '../../../../components/common/StatusBadge';
 import { formatCurrency, formatNumber } from '../../../../utils/formatters';
@@ -14,24 +14,24 @@ export const MenuTable = ({
   onDelete,
   footer
 }) => {
-  const [openActionId, setOpenActionId] = useState(null);
+  const [actionModalRow, setActionModalRow] = useState(null);
 
   const columns = [
     {
       key: 'name',
       header: 'Menu Item',
-      width: '240px',
+      width: '205px',
       render: (val, row) => {
         const typeColor = row.foodType === 'Veg' ? '#059669' : row.foodType === 'Non-veg' ? '#dc2626' : '#d97706';
         return (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '9px', minWidth: 0 }}>
             {/* Small format dish photo in the list */}
             <div
               onClick={() => onView(row)}
               style={{
                 position: 'relative',
-                width: '40px',
-                height: '40px',
+                width: '38px',
+                height: '38px',
                 borderRadius: 'var(--border-radius-md)',
                 overflow: 'hidden',
                 backgroundColor: 'var(--bg-muted)',
@@ -67,17 +67,17 @@ export const MenuTable = ({
                 backgroundColor: 'var(--bg-muted)',
                 color: 'var(--text-muted)'
               }}>
-                <Utensils size={16} />
+                <Utensils size={15} />
               </div>
             </div>
 
             {/* Dish text with ellipsis and tooltip */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0, overflow: 'hidden' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', minWidth: 0 }}>
                 {/* Dietary badge */}
                 <div style={{
-                  width: '12px',
-                  height: '12px',
+                  width: '11px',
+                  height: '11px',
                   border: `1.5px solid ${typeColor}`,
                   display: 'flex',
                   alignItems: 'center',
@@ -90,7 +90,7 @@ export const MenuTable = ({
 
                 <span
                   onClick={() => onView(row)}
-                  title={`Dish: ${val} (Click to view full details)`}
+                  title={`Dish: ${val} (Click to view details)`}
                   style={{
                     fontWeight: 600,
                     color: 'var(--color-primary)',
@@ -100,7 +100,7 @@ export const MenuTable = ({
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     display: 'block',
-                    maxWidth: '175px'
+                    maxWidth: '140px'
                   }}
                   onMouseEnter={(e) => { e.currentTarget.style.textDecoration = 'underline'; }}
                   onMouseLeave={(e) => { e.currentTarget.style.textDecoration = 'none'; }}
@@ -117,7 +117,7 @@ export const MenuTable = ({
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
-                  maxWidth: '175px'
+                  maxWidth: '145px'
                 }}
               >
                 {row.outletName || 'Main Campus Dining'}
@@ -130,13 +130,13 @@ export const MenuTable = ({
     {
       key: 'code',
       header: 'Code',
-      width: '85px',
+      width: '70px',
       render: (val) => (
         <code
           title={`SKU Code: ${val}`}
           style={{
             backgroundColor: 'var(--bg-muted)',
-            padding: '2px 6px',
+            padding: '2px 5px',
             borderRadius: '4px',
             fontSize: '11px',
             fontWeight: 600,
@@ -151,7 +151,7 @@ export const MenuTable = ({
     {
       key: 'category',
       header: 'Category',
-      width: '115px',
+      width: '100px',
       render: (val) => (
         <span
           title={`Category: ${val}`}
@@ -162,7 +162,7 @@ export const MenuTable = ({
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             display: 'block',
-            maxWidth: '110px'
+            maxWidth: '95px'
           }}
         >
           {val}
@@ -172,7 +172,7 @@ export const MenuTable = ({
     {
       key: 'price',
       header: 'Price',
-      width: '85px',
+      width: '75px',
       render: (val) => (
         <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
           {formatCurrency(val)}
@@ -182,12 +182,12 @@ export const MenuTable = ({
     {
       key: 'dailyCapacity',
       header: 'Capacity',
-      width: '110px',
+      width: '95px',
       render: (val, row) => (
         <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-          <div><strong>{formatNumber(row.remainingCapacity ?? val)}</strong> / {formatNumber(val)} left</div>
+          <div><strong>{formatNumber(row.remainingCapacity ?? val)}</strong> / {formatNumber(val)}</div>
           <div style={{
-            width: '55px',
+            width: '50px',
             height: '4px',
             backgroundColor: 'var(--bg-muted)',
             borderRadius: '2px',
@@ -205,8 +205,8 @@ export const MenuTable = ({
     },
     {
       key: 'publicationStatus',
-      header: 'Publish Status',
-      width: '115px',
+      header: 'Publish',
+      width: '95px',
       render: (val) => {
         const isPub = val === 'Published';
         return (
@@ -216,7 +216,7 @@ export const MenuTable = ({
               display: 'inline-flex',
               alignItems: 'center',
               gap: '4px',
-              padding: '2px 8px',
+              padding: '2px 7px',
               borderRadius: 'var(--border-radius-full)',
               fontSize: '11px',
               fontWeight: 600,
@@ -235,21 +235,17 @@ export const MenuTable = ({
     {
       key: 'status',
       header: 'Status',
-      width: '85px',
+      width: '80px',
       render: (val) => <StatusBadge status={val} size="sm" />
     },
     {
       key: 'actions',
       header: 'Actions',
       align: 'right',
-      width: '90px',
+      width: '92px',
       render: (_, row) => {
-        const isActive = row.status === 'Active';
-        const isPublished = row.publicationStatus === 'Published';
-        const isDropdownOpen = openActionId === row.id;
-
         return (
-          <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
             {/* Primary Action 1: View Details */}
             <button
               type="button"
@@ -258,7 +254,7 @@ export const MenuTable = ({
                 background: 'none',
                 border: '1px solid var(--border-color)',
                 borderRadius: '4px',
-                padding: '4px 6px',
+                padding: '4px 5px',
                 color: 'var(--text-secondary)',
                 cursor: 'pointer'
               }}
@@ -275,7 +271,7 @@ export const MenuTable = ({
                 background: 'none',
                 border: '1px solid var(--border-color)',
                 borderRadius: '4px',
-                padding: '4px 6px',
+                padding: '4px 5px',
                 color: 'var(--color-accent)',
                 cursor: 'pointer'
               }}
@@ -284,12 +280,12 @@ export const MenuTable = ({
               <Edit size={13} />
             </button>
 
-            {/* Three Dots Button: Congested Secondary Actions Dropdown */}
+            {/* Three Dots Button: Opens Small Secondary Actions Modal */}
             <button
               type="button"
-              onClick={() => setOpenActionId(isDropdownOpen ? null : row.id)}
+              onClick={() => setActionModalRow(row)}
               style={{
-                background: isDropdownOpen ? 'var(--bg-muted)' : 'none',
+                background: actionModalRow?.id === row.id ? 'var(--bg-muted)' : 'none',
                 border: '1px solid var(--border-color)',
                 borderRadius: '4px',
                 padding: '4px 5px',
@@ -301,136 +297,187 @@ export const MenuTable = ({
             >
               <MoreVertical size={13} />
             </button>
-
-            {/* Congested Action Dropdown Popover */}
-            {isDropdownOpen && (
-              <>
-                <div
-                  onClick={() => setOpenActionId(null)}
-                  style={{
-                    position: 'fixed',
-                    inset: 0,
-                    zIndex: 40
-                  }}
-                />
-                <div style={{
-                  position: 'absolute',
-                  right: 0,
-                  top: '100%',
-                  marginTop: '4px',
-                  backgroundColor: 'var(--bg-surface)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: 'var(--border-radius-md)',
-                  boxShadow: 'var(--shadow-modal)',
-                  zIndex: 50,
-                  minWidth: '150px',
-                  padding: '4px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '2px',
-                  textAlign: 'left'
-                }}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setOpenActionId(null);
-                      onTogglePublish(row);
-                    }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      padding: '6px 8px',
-                      borderRadius: 'var(--border-radius-sm)',
-                      border: 'none',
-                      background: 'none',
-                      color: isPublished ? 'var(--color-warning)' : 'var(--color-primary)',
-                      fontSize: '12px',
-                      fontWeight: 500,
-                      cursor: 'pointer',
-                      width: '100%',
-                      textAlign: 'left'
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-muted)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-                  >
-                    {isPublished ? <GlobeLock size={13} /> : <Globe size={13} />}
-                    <span>{isPublished ? 'Unpublish (Draft)' : 'Publish Item'}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setOpenActionId(null);
-                      onToggleStatus(row);
-                    }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      padding: '6px 8px',
-                      borderRadius: 'var(--border-radius-sm)',
-                      border: 'none',
-                      background: 'none',
-                      color: isActive ? 'var(--color-danger)' : 'var(--color-success)',
-                      fontSize: '12px',
-                      fontWeight: 500,
-                      cursor: 'pointer',
-                      width: '100%',
-                      textAlign: 'left'
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-muted)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-                  >
-                    <Power size={13} />
-                    <span>{isActive ? 'Deactivate' : 'Activate'}</span>
-                  </button>
-
-                  <div style={{ height: '1px', backgroundColor: 'var(--border-color)', margin: '2px 0' }} />
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setOpenActionId(null);
-                      onDelete(row);
-                    }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      padding: '6px 8px',
-                      borderRadius: 'var(--border-radius-sm)',
-                      border: 'none',
-                      background: 'none',
-                      color: 'var(--color-danger)',
-                      fontSize: '12px',
-                      fontWeight: 500,
-                      cursor: 'pointer',
-                      width: '100%',
-                      textAlign: 'left'
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--color-danger-bg)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-                  >
-                    <Trash2 size={13} />
-                    <span>Delete Item</span>
-                  </button>
-                </div>
-              </>
-            )}
           </div>
         );
       }
     }
   ];
 
+  const isActive = actionModalRow?.status === 'Active';
+  const isPublished = actionModalRow?.publicationStatus === 'Published';
+
   return (
-    <DataTable
-      columns={columns}
-      data={items}
-      loading={loading}
-      footer={footer}
-    />
+    <>
+      <DataTable
+        columns={columns}
+        data={items}
+        loading={loading}
+        footer={footer}
+      />
+
+      {/* Small Compact Modal for Secondary Actions triggered by 3-dots */}
+      {actionModalRow && (
+        <div
+          onClick={() => setActionModalRow(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.55)',
+            backdropFilter: 'blur(2px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 80,
+            padding: '16px'
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: 'var(--modal-bg)',
+              color: 'var(--text-primary)',
+              border: '1px solid var(--border-color)',
+              borderRadius: 'var(--border-radius-lg)',
+              boxShadow: 'var(--shadow-modal)',
+              width: '100%',
+              maxWidth: '300px',
+              overflow: 'hidden'
+            }}
+          >
+            {/* Small Modal Header */}
+            <div style={{
+              padding: '12px 16px',
+              borderBottom: '1px solid var(--border-color)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '8px'
+            }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{
+                  fontSize: '13.5px',
+                  fontWeight: 700,
+                  color: 'var(--text-primary)',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis'
+                }}>
+                  {actionModalRow.name}
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                  Quick Item Actions ({actionModalRow.code})
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActionModalRow(null)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  padding: '4px'
+                }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Remaining Action Icons & Labels */}
+            <div style={{ padding: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  const target = actionModalRow;
+                  setActionModalRow(null);
+                  onTogglePublish(target);
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '10px 12px',
+                  borderRadius: 'var(--border-radius-md)',
+                  border: 'none',
+                  background: 'none',
+                  color: isPublished ? 'var(--color-warning)' : 'var(--color-primary)',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  width: '100%',
+                  textAlign: 'left'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-muted)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+              >
+                {isPublished ? <GlobeLock size={16} /> : <Globe size={16} />}
+                <span>{isPublished ? 'Unpublish (Move to Draft)' : 'Publish Item'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const target = actionModalRow;
+                  setActionModalRow(null);
+                  onToggleStatus(target);
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '10px 12px',
+                  borderRadius: 'var(--border-radius-md)',
+                  border: 'none',
+                  background: 'none',
+                  color: isActive ? 'var(--color-danger)' : 'var(--color-success)',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  width: '100%',
+                  textAlign: 'left'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-muted)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+              >
+                <Power size={16} />
+                <span>{isActive ? 'Deactivate Dish' : 'Activate Dish'}</span>
+              </button>
+
+              <div style={{ height: '1px', backgroundColor: 'var(--border-color)', margin: '2px 0' }} />
+
+              <button
+                type="button"
+                onClick={() => {
+                  const target = actionModalRow;
+                  setActionModalRow(null);
+                  onDelete(target);
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '10px 12px',
+                  borderRadius: 'var(--border-radius-md)',
+                  border: 'none',
+                  background: 'none',
+                  color: 'var(--color-danger)',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  width: '100%',
+                  textAlign: 'left'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--color-danger-bg)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+              >
+                <Trash2 size={16} />
+                <span>Delete Menu Item</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 

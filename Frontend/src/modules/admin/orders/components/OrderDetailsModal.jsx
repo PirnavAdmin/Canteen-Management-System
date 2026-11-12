@@ -32,14 +32,17 @@ export const OrderDetailsModal = ({
       padding: '16px'
     }}>
       <div style={{
-        backgroundColor: '#ffffff',
+        backgroundColor: 'var(--modal-bg)',
+        color: 'var(--text-primary)',
+        border: '1px solid var(--border-color)',
         borderRadius: 'var(--border-radius-xl)',
         maxWidth: '740px',
         width: '100%',
         maxHeight: '90vh',
         display: 'flex',
         flexDirection: 'column',
-        boxShadow: 'var(--shadow-modal)'
+        boxShadow: 'var(--shadow-modal)',
+        overflow: 'hidden'
       }}>
         {/* Header */}
         <div style={{
@@ -188,16 +191,16 @@ export const OrderDetailsModal = ({
             </div>
 
             {order.cancellationReason && (
-              <div style={{ border: '1px solid #fecaca', backgroundColor: '#fef2f2', borderRadius: 'var(--border-radius-md)', padding: '12px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', color: '#991b1b', fontWeight: 600, fontSize: '12.5px' }}>
+              <div style={{ border: '1px solid var(--color-danger-border)', backgroundColor: 'var(--color-danger-bg)', borderRadius: 'var(--border-radius-md)', padding: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', color: 'var(--color-danger-text)', fontWeight: 600, fontSize: '12.5px' }}>
                   <AlertCircle size={14} />
                   <span>Cancellation & Refund</span>
                 </div>
-                <div style={{ fontSize: '12px', color: '#7f1d1d' }}>
+                <div style={{ fontSize: '12px', color: 'var(--color-danger-text)' }}>
                   Reason: {order.cancellationReason}
                 </div>
                 {order.refundDetails && (
-                  <div style={{ fontSize: '11.5px', color: '#991b1b', marginTop: '4px' }}>
+                  <div style={{ fontSize: '11.5px', color: 'var(--color-danger-text)', marginTop: '4px' }}>
                     Refund Ref: {order.refundDetails.refundId} ({formatCurrency(order.refundDetails.amount)}) - {order.refundDetails.status}
                   </div>
                 )}
@@ -217,7 +220,7 @@ export const OrderDetailsModal = ({
                     width: '20px',
                     height: '20px',
                     borderRadius: '50%',
-                    backgroundColor: event.status === ORDER_STATUS.CANCELLED ? '#fef2f2' : 'var(--color-primary-light)',
+                    backgroundColor: event.status === ORDER_STATUS.CANCELLED ? 'var(--color-danger-bg)' : 'var(--color-primary-light)',
                     border: `1.5px solid ${event.status === ORDER_STATUS.CANCELLED ? 'var(--color-danger)' : 'var(--color-primary)'}`,
                     display: 'flex',
                     alignItems: 'center',

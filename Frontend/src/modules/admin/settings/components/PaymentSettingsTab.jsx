@@ -16,7 +16,7 @@ export const PaymentSettingsTab = ({ initialData = {}, onSave }) => {
 
   return (
     <form onSubmit={handleSubmit} style={{
-      backgroundColor: '#ffffff',
+      backgroundColor: 'var(--bg-surface)',
       borderRadius: 'var(--border-radius-lg)',
       border: '1px solid var(--border-color)',
       padding: '24px',

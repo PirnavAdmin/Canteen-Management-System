@@ -21,7 +21,7 @@ export const INITIAL_MENU_ITEMS = [
     publicationStatus: 'Published',
     servingSize: '1 Plate (350g)',
     calories: '480 kcal',
-    imageUrl: 'https://images.unsplash.com/photo-1631452180519-c014fe946bc7?auto=format&fit=crop&w=600&q=80',
+    imageUrl: 'https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&w=600&q=80',
     allergens: ['Dairy / Milk'],
     workingDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
     startTime: '11:30',

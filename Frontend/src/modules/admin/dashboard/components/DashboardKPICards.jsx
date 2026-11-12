@@ -93,7 +93,7 @@ export const DashboardKPICards = ({ summary = {} }) => {
           <div
             key={i}
             style={{
-              backgroundColor: '#ffffff',
+              backgroundColor: 'var(--bg-surface)',
               border: card.isHero ? '1.5px solid var(--color-primary-border)' : '1px solid var(--border-color)',
               borderRadius: 'var(--border-radius-lg)',
               padding: '14px 16px',

@@ -7,7 +7,7 @@ export const StockAlertsCard = ({ alerts = [] }) => {
 
   return (
     <div style={{
-      backgroundColor: '#ffffff',
+      backgroundColor: 'var(--bg-surface)',
       borderRadius: 'var(--border-radius-lg)',
       border: '1px solid var(--border-color)',
       padding: '16px 20px',
@@ -81,7 +81,7 @@ export const StockAlertsCard = ({ alerts = [] }) => {
                   borderRadius: 'var(--border-radius-xs)',
                   fontSize: '11px',
                   fontWeight: 600,
-                  backgroundColor: '#ffffff',
+                  backgroundColor: 'var(--bg-surface)',
                   color: isExpiring ? '#d97706' : '#dc2626',
                   border: `1px solid ${isExpiring ? '#fde68a' : '#fecaca'}`,
                   whiteSpace: 'nowrap'

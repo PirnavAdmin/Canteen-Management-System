@@ -50,7 +50,7 @@ export const ToastContainer = () => {
             aria-live="polite"
             style={{
               pointerEvents: 'auto',
-              background: '#ffffff',
+              background: 'var(--bg-surface)',
               border: `1px solid ${borderColor}`,
               borderLeft: `4px solid ${iconColor}`,
               borderRadius: 'var(--border-radius-md)',

@@ -3,7 +3,6 @@ import { NavLink } from 'react-router-dom';
 import {
   Utensils,
   X,
-  Building2,
   LayoutDashboard,
   UtensilsCrossed,
   ShoppingBag,
@@ -46,8 +45,13 @@ export const Sidebar = ({ isOpen, onClose }) => {
             <Utensils size={18} />
           </div>
           <div className={styles.brandInfo}>
-            <span className={styles.brandTitle}>Canteen Admin</span>
-            <span className={styles.brandSubtitle}>SMS / CMS Integration</span>
+            <span className={styles.brandTitle} title={APP_CONFIG.institutionName}>
+              {APP_CONFIG.institutionName}
+            </span>
+            <span className={styles.brandSubtitle} style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '2px' }}>
+              <span className={styles.statusDot} />
+              Canteen
+            </span>
           </div>
           <button
             onClick={onClose}
@@ -90,17 +94,6 @@ export const Sidebar = ({ isOpen, onClose }) => {
             );
           })}
         </nav>
-
-        <div className={styles.sidebarFooter}>
-          <Building2 size={20} style={{ color: 'var(--text-sidebar-muted)', flexShrink: 0 }} />
-          <div className={styles.institutionBadge}>
-            <span className={styles.institutionName}>{APP_CONFIG.institutionName}</span>
-            <span className={styles.institutionStatus}>
-              <span className={styles.statusDot} />
-              Institutional Mode Active
-            </span>
-          </div>
-        </div>
       </aside>
     </>
   );

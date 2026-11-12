@@ -46,7 +46,9 @@ export const FeedbackDetailsModal = ({ isOpen, onClose, ticket, onResolve }) => 
       padding: '16px'
     }}>
       <div style={{
-        backgroundColor: '#ffffff',
+        backgroundColor: 'var(--modal-bg)',
+        color: 'var(--text-primary)',
+        border: '1px solid var(--border-color)',
         borderRadius: 'var(--border-radius-xl)',
         maxWidth: '600px',
         width: '100%',
@@ -122,11 +124,11 @@ export const FeedbackDetailsModal = ({ isOpen, onClose, ticket, onResolve }) => 
             </label>
             <div style={{
               padding: '12px 14px',
-              backgroundColor: '#fffbeb',
-              border: '1px solid #fde68a',
+              backgroundColor: 'var(--color-warning-bg)',
+              border: '1px solid var(--color-warning-border)',
               borderRadius: 'var(--border-radius-md)',
               fontSize: '13px',
-              color: '#92400e',
+              color: 'var(--color-warning-text)',
               lineHeight: 1.5
             }}>
               "{ticket.comments}"

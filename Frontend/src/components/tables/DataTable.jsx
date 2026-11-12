@@ -25,7 +25,7 @@ export const DataTable = ({
       ...style
     }}>
       <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-        <table style={{ width: '100%', minWidth: '760px', borderCollapse: 'collapse', textAlign: 'left' }}>
+        <table style={{ width: '100%', minWidth: '680px', borderCollapse: 'collapse', textAlign: 'left' }}>
           <thead>
             <tr style={{
               backgroundColor: 'var(--bg-app)',

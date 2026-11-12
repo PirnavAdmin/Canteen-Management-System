@@ -26,7 +26,7 @@ export const ReportSummaryHeader = ({ metrics = {} }) => {
           <div
             key={idx}
             style={{
-              backgroundColor: '#ffffff',
+              backgroundColor: 'var(--bg-surface)',
               borderRadius: 'var(--border-radius-md)',
               border: '1px solid var(--border-color)',
               padding: '12px 16px',
