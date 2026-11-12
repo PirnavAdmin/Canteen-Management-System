@@ -33,3 +33,5 @@ export const AddCanteenPage = () => {
   );
 };
 
+export default AddCanteenPage;
+

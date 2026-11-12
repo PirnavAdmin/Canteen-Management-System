@@ -30,7 +30,7 @@ export const CategoryProvider = ({ children }) => {
   }, [loadCategories]);
 
   const getCategory = useCallback((id) => {
-    return categories.find(c => c.id === id) || null;
+    return categories.find(c => String(c.id) === String(id)) || null;
   }, [categories]);
 
   const createCategory = useCallback(async (formData) => {
@@ -48,7 +48,7 @@ export const CategoryProvider = ({ children }) => {
   const updateCategory = useCallback(async (id, formData) => {
     try {
       const updated = await categoryService.update(id, formData);
-      setCategories(prev => prev.map(c => c.id === id ? updated : c));
+      setCategories(prev => prev.map(c => String(c.id) === String(id) ? updated : c));
       success('Category Updated', `Category "${updated.name}" updated successfully.`);
       return updated;
     } catch (err) {
@@ -60,7 +60,7 @@ export const CategoryProvider = ({ children }) => {
   const toggleCategoryStatus = useCallback(async (id) => {
     try {
       const updated = await categoryService.toggleStatus(id);
-      setCategories(prev => prev.map(c => c.id === id ? updated : c));
+      setCategories(prev => prev.map(c => String(c.id) === String(id) ? updated : c));
       const statusText = updated.status === 'Active' ? 'Activated' : 'Deactivated';
       info('Status Changed', `Category "${updated.name}" is now ${statusText}.`);
       return updated;
@@ -77,7 +77,7 @@ export const CategoryProvider = ({ children }) => {
         warning('Action Blocked by SRS Policy', result.reason);
         return result;
       }
-      setCategories(prev => prev.filter(c => c.id !== id));
+      setCategories(prev => prev.filter(c => String(c.id) !== String(id)));
       success('Category Deleted', 'Category removed successfully.');
       return result;
     } catch (err) {

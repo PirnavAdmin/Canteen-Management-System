@@ -43,7 +43,7 @@ export const CategoryDetailsPage = () => {
         <PageHeader
           title="Category Details"
           breadcrumbItems={[
-            { label: 'Food Categories', path: '/categories' },
+            { label: 'Food Categories', path: '/admin/categories' },
             { label: 'Details' }
           ]}
         />
@@ -52,7 +52,7 @@ export const CategoryDetailsPage = () => {
             <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>
               The requested food category does not exist or may have been deleted.
             </p>
-            <Button variant="primary" onClick={() => navigate('/categories')}>
+            <Button variant="primary" onClick={() => navigate('/admin/categories')}>
               Return to Category List
             </Button>
           </div>
@@ -75,7 +75,7 @@ export const CategoryDetailsPage = () => {
         description={`Display Order Rank: #${category.displayOrder} • Category ID: ${category.id}`}
         badge={<StatusBadge status={category.status} />}
         breadcrumbItems={[
-          { label: 'Food Categories', path: '/categories' },
+          { label: 'Food Categories', path: '/admin/categories' },
           { label: category.name }
         ]}
         actions={
@@ -83,7 +83,7 @@ export const CategoryDetailsPage = () => {
             <Button
               variant="secondary"
               icon={ArrowLeft}
-              onClick={() => navigate('/categories')}
+              onClick={() => navigate('/admin/categories')}
             >
               Back to List
             </Button>
@@ -101,7 +101,7 @@ export const CategoryDetailsPage = () => {
             <Button
               variant="primary"
               icon={Edit}
-              onClick={() => navigate(`/categories/${id}/edit`)}
+              onClick={() => navigate(`/admin/categories/${id}/edit`)}
             >
               Edit Category
             </Button>
@@ -269,3 +269,5 @@ export const CategoryDetailsPage = () => {
     </div>
   );
 };
+
+export default CategoryDetailsPage;

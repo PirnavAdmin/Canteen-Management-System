@@ -65,10 +65,11 @@ export const SlotListPage = () => {
   // Filtered slots
   const filteredSlots = useMemo(() => {
     return slots.filter(slot => {
-      if (selectedOutlet !== 'ALL' && slot.outletId !== selectedOutlet) return false;
-      if (selectedSession !== 'ALL' && slot.mealSession !== selectedSession) return false;
-      if (selectedStatus !== 'ALL' && slot.status !== selectedStatus) return false;
-      if (selectedDate && slot.date !== selectedDate) return false;
+      if (selectedOutlet !== 'ALL' && String(slot.outletId) !== String(selectedOutlet)) return false;
+      const slotSession = slot.session || slot.mealSession;
+      if (selectedSession !== 'ALL' && slotSession !== selectedSession) return false;
+      if (selectedStatus !== 'ALL' && String(slot.status || '').toLowerCase() !== selectedStatus.toLowerCase()) return false;
+      if (selectedDate && String(slot.date || '').slice(0, 10) !== selectedDate) return false;
       return true;
     });
   }, [slots, selectedOutlet, selectedSession, selectedStatus, selectedDate]);

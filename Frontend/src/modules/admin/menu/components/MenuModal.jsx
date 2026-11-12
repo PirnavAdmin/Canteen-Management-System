@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2, Camera, Upload, Sparkles } from 'lucide-react';
+import { X, Plus, Trash2, Upload, Image as ImageIcon } from 'lucide-react';
 import { Button } from '../../../../components/common/Button';
 import { ALLERGENS, FOOD_TYPES } from '../../../../constants/appConstants';
 import { canteenService } from '../../outlets/services/canteenService';
@@ -39,6 +39,7 @@ export const MenuModal = ({
   });
 
   const [errors, setErrors] = useState({});
+  const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -105,19 +106,46 @@ export const MenuModal = ({
       });
     }
     setErrors({});
+    setImageError(false);
   }, [initialData, isOpen]);
 
   if (!isOpen) return null;
 
   const handleImageUpload = (e) => {
     const file = e.target.files && e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData(prev => ({ ...prev, imageUrl: reader.result }));
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const maxSize = 200;
+        let { width, height } = img;
+        if (width > height && width > maxSize) {
+          height = Math.round((height * maxSize) / width);
+          width = maxSize;
+        } else if (height > maxSize) {
+          width = Math.round((width * maxSize) / height);
+          height = maxSize;
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.6);
+
+        setImageError(false);
+        setFormData(prev => ({ ...prev, imageUrl: compressedDataUrl }));
       };
-      reader.readAsDataURL(file);
-    }
+      img.onerror = () => {
+        setImageError(false);
+        setFormData(prev => ({ ...prev, imageUrl: event.target.result }));
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
   };
 
   const validate = () => {
@@ -451,14 +479,17 @@ export const MenuModal = ({
                   Dish Photo *
                 </label>
                 <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
-                  Take a photo using camera or upload image (displays small in menu table & medium in user item details)
+                  Upload dish image or paste image URL (displays small in menu table & medium in user item details)
                 </span>
               </div>
 
               {formData.imageUrl && (
                 <button
                   type="button"
-                  onClick={() => setFormData({ ...formData, imageUrl: '' })}
+                  onClick={() => {
+                    setFormData({ ...formData, imageUrl: '' });
+                    setImageError(false);
+                  }}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -492,15 +523,17 @@ export const MenuModal = ({
                 justifyContent: 'center',
                 flexShrink: 0
               }}>
-                {formData.imageUrl ? (
+                {formData.imageUrl && !imageError ? (
                   <img
                     src={formData.imageUrl}
                     alt="Dish Preview"
+                    onError={() => setImageError(true)}
+                    onLoad={() => setImageError(false)}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', color: 'var(--text-muted)', textAlign: 'center', padding: '6px' }}>
-                    <Camera size={26} style={{ opacity: 0.6 }} />
+                    <ImageIcon size={26} style={{ opacity: 0.6 }} />
                     <span style={{ fontSize: '11px', fontWeight: 500 }}>No photo selected</span>
                   </div>
                 )}
@@ -509,32 +542,6 @@ export const MenuModal = ({
               {/* Photo Input Controls */}
               <div style={{ flex: 1, minWidth: '240px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  <label
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '7px 14px',
-                      borderRadius: 'var(--border-radius-md)',
-                      backgroundColor: 'var(--color-accent)',
-                      color: '#ffffff',
-                      fontSize: '12px',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      boxShadow: 'var(--shadow-xs)'
-                    }}
-                  >
-                    <Camera size={14} />
-                    <span>Take / Choose Photo</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      onChange={handleImageUpload}
-                      style={{ display: 'none' }}
-                    />
-                  </label>
-
                   <label
                     style={{
                       display: 'inline-flex',
@@ -561,54 +568,31 @@ export const MenuModal = ({
                   </label>
                 </div>
 
-                {/* Direct image URL input */}
-                <input
-                  type="url"
-                  placeholder="Or paste dish image URL (https://...)"
-                  value={formData.imageUrl}
-                  onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                  style={{
-                    width: '100%',
-                    height: '32px',
-                    padding: '0 10px',
-                    fontSize: '12px',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: 'var(--border-radius-sm)',
-                    backgroundColor: 'var(--bg-surface)',
-                    color: 'var(--text-primary)'
-                  }}
-                />
-
-                {/* Quick preset dish photo chips */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '2px' }}>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                    <Sparkles size={11} /> Presets:
+                {formData.imageUrl ? (
+                  <span style={{ fontSize: '11.5px', color: 'var(--color-danger)', fontWeight: 500 }}>
+                    Image is uploaded
                   </span>
-                  {[
-                    { label: '🍛 Thali', url: 'https://images.unsplash.com/photo-1610192244261-3f33de3f55e4?auto=format&fit=crop&w=600&q=80' },
-                    { label: '🍲 Biryani', url: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=600&q=80' },
-                    { label: '🥪 Sandwich', url: 'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?auto=format&fit=crop&w=600&q=80' },
-                    { label: '🧀 Paneer', url: 'https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&w=600&q=80' },
-                    { label: '🥤 Drink', url: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=600&q=80' }
-                  ].map((preset) => (
-                    <button
-                      key={preset.label}
-                      type="button"
-                      onClick={() => setFormData({ ...formData, imageUrl: preset.url })}
-                      style={{
-                        padding: '2px 8px',
-                        fontSize: '11px',
-                        borderRadius: 'var(--border-radius-full)',
-                        border: '1px solid var(--border-color)',
-                        backgroundColor: formData.imageUrl === preset.url ? 'var(--color-primary-light)' : 'var(--bg-surface)',
-                        color: formData.imageUrl === preset.url ? 'var(--color-primary)' : 'var(--text-secondary)',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      {preset.label}
-                    </button>
-                  ))}
-                </div>
+                ) : (
+                  <input
+                    type="url"
+                    placeholder="Or paste dish image URL (https://...)"
+                    value={formData.imageUrl}
+                    onChange={(e) => {
+                      setFormData({ ...formData, imageUrl: e.target.value });
+                      setImageError(false);
+                    }}
+                    style={{
+                      width: '100%',
+                      height: '32px',
+                      padding: '0 10px',
+                      fontSize: '12px',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: 'var(--border-radius-sm)',
+                      backgroundColor: 'var(--bg-surface)',
+                      color: 'var(--text-primary)'
+                    }}
+                  />
+                )}
               </div>
             </div>
           </div>
