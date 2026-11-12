@@ -1,94 +1,76 @@
 /**
  * Central API Client for Canteen Management System
- * Built on native fetch with timeouts, interceptors, and normalized error handling.
+ * Built on Axios with JWT bearer interceptors, base URL configuration,
+ * and standardized response unwrapping { success, message, data }.
  */
 
+import axios from 'axios';
 import { ENV } from '../../config/env';
-import { requestInterceptor, responseInterceptor } from './interceptors';
-import { handleApiError } from './apiErrorHandler';
 
-class ApiClient {
-  constructor(baseUrl = ENV.apiBaseUrl, timeout = ENV.apiTimeout) {
-    this.baseUrl = baseUrl.replace(/\/+$/, '');
-    this.timeout = timeout;
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
+
+export const axiosInstance = axios.create({
+  baseURL: BASE_URL,
+  timeout: ENV.apiTimeout || 15000,
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
   }
+});
 
-  buildUrl(endpoint, params = null) {
-    const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-    const url = new URL(`${this.baseUrl}${cleanEndpoint}`);
-
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== '') {
-          url.searchParams.append(key, String(value));
-        }
-      });
+// Request Interceptor: Attach JWT Token & Institution context
+axiosInstance.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
 
-    return url.toString();
-  }
+    const institutionId = localStorage.getItem('institution_id') || '1';
+    config.headers['X-Institution-Id'] = institutionId;
 
-  async request(endpoint, options = {}) {
-    const { params, timeout = this.timeout, signal: customSignal, ...fetchOptions } = options;
-    const url = this.buildUrl(endpoint, params);
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
-    // Timeout controller
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeout);
+// Response Interceptor: Standardize Response format and handle 401s
+axiosInstance.interceptors.response.use(
+  (response) => {
+    // Backend returns { success: true/false, message: "...", data: ... }
+    return response.data;
+  },
+  (error) => {
+    const status = error.response ? error.response.status : null;
+    const responseData = error.response ? error.response.data : null;
 
-    // Link custom abort signal if provided
-    if (customSignal) {
-      customSignal.addEventListener('abort', () => controller.abort());
+    if (status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('auth_user');
+      window.dispatchEvent(new CustomEvent('auth:unauthorized'));
     }
 
-    try {
-      const interceptedOptions = requestInterceptor({
-        ...fetchOptions,
-        signal: controller.signal
-      });
+    const formattedError = {
+      success: false,
+      status: status || 500,
+      message: responseData?.message || error.message || 'An unexpected error occurred.',
+      errors: responseData?.errors || [],
+      raw: error
+    };
 
-      const response = await fetch(url, interceptedOptions);
-      clearTimeout(timeoutId);
-      return await responseInterceptor(response);
-    } catch (error) {
-      clearTimeout(timeoutId);
-      throw handleApiError(error);
-    }
+    return Promise.reject(formattedError);
   }
+);
 
-  get(endpoint, params = null, options = {}) {
-    return this.request(endpoint, { ...options, method: 'GET', params });
-  }
+// High-level API methods
+export const apiClient = {
+  get: (url, params = null, config = {}) => axiosInstance.get(url, { params, ...config }),
+  post: (url, data = null, config = {}) => axiosInstance.post(url, data, config),
+  put: (url, data = null, config = {}) => axiosInstance.put(url, data, config),
+  patch: (url, data = null, config = {}) => axiosInstance.patch(url, data, config),
+  delete: (url, config = {}) => axiosInstance.delete(url, config),
+  instance: axiosInstance
+};
 
-  post(endpoint, data = null, options = {}) {
-    return this.request(endpoint, {
-      ...options,
-      method: 'POST',
-      body: data ? JSON.stringify(data) : undefined
-    });
-  }
-
-  put(endpoint, data = null, options = {}) {
-    return this.request(endpoint, {
-      ...options,
-      method: 'PUT',
-      body: data ? JSON.stringify(data) : undefined
-    });
-  }
-
-  patch(endpoint, data = null, options = {}) {
-    return this.request(endpoint, {
-      ...options,
-      method: 'PATCH',
-      body: data ? JSON.stringify(data) : undefined
-    });
-  }
-
-  delete(endpoint, options = {}) {
-    return this.request(endpoint, { ...options, method: 'DELETE' });
-  }
-}
-
-export const apiClient = new ApiClient();
 export default apiClient;
-
