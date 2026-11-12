@@ -11,6 +11,7 @@ namespace CanteenManagement.API.Repositories.Interfaces.Categories
         Task<Category> UpdateAsync(Category category);
         Task<bool> DeleteAsync(int id, int institutionId);
         Task<(int linkedItemCount, int historicalOrderCount)> GetDependencyCountsAsync(int categoryId);
+        Task<Dictionary<int, (int linkedItemCount, int historicalOrderCount)>> GetBatchDependencyCountsAsync(int institutionId);
     }
 }
 

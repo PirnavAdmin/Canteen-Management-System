@@ -20,12 +20,13 @@ namespace CanteenManagement.API.Services.Implementations.Categories
         public async Task<IEnumerable<CategoryDto>> GetAllAsync(int institutionId)
         {
             var categories = await _repository.GetAllAsync(institutionId);
+            var countsMap = await _repository.GetBatchDependencyCountsAsync(institutionId);
             var result = new List<CategoryDto>();
 
             foreach (var cat in categories)
             {
-                var (linkedItems, orders) = await _repository.GetDependencyCountsAsync(cat.CategoryId);
-                result.Add(MapToDto(cat, linkedItems, orders));
+                var counts = countsMap.GetValueOrDefault(cat.CategoryId, (0, 0));
+                result.Add(MapToDto(cat, counts.Item1, counts.Item2));
             }
 
             return result;
