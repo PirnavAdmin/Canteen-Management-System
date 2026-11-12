@@ -2,6 +2,11 @@ import React from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { AppLayout } from '../components/layout/AppLayout';
 import { NotFoundPage } from '../components/common/NotFoundPage';
+import { ProtectedRoute } from '../modules/auth/components/ProtectedRoute';
+
+// Auth Pages
+import { LoginPage } from '../modules/auth/pages/LoginPage';
+import { RegisterPage } from '../modules/auth/pages/RegisterPage';
 
 // Admin Modules
 import { DashboardPage } from '../modules/admin/dashboard';
@@ -26,9 +31,24 @@ import {
 import { SettingsPage } from '../modules/admin/settings';
 
 export const router = createBrowserRouter([
+  // Public Authentication Routes
+  {
+    path: '/login',
+    element: <LoginPage />
+  },
+  {
+    path: '/register',
+    element: <RegisterPage />
+  },
+
+  // Protected App & Administration Routes
   {
     path: '/',
-    element: <AppLayout />,
+    element: (
+      <ProtectedRoute allowedRoles={['Admin', 'Staff']}>
+        <AppLayout />
+      </ProtectedRoute>
+    ),
     children: [
       {
         index: true,
@@ -69,7 +89,7 @@ export const router = createBrowserRouter([
             path: 'feedback',
             element: <FeedbackPage />
           },
-          // Outlet Management Routes
+          // Outlet Management Routes (First Domain Module)
           {
             path: 'outlets',
             children: [
@@ -121,7 +141,7 @@ export const router = createBrowserRouter([
         ]
       },
 
-      // Backwards Compatibility Routes for /canteen
+      // Compatibility routes for /canteen
       {
         path: 'canteen',
         children: [
@@ -144,35 +164,18 @@ export const router = createBrowserRouter([
         ]
       },
 
-      // Backwards Compatibility Routes for /categories
-      {
-        path: 'categories',
-        children: [
-          {
-            index: true,
-            element: <CategoryListPage />
-          },
-          {
-            path: 'create',
-            element: <AddCategoryPage />
-          },
-          {
-            path: ':id',
-            element: <CategoryDetailsPage />
-          },
-          {
-            path: ':id/edit',
-            element: <EditCategoryPage />
-          }
-        ]
-      },
-
-      // 404 Fallback
+      // 404 Fallback within Layout
       {
         path: '*',
         element: <NotFoundPage />
       }
     ]
+  },
+
+  // Catch-all route outside layout
+  {
+    path: '*',
+    element: <NotFoundPage />
   }
 ]);
 
