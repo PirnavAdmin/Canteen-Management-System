@@ -10,6 +10,7 @@ export const MenuModal = ({
   onClose,
   onSubmit,
   initialData = null,
+  loading = false,
   title = 'Add Menu Item'
 }) => {
   const [outlets, setOutlets] = useState([]);
@@ -966,10 +967,10 @@ export const MenuModal = ({
             paddingTop: '16px',
             borderTop: '1px solid var(--border-color)'
           }}>
-            <Button variant="secondary" onClick={onClose} type="button">
+            <Button variant="secondary" onClick={onClose} type="button" disabled={loading}>
               Cancel
             </Button>
-            <Button variant="primary" type="submit">
+            <Button variant="primary" type="submit" loading={loading}>
               {initialData ? 'Save Changes' : 'Create Menu Item'}
             </Button>
           </div>

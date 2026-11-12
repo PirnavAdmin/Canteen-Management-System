@@ -2,19 +2,19 @@ import React, { useState } from 'react';
 import { X, AlertTriangle } from 'lucide-react';
 import { Button } from '../../../../components/common/Button';
 
-export const CancelOrderModal = ({ isOpen, onClose, order, onConfirmCancel }) => {
+export const CancelOrderModal = ({ isOpen, onClose, order, loading = false, onConfirmCancel }) => {
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
 
   if (!isOpen || !order) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!reason.trim()) {
       setError('A cancellation reason is required for audit and refund initiation.');
       return;
     }
-    onConfirmCancel(order.id, reason);
+    await onConfirmCancel(order.id, reason);
     onClose();
   };
 
@@ -90,10 +90,10 @@ export const CancelOrderModal = ({ isOpen, onClose, order, onConfirmCancel }) =>
           {error && <div style={{ fontSize: '11.5px', color: 'var(--color-danger)', marginBottom: '10px' }}>{error}</div>}
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
-            <Button variant="secondary" onClick={onClose} type="button">
+            <Button variant="secondary" onClick={onClose} type="button" disabled={loading}>
               Dismiss
             </Button>
-            <Button variant="danger" type="submit">
+            <Button variant="danger" type="submit" loading={loading}>
               Confirm Cancellation
             </Button>
           </div>

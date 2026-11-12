@@ -9,6 +9,7 @@ export const OrderDetailsModal = ({
   isOpen,
   onClose,
   order,
+  loading = false,
   onUpdateStatus,
   onOpenCancel,
   onProcessRefund
@@ -267,6 +268,7 @@ export const OrderDetailsModal = ({
               <Button
                 variant="danger"
                 icon={Ban}
+                disabled={loading}
                 onClick={() => onOpenCancel(order)}
               >
                 Cancel Order
@@ -277,6 +279,7 @@ export const OrderDetailsModal = ({
               <Button
                 variant="warning"
                 icon={RotateCcw}
+                loading={loading}
                 onClick={() => onProcessRefund(order.id)}
               >
                 Process Refund
@@ -285,7 +288,7 @@ export const OrderDetailsModal = ({
           </div>
 
           <div style={{ display: 'flex', gap: '8px' }}>
-            <Button variant="secondary" onClick={onClose}>
+            <Button variant="secondary" onClick={onClose} disabled={loading}>
               Close
             </Button>
 
@@ -295,6 +298,7 @@ export const OrderDetailsModal = ({
                 <Button
                   key={nextSt}
                   variant="primary"
+                  loading={loading}
                   onClick={() => onUpdateStatus(order.id, nextSt)}
                 >
                   Mark as {nextSt}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { SlidersHorizontal, PauseCircle, PlayCircle, Clock } from 'lucide-react';
+import { SlidersHorizontal, PauseCircle, PlayCircle, Clock, Loader2 } from 'lucide-react';
 import { DataTable } from '../../../../components/tables/DataTable';
 import { StatusBadge } from '../../../../components/common/StatusBadge';
 import { formatTime12Hour, formatDate } from '../../../../utils/formatters';
@@ -8,6 +8,7 @@ import { SLOT_STATUS } from '../../../../constants/appConstants';
 export const SlotTable = ({
   slots = [],
   loading = false,
+  actionLoadingId = null,
   onAdjustCapacity,
   onTogglePause,
   footer
@@ -153,6 +154,7 @@ export const SlotTable = ({
 
             <button
               type="button"
+              disabled={actionLoadingId === row.id}
               onClick={() => onTogglePause(row)}
               style={{
                 background: isPaused ? 'var(--color-success-bg)' : 'var(--color-warning-bg)',
@@ -160,7 +162,8 @@ export const SlotTable = ({
                 borderRadius: 'var(--border-radius-sm)',
                 padding: '5px',
                 color: isPaused ? 'var(--color-success-text)' : 'var(--color-warning-text)',
-                cursor: 'pointer',
+                cursor: actionLoadingId === row.id ? 'not-allowed' : 'pointer',
+                opacity: actionLoadingId === row.id ? 0.7 : 1,
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center'
@@ -168,7 +171,13 @@ export const SlotTable = ({
               title={isPaused ? 'Resume Slot Orders' : 'Pause Slot Orders'}
               aria-label={isPaused ? 'Resume Slot Orders' : 'Pause Slot Orders'}
             >
-              {isPaused ? <PlayCircle size={14} /> : <PauseCircle size={14} />}
+              {actionLoadingId === row.id ? (
+                <Loader2 size={14} style={{ animation: 'spin 0.8s linear infinite' }} />
+              ) : isPaused ? (
+                <PlayCircle size={14} />
+              ) : (
+                <PauseCircle size={14} />
+              )}
             </button>
           </div>
         );

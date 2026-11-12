@@ -29,9 +29,38 @@ export const SlotListPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
 
-  // Modals state
+  // Modals & action loading state
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [slotToAdjust, setSlotToAdjust] = useState(null);
+  const [actionLoadingId, setActionLoadingId] = useState(null);
+  const [modalLoading, setModalLoading] = useState(false);
+
+  const handleTogglePause = async (slot) => {
+    try {
+      setActionLoadingId(slot.id);
+      await togglePause(slot.id);
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleCreateSlot = async (data) => {
+    try {
+      setModalLoading(true);
+      await createSlot(data);
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const handleUpdateCapacity = async (id, cap) => {
+    try {
+      setModalLoading(true);
+      await updateCapacity(id, cap);
+    } finally {
+      setModalLoading(false);
+    }
+  };
 
   // Filtered slots
   const filteredSlots = useMemo(() => {
@@ -105,8 +134,9 @@ export const SlotListPage = () => {
       <SlotTable
         slots={paginatedSlots}
         loading={loading}
+        actionLoadingId={actionLoadingId}
         onAdjustCapacity={(slot) => setSlotToAdjust(slot)}
-        onTogglePause={(slot) => togglePause(slot.id)}
+        onTogglePause={handleTogglePause}
         footer={
           <Pagination
             currentPage={currentPage}
@@ -122,16 +152,18 @@ export const SlotListPage = () => {
       {/* Create Slot Modal */}
       <SlotModal
         isOpen={isCreateOpen}
-        onClose={() => setIsCreateOpen(false)}
-        onSubmit={createSlot}
+        onClose={() => !modalLoading && setIsCreateOpen(false)}
+        loading={modalLoading}
+        onSubmit={handleCreateSlot}
       />
 
       {/* Adjust Capacity Modal */}
       <AdjustCapacityModal
         isOpen={Boolean(slotToAdjust)}
-        onClose={() => setSlotToAdjust(null)}
+        onClose={() => !modalLoading && setSlotToAdjust(null)}
         slot={slotToAdjust}
-        onSaveCapacity={updateCapacity}
+        loading={modalLoading}
+        onSaveCapacity={handleUpdateCapacity}
       />
     </div>
   );

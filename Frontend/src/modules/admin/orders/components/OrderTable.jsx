@@ -1,5 +1,5 @@
 import React from 'react';
-import { Eye, CheckCircle, ChefHat, BellRing, PackageCheck, ArrowRight } from 'lucide-react';
+import { Eye, CheckCircle, ChefHat, BellRing, PackageCheck, ArrowRight, Loader2 } from 'lucide-react';
 import { DataTable } from '../../../../components/tables/DataTable';
 import { StatusBadge } from '../../../../components/common/StatusBadge';
 import { formatCurrency } from '../../../../utils/formatters';
@@ -23,6 +23,7 @@ const getStepIcon = (nextStatus) => {
 export const OrderTable = ({
   orders = [],
   loading = false,
+  actionLoadingId = null,
   onView,
   onAdvanceStatus,
   footer
@@ -204,6 +205,7 @@ export const OrderTable = ({
             {nextOperationalStatus && StepIcon && (
               <button
                 type="button"
+                disabled={actionLoadingId === row.id}
                 onClick={() => onAdvanceStatus(row, nextOperationalStatus)}
                 style={{
                   background: 'var(--color-primary-light)',
@@ -211,7 +213,8 @@ export const OrderTable = ({
                   borderRadius: '4px',
                   padding: '5px',
                   color: 'var(--color-primary)',
-                  cursor: 'pointer',
+                  cursor: actionLoadingId === row.id ? 'not-allowed' : 'pointer',
+                  opacity: actionLoadingId === row.id ? 0.7 : 1,
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center'
@@ -219,7 +222,11 @@ export const OrderTable = ({
                 title={`Mark as ${nextOperationalStatus}`}
                 aria-label={`Mark as ${nextOperationalStatus}`}
               >
-                <StepIcon size={14} />
+                {actionLoadingId === row.id ? (
+                  <Loader2 size={14} style={{ animation: 'spin 0.8s linear infinite' }} />
+                ) : (
+                  <StepIcon size={14} />
+                )}
               </button>
             )}
           </div>
