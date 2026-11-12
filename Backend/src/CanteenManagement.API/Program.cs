@@ -201,6 +201,8 @@ builder.Services.AddSwaggerGen(options =>
         Description = "N-Tier Modular .NET 8 Web API with Dual ORM (EF Core + Dapper), JWT Auth & Multi-Project integration."
     });
 
+    options.DocInclusionPredicate((docName, apiDesc) => true);
+
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -242,13 +244,15 @@ app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "Canteen API v1.0");
-    c.RoutePrefix = string.Empty; // Swagger UI served at root URL
+    c.RoutePrefix = "swagger";
 });
 
 app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
+app.MapGet("/", () => Results.Redirect("/swagger"));
 
 app.MapGet("/health", () => Results.Ok(new
 {
