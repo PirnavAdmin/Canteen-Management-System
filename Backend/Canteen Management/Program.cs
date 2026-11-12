@@ -179,11 +179,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins(
-                "http://localhost:5173",
-                "http://127.0.0.1:5173",
-                "http://localhost:3000",
-                "http://127.0.0.1:3000")
+        policy.SetIsOriginAllowed(_ => true)
               .AllowAnyMethod()
               .AllowAnyHeader()
               .AllowCredentials();
@@ -231,6 +227,9 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
+// 10. Configure Middleware Pipeline - CORS must be first
+app.UseCors("AllowFrontend");
+
 // 9. Initialize Database Schema and Seed Data
 using (var scope = app.Services.CreateScope())
 {
@@ -239,7 +238,6 @@ using (var scope = app.Services.CreateScope())
     await DatabaseInitializer.InitializeAsync(connectionString, logger);
 }
 
-// 10. Configure Middleware Pipeline
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
@@ -247,7 +245,6 @@ app.UseSwaggerUI(c =>
     c.RoutePrefix = "swagger";
 });
 
-app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

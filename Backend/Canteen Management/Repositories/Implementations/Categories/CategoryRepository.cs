@@ -86,6 +86,32 @@ namespace CanteenManagement.API.Repositories.Implementations.Categories
             int orders = (int)(counts?.HistoricalOrderCount ?? 0);
             return (linkedItems, orders);
         }
+
+        public async Task<Dictionary<int, (int linkedItemCount, int historicalOrderCount)>> GetBatchDependencyCountsAsync(int institutionId)
+        {
+            using var connection = _connectionFactory.CreateConnection();
+            const string sql = @"
+                SELECT 
+                    c.CategoryId,
+                    COUNT(DISTINCT mi.MenuItemId) AS LinkedItemCount,
+                    COUNT(DISTINCT oi.OrderItemId) AS HistoricalOrderCount
+                FROM Categories c
+                LEFT JOIN MenuItems mi ON mi.CategoryId = c.CategoryId
+                LEFT JOIN OrderItems oi ON oi.MenuItemId = mi.MenuItemId
+                WHERE c.InstitutionId = @InstitutionId
+                GROUP BY c.CategoryId;";
+
+            var rows = await connection.QueryAsync<dynamic>(sql, new { InstitutionId = institutionId });
+            var result = new Dictionary<int, (int, int)>();
+            foreach (var row in rows)
+            {
+                int catId = (int)row.CategoryId;
+                int linked = (int)(row.LinkedItemCount ?? 0);
+                int orders = (int)(row.HistoricalOrderCount ?? 0);
+                result[catId] = (linked, orders);
+            }
+            return result;
+        }
     }
 }
 
