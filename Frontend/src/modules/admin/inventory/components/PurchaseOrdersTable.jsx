@@ -14,14 +14,16 @@ export const PurchaseOrdersTable = ({
     {
       key: 'poNumber',
       header: 'PO Number',
+      align: 'center',
       render: (val) => (
         <code style={{
           backgroundColor: 'var(--bg-muted)',
-          padding: '3px 8px',
+          padding: '3px 7px',
           borderRadius: '4px',
-          fontSize: '12px',
+          fontSize: '11.5px',
           fontWeight: 700,
-          color: 'var(--color-primary)'
+          color: 'var(--color-primary)',
+          whiteSpace: 'nowrap'
         }}>
           {val}
         </code>
@@ -31,7 +33,18 @@ export const PurchaseOrdersTable = ({
       key: 'supplierName',
       header: 'Supplier',
       render: (val) => (
-        <strong style={{ fontSize: '13px', color: 'var(--text-primary)' }}>
+        <strong
+          title={val}
+          style={{
+            fontSize: '12.5px',
+            color: 'var(--text-primary)',
+            display: 'block',
+            maxWidth: '150px',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
+          }}
+        >
           {val}
         </strong>
       )
@@ -40,7 +53,7 @@ export const PurchaseOrdersTable = ({
       key: 'orderDate',
       header: 'Dates',
       render: (val, row) => (
-        <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>
+        <div style={{ fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
           <div>Ordered: {formatDate(val)}</div>
           <div>Expected: <strong>{formatDate(row.expectedDelivery)}</strong></div>
         </div>
@@ -50,9 +63,15 @@ export const PurchaseOrdersTable = ({
       key: 'items',
       header: 'Line Items',
       render: (items) => (
-        <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', maxWidth: '240px' }}>
+        <div style={{ fontSize: '11px', color: 'var(--text-secondary)', maxWidth: '220px' }}>
           {items?.map((it, i) => (
-            <div key={i}>{it.ingredientName}: {it.qty} {it.unit} @ ₹{it.unitPrice}</div>
+            <div
+              key={i}
+              title={`${it.ingredientName}: ${it.qty} ${it.unit} @ ₹${it.unitPrice}`}
+              style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+            >
+              {it.ingredientName}: {it.qty} {it.unit} @ ₹{it.unitPrice}
+            </div>
           ))}
         </div>
       )
@@ -60,8 +79,9 @@ export const PurchaseOrdersTable = ({
     {
       key: 'totalAmount',
       header: 'Total Value',
+      align: 'center',
       render: (val) => (
-        <strong style={{ fontSize: '13.5px', color: 'var(--color-primary)' }}>
+        <strong style={{ fontSize: '13px', color: 'var(--color-primary)', whiteSpace: 'nowrap' }}>
           {formatCurrency(val)}
         </strong>
       )
@@ -69,86 +89,97 @@ export const PurchaseOrdersTable = ({
     {
       key: 'status',
       header: 'Status',
+      align: 'center',
       render: (val) => <StatusBadge status={val} size="sm" />
     },
     {
       key: 'actions',
       header: 'Actions',
-      align: 'right',
-      render: (_, row) => (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
-          {row.status === 'Submitted' && (
-            <button
-              type="button"
-              onClick={() => onUpdateStatus(row.id, 'Approved')}
-              style={{
-                background: 'none',
-                border: '1px solid var(--border-color)',
-                borderRadius: 'var(--border-radius-sm)',
-                padding: '4px 8px',
-                color: 'var(--color-accent)',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '3px',
-                fontSize: '11.5px',
-                fontWeight: 600
-              }}
-              title="Approve PO"
-            >
-              <CheckCircle2 size={12} />
-              <span>Approve</span>
-            </button>
-          )}
+      align: 'center',
+      width: '88px',
+      render: (_, row) => {
+        const canApprove = row.status === 'Submitted';
+        const canReceive = row.status === 'Approved';
+        const canCancel = row.status !== 'Received' && row.status !== 'Cancelled';
 
-          {row.status === 'Approved' && (
-            <button
-              type="button"
-              onClick={() => onUpdateStatus(row.id, 'Received')}
-              style={{
-                background: 'var(--color-success-bg)',
-                border: '1px solid var(--color-success-border)',
-                borderRadius: 'var(--border-radius-sm)',
-                padding: '4px 8px',
-                color: 'var(--color-success-text)',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '3px',
-                fontSize: '11.5px',
-                fontWeight: 600
-              }}
-              title="Mark Delivery Received"
-            >
-              <PackageCheck size={12} />
-              <span>Receive</span>
-            </button>
-          )}
+        if (!canApprove && !canReceive && !canCancel) {
+          return (
+            <div style={{ display: 'flex', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '12px' }}>
+              —
+            </div>
+          );
+        }
 
-          {row.status !== 'Received' && row.status !== 'Cancelled' && (
-            <button
-              type="button"
-              onClick={() => onUpdateStatus(row.id, 'Cancelled')}
-              style={{
-                background: 'none',
-                border: '1px solid var(--border-color)',
-                borderRadius: 'var(--border-radius-sm)',
-                padding: '4px 8px',
-                color: 'var(--color-danger)',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '3px',
-                fontSize: '11.5px'
-              }}
-              title="Cancel PO"
-            >
-              <XCircle size={12} />
-              <span>Cancel</span>
-            </button>
-          )}
-        </div>
-      )
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
+            {canApprove && (
+              <button
+                type="button"
+                onClick={() => onUpdateStatus(row.id, 'Approved')}
+                style={{
+                  background: 'none',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: 'var(--border-radius-sm)',
+                  padding: '5px',
+                  color: 'var(--color-accent)',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                title="Approve Purchase Order"
+                aria-label="Approve Purchase Order"
+              >
+                <CheckCircle2 size={14} />
+              </button>
+            )}
+
+            {canReceive && (
+              <button
+                type="button"
+                onClick={() => onUpdateStatus(row.id, 'Received')}
+                style={{
+                  background: 'var(--color-success-bg)',
+                  border: '1px solid var(--color-success-border)',
+                  borderRadius: 'var(--border-radius-sm)',
+                  padding: '5px',
+                  color: 'var(--color-success-text)',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                title="Mark Delivery Received"
+                aria-label="Mark Delivery Received"
+              >
+                <PackageCheck size={14} />
+              </button>
+            )}
+
+            {canCancel && (
+              <button
+                type="button"
+                onClick={() => onUpdateStatus(row.id, 'Cancelled')}
+                style={{
+                  background: 'none',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: 'var(--border-radius-sm)',
+                  padding: '5px',
+                  color: 'var(--color-danger)',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                title="Cancel Purchase Order"
+                aria-label="Cancel Purchase Order"
+              >
+                <XCircle size={14} />
+              </button>
+            )}
+          </div>
+        );
+      }
     }
   ];
 

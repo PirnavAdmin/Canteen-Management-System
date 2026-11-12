@@ -18,47 +18,61 @@ export const CanteenTable = ({
       key: 'name',
       header: 'Canteen Name',
       render: (val, row) => (
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', maxWidth: '150px', overflow: 'hidden' }}>
           <span
             onClick={() => navigate(`/canteen/${row.id}`)}
+            title={val}
             style={{
+              fontSize: '12.5px',
               fontWeight: 600,
               color: 'var(--color-primary)',
               cursor: 'pointer',
-              textDecoration: 'none'
+              textDecoration: 'none',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              display: 'block'
             }}
             onMouseEnter={(e) => { e.target.style.textDecoration = 'underline'; }}
             onMouseLeave={(e) => { e.target.style.textDecoration = 'none'; }}
           >
             {val}
           </span>
-          <span style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '2px' }}>
-            ID: {row.id}
+          <span
+            title={`Outlet Code: ${row.code}`}
+            style={{
+              fontSize: '10.5px',
+              fontFamily: 'var(--font-mono)',
+              fontWeight: 600,
+              color: 'var(--text-muted)',
+              marginTop: '2px',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            }}
+          >
+            {row.code}
           </span>
         </div>
-      )
-    },
-    {
-      key: 'code',
-      header: 'Code',
-      render: (val) => (
-        <code style={{
-          backgroundColor: 'var(--bg-muted)',
-          padding: '3px 7px',
-          borderRadius: 'var(--border-radius-xs)',
-          fontSize: '12px',
-          fontWeight: 600,
-          color: 'var(--color-primary)'
-        }}>
-          {val}
-        </code>
       )
     },
     {
       key: 'campus',
       header: 'Campus',
       render: (val) => (
-        <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)' }}>
+        <span
+          title={val}
+          style={{
+            fontSize: '12px',
+            fontWeight: 500,
+            color: 'var(--text-secondary)',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            display: 'block',
+            maxWidth: '95px'
+          }}
+        >
           {val}
         </span>
       )
@@ -68,9 +82,16 @@ export const CanteenTable = ({
       header: 'Location',
       render: (val) => (
         <span
-          style={{ fontSize: '12.5px', color: 'var(--text-secondary)', display: 'block', maxWidth: '180px' }}
+          style={{
+            fontSize: '11.5px',
+            color: 'var(--text-secondary)',
+            display: 'block',
+            maxWidth: '120px',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
+          }}
           title={val}
-          className="text-truncate"
         >
           {val}
         </span>
@@ -80,17 +101,35 @@ export const CanteenTable = ({
       key: 'contact',
       header: 'Contact',
       render: (_, row) => (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', fontSize: '12px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', fontSize: '11px', maxWidth: '135px', overflow: 'hidden' }}>
           {row.contactPhone && (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: 'var(--text-secondary)' }}>
-              <Phone size={12} style={{ color: 'var(--text-muted)' }} />
-              {row.contactPhone}
+            <span
+              title={row.contactPhone}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                color: 'var(--text-secondary)',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <Phone size={11} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.contactPhone}</span>
             </span>
           )}
           {row.contactEmail && (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: 'var(--text-muted)' }}>
-              <Mail size={12} style={{ color: 'var(--text-muted)' }} />
-              <span className="text-truncate" style={{ maxWidth: '160px' }} title={row.contactEmail}>
+            <span
+              title={row.contactEmail}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                color: 'var(--text-muted)',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <Mail size={11} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {row.contactEmail}
               </span>
             </span>
@@ -102,7 +141,7 @@ export const CanteenTable = ({
       key: 'hours',
       header: 'Hours',
       render: (_, row) => (
-        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+        <div style={{ fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
           <div>{formatTime12Hour(row.openingTime)}</div>
           <div style={{ color: 'var(--text-muted)' }}>to {formatTime12Hour(row.closingTime)}</div>
         </div>
@@ -110,30 +149,42 @@ export const CanteenTable = ({
     },
     {
       key: 'workingDays',
-      header: 'Working Days',
-      render: (val) => (
-        <span
-          style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', maxWidth: '140px' }}
-          title={Array.isArray(val) ? val.join(', ') : val}
-          className="text-truncate"
-        >
-          {formatWorkingDays(val)}
-        </span>
-      )
+      header: 'Days',
+      render: (val) => {
+        const formatted = formatWorkingDays(val);
+        return (
+          <span
+            style={{
+              fontSize: '11.5px',
+              color: 'var(--text-secondary)',
+              display: 'block',
+              maxWidth: '95px',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            }}
+            title={Array.isArray(val) ? val.join(', ') : formatted}
+          >
+            {formatted}
+          </span>
+        );
+      }
     },
     {
       key: 'status',
       header: 'Status',
+      align: 'center',
       render: (val) => <StatusBadge status={val} size="sm" />
     },
     {
       key: 'actions',
       header: 'Actions',
-      align: 'right',
+      align: 'center',
+      width: '86px',
       render: (_, row) => {
         const isActive = row.status === 'Active';
         return (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
             <button
               type="button"
               onClick={() => navigate(`/canteen/${row.id}`)}
@@ -141,18 +192,17 @@ export const CanteenTable = ({
                 background: 'none',
                 border: '1px solid var(--border-color)',
                 borderRadius: 'var(--border-radius-sm)',
-                padding: '6px 8px',
+                padding: '5px',
                 color: 'var(--text-secondary)',
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '4px',
-                fontSize: '12px'
+                justifyContent: 'center'
               }}
               title="View Canteen Details"
+              aria-label="View Canteen Details"
             >
-              <Eye size={13} />
-              <span>View</span>
+              <Eye size={14} />
             </button>
 
             <button
@@ -162,41 +212,37 @@ export const CanteenTable = ({
                 background: 'none',
                 border: '1px solid var(--border-color)',
                 borderRadius: 'var(--border-radius-sm)',
-                padding: '6px 8px',
+                padding: '5px',
                 color: 'var(--color-accent)',
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '4px',
-                fontSize: '12px'
+                justifyContent: 'center'
               }}
               title="Edit Canteen"
+              aria-label="Edit Canteen"
             >
-              <Edit size={13} />
-              <span>Edit</span>
+              <Edit size={14} />
             </button>
 
             <button
               type="button"
               onClick={() => onToggleStatus(row)}
               style={{
-                background: 'none',
-                border: `1px solid ${isActive ? '#fecaca' : '#a7f3d0'}`,
+                border: `1px solid ${isActive ? 'var(--color-danger-border)' : 'var(--color-success-border)'}`,
                 backgroundColor: isActive ? 'var(--color-danger-bg)' : 'var(--color-success-bg)',
                 borderRadius: 'var(--border-radius-sm)',
-                padding: '6px 8px',
+                padding: '5px',
                 color: isActive ? 'var(--color-danger)' : 'var(--color-success)',
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '4px',
-                fontSize: '12px',
-                fontWeight: 500
+                justifyContent: 'center'
               }}
               title={isActive ? 'Deactivate Canteen' : 'Activate Canteen'}
+              aria-label={isActive ? 'Deactivate Canteen' : 'Activate Canteen'}
             >
-              <Power size={13} />
-              <span>{isActive ? 'Deactivate' : 'Activate'}</span>
+              <Power size={14} />
             </button>
           </div>
         );

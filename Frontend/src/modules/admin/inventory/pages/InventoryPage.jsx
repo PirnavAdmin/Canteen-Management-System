@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Package, BookOpen, ShoppingCart, Users, PlusCircle, ArrowDownUp } from 'lucide-react';
 import { PageHeader } from '../../../../components/common/PageHeader';
 import { Button } from '../../../../components/common/Button';
+import { Pagination } from '../../../../components/common/Pagination';
 import { useInventory } from '../hooks/useInventory';
 import { StockTable } from '../components/StockTable';
 import { StockMovementModal } from '../components/StockMovementModal';
@@ -27,6 +28,15 @@ export const InventoryPage = () => {
   // Tab state: 'items' | 'ledger' | 'pos' | 'suppliers'
   const [activeTab, setActiveTab] = useState('items');
 
+  // Pagination state (default 5 per page)
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
+
+  const paginatedItems = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return items.slice(start, start + pageSize);
+  }, [items, currentPage, pageSize]);
+
   // Modals state
   const [movementModal, setMovementModal] = useState({ isOpen: false, item: null, type: 'Stock In' });
   const [isPOModalOpen, setIsPOModalOpen] = useState(false);
@@ -41,10 +51,6 @@ export const InventoryPage = () => {
       <PageHeader
         title="Kitchen Inventory & Stock Ledger"
         description="Trace raw ingredient inflows, issues, spoilage wastage, purchase orders, and supplier relationships with institutional ledger compliance."
-        breadcrumbItems={[
-          { label: 'Admin' },
-          { label: 'Inventory Management' }
-        ]}
         actions={
           <div style={{ display: 'flex', gap: '8px' }}>
             {activeTab === 'items' && items.length > 0 && (
@@ -183,9 +189,19 @@ export const InventoryPage = () => {
       {/* Tab Panels */}
       {activeTab === 'items' && (
         <StockTable
-          items={items}
+          items={paginatedItems}
           loading={loading}
           onOpenMovement={handleOpenMovement}
+          footer={
+            <Pagination
+              currentPage={currentPage}
+              totalItems={items.length}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={(sz) => { setPageSize(sz); setCurrentPage(1); }}
+              pageSizeOptions={[5, 10, 20]}
+            />
+          }
         />
       )}
 

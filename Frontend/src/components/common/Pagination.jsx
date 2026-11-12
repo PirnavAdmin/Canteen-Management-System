@@ -4,14 +4,12 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 export const Pagination = ({
   currentPage = 1,
   totalItems = 0,
-  pageSize = 10,
+  pageSize = 5,
   onPageChange,
   onPageSizeChange,
-  pageSizeOptions = [5, 10, 20]
+  pageSizeOptions = [5, 10, 20, 50]
 }) => {
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
-  const startItem = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
-  const endItem = Math.min(totalItems, currentPage * pageSize);
 
   const getPageNumbers = () => {
     const pages = [];
@@ -46,24 +44,20 @@ export const Pagination = ({
       justifyContent: 'space-between',
       flexWrap: 'wrap',
       gap: '12px',
-      padding: '14px 20px',
+      padding: '10px 16px',
       borderTop: '1px solid var(--border-color)',
       backgroundColor: 'var(--bg-surface)',
       borderBottomLeftRadius: 'var(--border-radius-lg)',
       borderBottomRightRadius: 'var(--border-radius-lg)'
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '13px', color: 'var(--text-secondary)' }}>
-        <span>
-          Showing <strong style={{ color: 'var(--text-primary)' }}>{startItem}</strong> to{' '}
-          <strong style={{ color: 'var(--text-primary)' }}>{endItem}</strong> of{' '}
-          <strong style={{ color: 'var(--text-primary)' }}>{totalItems}</strong> entries
-        </span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12.5px', color: 'var(--text-secondary)' }}>
         {onPageSizeChange && (
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
             <span>Show:</span>
             <select
               value={pageSize}
               onChange={(e) => onPageSizeChange(Number(e.target.value))}
+              aria-label="Items per page"
               style={{
                 padding: '3px 8px',
                 fontSize: '12px',
