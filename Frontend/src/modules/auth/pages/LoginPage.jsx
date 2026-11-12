@@ -34,9 +34,19 @@ export const LoginPage = () => {
     }
   };
 
-  const handleQuickLogin = (roleUser, rolePass) => {
+  const handleQuickLogin = async (roleUser, rolePass) => {
     setUsernameOrEmail(roleUser);
     setPassword(rolePass);
+    try {
+      setLoading(true);
+      setError('');
+      await login(roleUser, rolePass);
+      navigate(from, { replace: true });
+    } catch (err) {
+      setError(err.message || 'Invalid username or password. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -193,53 +203,65 @@ export const LoginPage = () => {
           fontSize: '12px',
           color: '#475569'
         }}>
-          <p style={{ fontWeight: '600', margin: '0 0 8px 0', color: '#1e293b' }}>⚡ Quick Demo Accounts:</p>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <button
-              type="button"
-              onClick={() => handleQuickLogin('admin', 'Admin@123')}
-              style={{
-                padding: '4px 10px',
-                borderRadius: '6px',
-                border: '1px solid #cbd5e1',
-                backgroundColor: '#ffffff',
-                cursor: 'pointer',
-                fontSize: '11px',
-                fontWeight: '500'
-              }}
-            >
-              Admin (Sunitha)
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickLogin('staff', 'Staff@123')}
-              style={{
-                padding: '4px 10px',
-                borderRadius: '6px',
-                border: '1px solid #cbd5e1',
-                backgroundColor: '#ffffff',
-                cursor: 'pointer',
-                fontSize: '11px',
-                fontWeight: '500'
-              }}
-            >
-              Staff (Ravi)
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickLogin('aarav', 'Student@123')}
-              style={{
-                padding: '4px 10px',
-                borderRadius: '6px',
-                border: '1px solid #cbd5e1',
-                backgroundColor: '#ffffff',
-                cursor: 'pointer',
-                fontSize: '11px',
-                fontWeight: '500'
-              }}
-            >
-              Student (Aarav)
-            </button>
+          <p style={{ fontWeight: '600', margin: '0 0 8px 0', color: '#1e293b' }}>
+            ⚡ Quick Demo Accounts (Click to Sign In):
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => handleQuickLogin('admin', 'Admin@123')}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  border: '1px solid #2563eb',
+                  backgroundColor: '#eff6ff',
+                  color: '#1d4ed8',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontWeight: '600'
+                }}
+              >
+                Admin (Sunitha)
+              </button>
+              <button
+                type="button"
+                onClick={() => handleQuickLogin('staff', 'Staff@123')}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  border: '1px solid #cbd5e1',
+                  backgroundColor: '#ffffff',
+                  color: '#334155',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontWeight: '500'
+                }}
+              >
+                Staff (Ravi)
+              </button>
+              <button
+                type="button"
+                onClick={() => handleQuickLogin('aarav', 'Student@123')}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  border: '1px solid #cbd5e1',
+                  backgroundColor: '#ffffff',
+                  color: '#334155',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontWeight: '500'
+                }}
+              >
+                Student (Aarav)
+              </button>
+            </div>
+            <div style={{ fontSize: '11px', color: '#64748b', lineHeight: '1.6', background: '#ffffff', padding: '8px 10px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+              <div>🔑 <strong>Admin:</strong> <code>admin</code> / <code>Admin@123</code> (Full Portal Access)</div>
+              <div>🔑 <strong>Staff:</strong> <code>staff</code> / <code>Staff@123</code> (Orders, Kitchen & Menu)</div>
+              <div>🔑 <strong>Student:</strong> <code>aarav</code> / <code>Student@123</code></div>
+            </div>
           </div>
         </div>
 
