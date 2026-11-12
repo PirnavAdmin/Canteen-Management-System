@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { RotateCcw } from 'lucide-react';
 import { SLOT_SESSIONS, SLOT_STATUS } from '../../../../constants/appConstants';
+import { canteenService } from '../../outlets/services/canteenService';
 
 export const SlotFilters = ({
   selectedOutlet = 'ALL',
@@ -13,6 +14,15 @@ export const SlotFilters = ({
   onDateChange,
   onReset
 }) => {
+  const [outlets, setOutlets] = useState([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    canteenService.getAll().then((data) => {
+      if (isMounted && Array.isArray(data)) setOutlets(data);
+    }).catch(() => {});
+    return () => { isMounted = false; };
+  }, []);
   return (
     <div style={{
       backgroundColor: 'var(--bg-surface)',
@@ -60,9 +70,11 @@ export const SlotFilters = ({
         }}
       >
         <option value="ALL">All Outlets</option>
-        <option value="canteen-001">Central Dining Hall</option>
-        <option value="canteen-002">North Campus Food Court</option>
-        <option value="canteen-003">Engineering Block Kiosk</option>
+        {outlets.map(out => (
+          <option key={out.outletId || out.id} value={out.outletId || out.id}>
+            {out.name}
+          </option>
+        ))}
       </select>
 
       {/* Meal Session */}

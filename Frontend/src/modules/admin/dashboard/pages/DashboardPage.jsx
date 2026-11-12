@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { RefreshCw, Store } from 'lucide-react';
 import { PageHeader } from '../../../../components/common/PageHeader';
 import { Button } from '../../../../components/common/Button';
@@ -9,9 +9,22 @@ import { LiveOrderQueue } from '../components/LiveOrderQueue';
 import { TopSellingItems } from '../components/TopSellingItems';
 import { StockAlertsCard } from '../components/StockAlertsCard';
 import { OutletSalesCard } from '../components/OutletSalesCard';
+import { canteenService } from '../../outlets/services/canteenService';
 
 export const DashboardPage = () => {
   const [selectedOutlet, setSelectedOutlet] = useState('ALL');
+  const [outlets, setOutlets] = useState([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    canteenService.getAll().then((data) => {
+      if (isMounted && Array.isArray(data)) {
+        setOutlets(data);
+      }
+    }).catch(() => {});
+    return () => { isMounted = false; };
+  }, []);
+
   const {
     loading,
     summary,
@@ -47,10 +60,11 @@ export const DashboardPage = () => {
                 }}
               >
                 <option value="ALL">All Campus Outlets</option>
-                <option value="canteen-001">Central Dining Hall (CDH)</option>
-                <option value="canteen-002">North Campus Food Court (NCFC)</option>
-                <option value="canteen-003">Engineering Block Kiosk (EBK)</option>
-                <option value="canteen-004">Hostel Mess Canteen (HMC)</option>
+                {outlets.map(out => (
+                  <option key={out.outletId || out.id} value={out.outletId || out.id}>
+                    {out.name} ({out.code || 'MC'})
+                  </option>
+                ))}
               </select>
               <Store
                 size={14}

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { REPORT_OPTIONS } from '../constants/reportConstants';
 import { PAYMENT_METHODS } from '../../../../constants/appConstants';
+import { canteenService } from '../../outlets/services/canteenService';
 
 export const ReportFilters = ({
   selectedReport = 'sales_summary',
@@ -12,6 +13,15 @@ export const ReportFilters = ({
   selectedPayment = 'ALL',
   onPaymentChange
 }) => {
+  const [outlets, setOutlets] = useState([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    canteenService.getAll().then((data) => {
+      if (isMounted && Array.isArray(data)) setOutlets(data);
+    }).catch(() => {});
+    return () => { isMounted = false; };
+  }, []);
   return (
     <div style={{
       backgroundColor: 'var(--bg-surface)',
@@ -69,9 +79,11 @@ export const ReportFilters = ({
           }}
         >
           <option value="ALL">All Campus Outlets</option>
-          <option value="canteen-001">Central Dining Hall</option>
-          <option value="canteen-002">North Campus Food Court</option>
-          <option value="canteen-003">Engineering Block Kiosk</option>
+          {outlets.map(out => (
+            <option key={out.outletId || out.id} value={out.outletId || out.id}>
+              {out.name}
+            </option>
+          ))}
         </select>
       </div>
 

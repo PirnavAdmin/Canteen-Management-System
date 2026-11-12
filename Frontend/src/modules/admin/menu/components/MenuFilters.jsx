@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, RotateCcw } from 'lucide-react';
+import { canteenService } from '../../outlets/services/canteenService';
+import { categoryService } from '../../categories/services/categoryService';
 
 export const MenuFilters = ({
   searchTerm = '',
@@ -14,6 +16,22 @@ export const MenuFilters = ({
   onStatusChange,
   onReset
 }) => {
+  const [outlets, setOutlets] = useState([]);
+  const [categories, setCategories] = useState([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    Promise.all([
+      canteenService.getAll().catch(() => []),
+      categoryService.getAll().catch(() => [])
+    ]).then(([outletsData, categoriesData]) => {
+      if (isMounted) {
+        if (Array.isArray(outletsData)) setOutlets(outletsData);
+        if (Array.isArray(categoriesData)) setCategories(categoriesData);
+      }
+    });
+    return () => { isMounted = false; };
+  }, []);
   return (
     <div style={{
       backgroundColor: 'var(--bg-surface)',
@@ -75,10 +93,11 @@ export const MenuFilters = ({
         }}
       >
         <option value="ALL">All Categories</option>
-        <option value="Main Course">Main Course</option>
-        <option value="Meals & Thalis">Meals & Thalis</option>
-        <option value="Snacks & Quick Bites">Snacks & Quick Bites</option>
-        <option value="Beverages">Beverages</option>
+        {categories.map(c => (
+          <option key={c.id || c.categoryId} value={c.name}>
+            {c.name}
+          </option>
+        ))}
       </select>
 
       {/* Food Type */}
@@ -118,9 +137,11 @@ export const MenuFilters = ({
         }}
       >
         <option value="ALL">All Outlets</option>
-        <option value="canteen-001">Central Dining Hall</option>
-        <option value="canteen-002">North Campus Food Court</option>
-        <option value="canteen-003">Engineering Block Kiosk</option>
+        {outlets.map(out => (
+          <option key={out.outletId || out.id} value={out.outletId || out.id}>
+            {out.name}
+          </option>
+        ))}
       </select>
 
       {/* Status */}

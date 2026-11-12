@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { Button } from '../../../../components/common/Button';
 import { SLOT_SESSIONS } from '../../../../constants/appConstants';
+import { canteenService } from '../../outlets/services/canteenService';
 
 export const SlotModal = ({ isOpen, onClose, onSubmit }) => {
+  const [outlets, setOutlets] = useState([]);
   const [formData, setFormData] = useState({
-    outletId: 'canteen-001',
-    outletName: 'Central Dining Hall',
+    outletId: 1,
+    outletName: 'Main Canteen',
     date: new Date().toISOString().split('T')[0],
     mealSession: 'Lunch',
     startTime: '12:00',
@@ -17,6 +19,21 @@ export const SlotModal = ({ isOpen, onClose, onSubmit }) => {
   });
 
   const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    let isMounted = true;
+    canteenService.getAll().then((data) => {
+      if (isMounted && Array.isArray(data) && data.length > 0) {
+        setOutlets(data);
+        setFormData(prev => ({
+          ...prev,
+          outletId: data[0].outletId || data[0].id || 1,
+          outletName: data[0].name || 'Campus Dining'
+        }));
+      }
+    }).catch(() => {});
+    return () => { isMounted = false; };
+  }, []);
 
   if (!isOpen) return null;
 
@@ -37,6 +54,7 @@ export const SlotModal = ({ isOpen, onClose, onSubmit }) => {
     if (!validate()) return;
     onSubmit({
       ...formData,
+      outletId: Number(formData.outletId) || 1,
       maxCapacity: Number(formData.maxCapacity)
     });
     onClose();
@@ -94,15 +112,12 @@ export const SlotModal = ({ isOpen, onClose, onSubmit }) => {
             <select
               value={formData.outletId}
               onChange={(e) => {
-                const nameMap = {
-                  'canteen-001': 'Central Dining Hall',
-                  'canteen-002': 'North Campus Food Court',
-                  'canteen-003': 'Engineering Block Kiosk'
-                };
+                const selId = Number(e.target.value) || 1;
+                const found = outlets.find(o => (o.outletId || o.id) === selId);
                 setFormData({
                   ...formData,
-                  outletId: e.target.value,
-                  outletName: nameMap[e.target.value] || 'Campus Dining'
+                  outletId: selId,
+                  outletName: found?.name || 'Campus Dining'
                 });
               }}
               style={{
@@ -114,9 +129,15 @@ export const SlotModal = ({ isOpen, onClose, onSubmit }) => {
                 borderRadius: 'var(--border-radius-md)'
               }}
             >
-              <option value="canteen-001">Central Dining Hall (CDH)</option>
-              <option value="canteen-002">North Campus Food Court (NCFC)</option>
-              <option value="canteen-003">Engineering Block Kiosk (EBK)</option>
+              {outlets.length > 0 ? (
+                outlets.map(out => (
+                  <option key={out.outletId || out.id} value={out.outletId || out.id}>
+                    {out.name} ({out.code || 'MC'})
+                  </option>
+                ))
+              ) : (
+                <option value={1}>Main Canteen (MC-01)</option>
+              )}
             </select>
           </div>
 

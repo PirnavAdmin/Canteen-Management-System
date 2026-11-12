@@ -53,15 +53,15 @@ namespace CanteenManagement.API.DTOs.Menu
 
     public class CreateMenuItemDto
     {
-        [Required(ErrorMessage = "Outlet ID is required.")]
         public int OutletId { get; set; }
 
-        [Required(ErrorMessage = "Category ID is required.")]
         public int CategoryId { get; set; }
 
-        [Required(ErrorMessage = "Menu item code is required.")]
-        [StringLength(30, ErrorMessage = "Code cannot exceed 30 characters.")]
-        public string Code { get; set; } = string.Empty;
+        public string? Category { get; set; }
+
+        public string? Outlet { get; set; }
+
+        public string? Code { get; set; }
 
         [Required(ErrorMessage = "Menu item name is required.")]
         [StringLength(150, ErrorMessage = "Name cannot exceed 150 characters.")]

@@ -1,9 +1,11 @@
 using System.Text.Json;
+using CanteenManagement.API.Data;
 using CanteenManagement.API.DTOs.Menu;
 using CanteenManagement.API.Models.Menu;
 using CanteenManagement.API.Repositories.Interfaces.Menu;
 using CanteenManagement.API.Services.Interfaces.Common;
 using CanteenManagement.API.Services.Interfaces.Menu;
+using Microsoft.EntityFrameworkCore;
 
 namespace CanteenManagement.API.Services.Implementations.Menu
 {
@@ -11,11 +13,13 @@ namespace CanteenManagement.API.Services.Implementations.Menu
     {
         private readonly IMenuRepository _repository;
         private readonly IAuditLoggingService _auditService;
+        private readonly AppDbContext _dbContext;
 
-        public MenuService(IMenuRepository repository, IAuditLoggingService auditService)
+        public MenuService(IMenuRepository repository, IAuditLoggingService auditService, AppDbContext dbContext)
         {
             _repository = repository;
             _auditService = auditService;
+            _dbContext = dbContext;
         }
 
         public async Task<IEnumerable<MenuItemDto>> GetAllAsync(int institutionId, MenuItemFilterDto? filter = null)
@@ -32,9 +36,34 @@ namespace CanteenManagement.API.Services.Implementations.Menu
 
         public async Task<MenuItemDto> CreateAsync(CreateMenuItemDto dto, int institutionId, string performedBy)
         {
+            if (string.IsNullOrWhiteSpace(dto.Code))
+            {
+                var letters = new string((dto.Name ?? "ITM").Where(char.IsLetter).Take(3).ToArray()).ToUpper();
+                dto.Code = $"{(string.IsNullOrEmpty(letters) ? "ITM" : letters)}-{Random.Shared.Next(100, 999)}";
+            }
+
             if (await _repository.ExistsByCodeAsync(dto.Code, institutionId))
             {
-                throw new InvalidOperationException($"Item code '{dto.Code}' already exists in menu registry.");
+                dto.Code = $"{dto.Code}-{Random.Shared.Next(10, 99)}";
+            }
+
+            // Fallback outlet resolution
+            if (dto.OutletId <= 0)
+            {
+                var outlet = await _dbContext.CanteenOutlets.FirstOrDefaultAsync(o => o.InstitutionId == institutionId && o.Status == "Active")
+                             ?? await _dbContext.CanteenOutlets.FirstOrDefaultAsync(o => o.InstitutionId == institutionId);
+                dto.OutletId = outlet?.OutletId ?? 1;
+            }
+
+            // Fallback category resolution
+            if (dto.CategoryId <= 0)
+            {
+                var cat = (!string.IsNullOrWhiteSpace(dto.Category)
+                    ? await _dbContext.Categories.FirstOrDefaultAsync(c => c.InstitutionId == institutionId && c.Name == dto.Category)
+                    : null)
+                    ?? await _dbContext.Categories.FirstOrDefaultAsync(c => c.InstitutionId == institutionId && c.Status == "Active")
+                    ?? await _dbContext.Categories.FirstOrDefaultAsync(c => c.InstitutionId == institutionId);
+                dto.CategoryId = cat?.CategoryId ?? 1;
             }
 
             var item = new MenuItem
@@ -103,14 +132,23 @@ namespace CanteenManagement.API.Services.Implementations.Menu
                 throw new KeyNotFoundException($"Menu item with ID {id} was not found.");
             }
 
-            if (await _repository.ExistsByCodeAsync(dto.Code, institutionId, id))
+            if (!string.IsNullOrWhiteSpace(dto.Code))
             {
-                throw new InvalidOperationException($"Another menu item with code '{dto.Code}' already exists.");
+                if (await _repository.ExistsByCodeAsync(dto.Code, institutionId, id))
+                {
+                    throw new InvalidOperationException($"Another menu item with code '{dto.Code}' already exists.");
+                }
+                item.Code = dto.Code.Trim().ToUpper();
             }
 
-            item.OutletId = dto.OutletId;
-            item.CategoryId = dto.CategoryId;
-            item.Code = dto.Code.Trim().ToUpper();
+            if (dto.OutletId > 0) item.OutletId = dto.OutletId;
+            if (dto.CategoryId > 0) item.CategoryId = dto.CategoryId;
+            else if (!string.IsNullOrWhiteSpace(dto.Category))
+            {
+                var cat = await _dbContext.Categories.FirstOrDefaultAsync(c => c.InstitutionId == institutionId && c.Name == dto.Category);
+                if (cat != null) item.CategoryId = cat.CategoryId;
+            }
+
             item.Name = dto.Name.Trim();
             item.Description = dto.Description?.Trim();
             item.FoodType = dto.FoodType;

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Camera, Upload, Sparkles } from 'lucide-react';
 import { Button } from '../../../../components/common/Button';
 import { ALLERGENS, FOOD_TYPES } from '../../../../constants/appConstants';
+import { canteenService } from '../../outlets/services/canteenService';
+import { categoryService } from '../../categories/services/categoryService';
 
 export const MenuModal = ({
   isOpen,
@@ -10,12 +12,16 @@ export const MenuModal = ({
   initialData = null,
   title = 'Add Menu Item'
 }) => {
+  const [outlets, setOutlets] = useState([]);
+  const [categories, setCategories] = useState([]);
+
   const [formData, setFormData] = useState({
     name: '',
     code: '',
     description: '',
     category: 'Main Course',
-    outletId: 'canteen-001',
+    categoryId: 1,
+    outletId: 1,
     foodType: FOOD_TYPES.VEG,
     price: '',
     dailyCapacity: '',
@@ -34,13 +40,32 @@ export const MenuModal = ({
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
+    let isMounted = true;
+    Promise.all([
+      canteenService.getAll().catch(() => []),
+      categoryService.getAll().catch(() => [])
+    ]).then(([outletsData, categoriesData]) => {
+      if (isMounted) {
+        if (Array.isArray(outletsData) && outletsData.length > 0) {
+          setOutlets(outletsData);
+        }
+        if (Array.isArray(categoriesData) && categoriesData.length > 0) {
+          setCategories(categoriesData);
+        }
+      }
+    });
+    return () => { isMounted = false; };
+  }, []);
+
+  useEffect(() => {
     if (initialData) {
       setFormData({
         name: initialData.name || '',
         code: initialData.code || '',
         description: initialData.description || '',
         category: initialData.category || 'Main Course',
-        outletId: initialData.outletId || 'canteen-001',
+        categoryId: Number(initialData.categoryId) || 1,
+        outletId: Number(initialData.outletId) || 1,
         foodType: initialData.foodType || FOOD_TYPES.VEG,
         price: initialData.price || '',
         dailyCapacity: initialData.dailyCapacity || '',
@@ -61,7 +86,8 @@ export const MenuModal = ({
         code: '',
         description: '',
         category: 'Main Course',
-        outletId: 'canteen-001',
+        categoryId: 1,
+        outletId: 1,
         foodType: FOOD_TYPES.VEG,
         price: '',
         dailyCapacity: '',
@@ -106,10 +132,18 @@ export const MenuModal = ({
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!validate()) return;
+
+    const numericOutletId = Number(formData.outletId) || (outlets[0]?.outletId ?? 1);
+    const matchedCategory = categories.find(c => c.name === formData.category || c.id === formData.categoryId);
+    const numericCategoryId = Number(formData.categoryId) || (matchedCategory?.id || matchedCategory?.categoryId || 1);
+
     onSubmit({
       ...formData,
+      outletId: numericOutletId,
+      categoryId: numericCategoryId,
       price: Number(formData.price),
-      dailyCapacity: Number(formData.dailyCapacity)
+      dailyCapacity: Number(formData.dailyCapacity) || 100,
+      code: formData.code?.trim() || `MI-${Date.now().toString().slice(-4)}`
     });
   };
 
@@ -306,7 +340,15 @@ export const MenuModal = ({
               </label>
               <select
                 value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                onChange={(e) => {
+                  const selectedName = e.target.value;
+                  const foundCat = categories.find(c => c.name === selectedName);
+                  setFormData({
+                    ...formData,
+                    category: selectedName,
+                    categoryId: foundCat?.id || foundCat?.categoryId || 1
+                  });
+                }}
                 style={{
                   width: '100%',
                   height: '36px',
@@ -318,11 +360,21 @@ export const MenuModal = ({
                   borderRadius: 'var(--border-radius-md)'
                 }}
               >
-                <option value="Main Course">Main Course</option>
-                <option value="Meals & Thalis">Meals & Thalis</option>
-                <option value="Snacks & Quick Bites">Snacks & Quick Bites</option>
-                <option value="Beverages">Beverages</option>
-                <option value="Desserts">Desserts</option>
+                {categories.length > 0 ? (
+                  categories.map(c => (
+                    <option key={c.id || c.categoryId} value={c.name}>
+                      {c.name}
+                    </option>
+                  ))
+                ) : (
+                  <>
+                    <option value="Main Course">Main Course</option>
+                    <option value="Meals & Thalis">Meals & Thalis</option>
+                    <option value="Snacks & Quick Bites">Snacks & Quick Bites</option>
+                    <option value="Beverages">Beverages</option>
+                    <option value="Desserts">Desserts</option>
+                  </>
+                )}
               </select>
             </div>
 
@@ -332,7 +384,7 @@ export const MenuModal = ({
               </label>
               <select
                 value={formData.outletId}
-                onChange={(e) => setFormData({ ...formData, outletId: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, outletId: Number(e.target.value) || 1 })}
                 style={{
                   width: '100%',
                   height: '36px',
@@ -344,10 +396,15 @@ export const MenuModal = ({
                   borderRadius: 'var(--border-radius-md)'
                 }}
               >
-                <option value="canteen-001">Central Dining Hall (CDH)</option>
-                <option value="canteen-002">North Campus Food Court (NCFC)</option>
-                <option value="canteen-003">Engineering Block Kiosk (EBK)</option>
-                <option value="canteen-004">Hostel Mess Canteen (HMC)</option>
+                {outlets.length > 0 ? (
+                  outlets.map(out => (
+                    <option key={out.outletId || out.id} value={out.outletId || out.id}>
+                      {out.name} ({out.code || 'MC'})
+                    </option>
+                  ))
+                ) : (
+                  <option value={1}>Main Canteen (MC-01)</option>
+                )}
               </select>
             </div>
 
