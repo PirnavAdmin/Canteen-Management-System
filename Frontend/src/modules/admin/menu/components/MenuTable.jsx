@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Eye, Edit, Power, Globe, GlobeLock, Trash2, Utensils, MoreVertical, X } from 'lucide-react';
+import { Eye, Edit, Power, Globe, GlobeLock, Trash2, Utensils, MoreVertical } from 'lucide-react';
 import { DataTable } from '../../../../components/tables/DataTable';
 import { StatusBadge } from '../../../../components/common/StatusBadge';
 import { formatCurrency, formatNumber } from '../../../../utils/formatters';
@@ -14,7 +14,22 @@ export const MenuTable = ({
   onDelete,
   footer
 }) => {
-  const [actionModalRow, setActionModalRow] = useState(null);
+  const [popoverState, setPopoverState] = useState(null);
+
+  const handleOpenPopover = (e, row) => {
+    if (popoverState?.row?.id === row.id) {
+      setPopoverState(null);
+      return;
+    }
+    const rect = e.currentTarget.getBoundingClientRect();
+    const openUpward = rect.bottom + 145 > window.innerHeight - 12;
+    setPopoverState({
+      row,
+      top: openUpward ? undefined : rect.bottom + 4,
+      bottom: openUpward ? window.innerHeight - rect.top + 4 : undefined,
+      right: Math.max(12, window.innerWidth - rect.right)
+    });
+  };
 
   const columns = [
     {
@@ -182,26 +197,36 @@ export const MenuTable = ({
     {
       key: 'dailyCapacity',
       header: 'Capacity',
-      width: '95px',
-      render: (val, row) => (
-        <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-          <div><strong>{formatNumber(row.remainingCapacity ?? val)}</strong> / {formatNumber(val)}</div>
-          <div style={{
-            width: '50px',
-            height: '4px',
-            backgroundColor: 'var(--bg-muted)',
-            borderRadius: '2px',
-            marginTop: '3px',
-            overflow: 'hidden'
-          }}>
-            <div style={{
-              width: `${Math.round(((row.remainingCapacity ?? val) / val) * 100)}%`,
-              height: '100%',
-              backgroundColor: '#10b981'
-            }} />
+      width: '100px',
+      render: (val, row) => {
+        const remaining = row.remainingCapacity ?? val;
+        const percent = Math.min(100, Math.round((remaining / (val || 1)) * 100));
+        return (
+          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap', minWidth: '85px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+              <span><strong>{formatNumber(remaining)}</strong>/{formatNumber(val)}</span>
+              <span style={{ color: 'var(--text-muted)' }}>{percent}%</span>
+            </div>
+            <div
+              title={`${remaining} of ${val} portions remaining`}
+              style={{
+                width: '100%',
+                height: '5px',
+                backgroundColor: 'var(--bg-muted)',
+                borderRadius: '999px',
+                overflow: 'hidden'
+              }}
+            >
+              <div style={{
+                width: `${percent}%`,
+                height: '100%',
+                backgroundColor: percent <= 20 ? 'var(--color-danger)' : percent <= 50 ? 'var(--color-warning)' : '#10b981',
+                borderRadius: '999px'
+              }} />
+            </div>
           </div>
-        </div>
-      )
+        );
+      }
     },
     {
       key: 'publicationStatus',
@@ -241,11 +266,11 @@ export const MenuTable = ({
     {
       key: 'actions',
       header: 'Actions',
-      align: 'right',
+      align: 'center',
       width: '92px',
       render: (_, row) => {
         return (
-          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
             {/* Primary Action 1: View Details */}
             <button
               type="button"
@@ -256,7 +281,10 @@ export const MenuTable = ({
                 borderRadius: '4px',
                 padding: '4px 5px',
                 color: 'var(--text-secondary)',
-                cursor: 'pointer'
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center'
               }}
               title="View Details"
             >
@@ -273,24 +301,30 @@ export const MenuTable = ({
                 borderRadius: '4px',
                 padding: '4px 5px',
                 color: 'var(--color-accent)',
-                cursor: 'pointer'
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center'
               }}
               title="Edit Item"
             >
               <Edit size={13} />
             </button>
 
-            {/* Three Dots Button: Opens Small Secondary Actions Modal */}
+            {/* Three Dots Button: Opens Floating Popover at Column */}
             <button
               type="button"
-              onClick={() => setActionModalRow(row)}
+              onClick={(e) => handleOpenPopover(e, row)}
               style={{
-                background: actionModalRow?.id === row.id ? 'var(--bg-muted)' : 'none',
+                background: popoverState?.row?.id === row.id ? 'var(--bg-muted)' : 'none',
                 border: '1px solid var(--border-color)',
                 borderRadius: '4px',
                 padding: '4px 5px',
                 color: 'var(--text-secondary)',
-                cursor: 'pointer'
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center'
               }}
               title="More actions"
               aria-label="More actions"
@@ -303,8 +337,9 @@ export const MenuTable = ({
     }
   ];
 
-  const isActive = actionModalRow?.status === 'Active';
-  const isPublished = actionModalRow?.publicationStatus === 'Published';
+  const targetRow = popoverState?.row;
+  const isActive = targetRow?.status === 'Active';
+  const isPublished = targetRow?.publicationStatus === 'Published';
 
   return (
     <>
@@ -315,167 +350,123 @@ export const MenuTable = ({
         footer={footer}
       />
 
-      {/* Small Compact Modal for Secondary Actions triggered by 3-dots */}
-      {actionModalRow && (
-        <div
-          onClick={() => setActionModalRow(null)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(15, 23, 42, 0.55)',
-            backdropFilter: 'blur(2px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 80,
-            padding: '16px'
-          }}
-        >
+      {/* Floating Action Popover anchored directly at the 3-dots column */}
+      {popoverState && (
+        <>
           <div
-            onClick={(e) => e.stopPropagation()}
+            onClick={() => setPopoverState(null)}
             style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 75
+            }}
+          />
+          <div
+            style={{
+              position: 'fixed',
+              top: popoverState.top,
+              bottom: popoverState.bottom,
+              right: popoverState.right,
               backgroundColor: 'var(--modal-bg)',
               color: 'var(--text-primary)',
               border: '1px solid var(--border-color)',
-              borderRadius: 'var(--border-radius-lg)',
+              borderRadius: 'var(--border-radius-md)',
               boxShadow: 'var(--shadow-modal)',
-              width: '100%',
-              maxWidth: '300px',
-              overflow: 'hidden'
+              zIndex: 80,
+              minWidth: '175px',
+              padding: '4px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '2px'
             }}
           >
-            {/* Small Modal Header */}
-            <div style={{
-              padding: '12px 16px',
-              borderBottom: '1px solid var(--border-color)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '8px'
-            }}>
-              <div style={{ minWidth: 0 }}>
-                <div style={{
-                  fontSize: '13.5px',
-                  fontWeight: 700,
-                  color: 'var(--text-primary)',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis'
-                }}>
-                  {actionModalRow.name}
-                </div>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                  Quick Item Actions ({actionModalRow.code})
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setActionModalRow(null)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--text-muted)',
-                  cursor: 'pointer',
-                  padding: '4px'
-                }}
-              >
-                <X size={16} />
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setPopoverState(null);
+                onTogglePublish(targetRow);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '7px 10px',
+                borderRadius: 'var(--border-radius-sm)',
+                border: 'none',
+                background: 'none',
+                color: isPublished ? 'var(--color-warning)' : 'var(--color-primary)',
+                fontSize: '12.5px',
+                fontWeight: 500,
+                cursor: 'pointer',
+                width: '100%',
+                textAlign: 'left'
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-muted)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+            >
+              {isPublished ? <GlobeLock size={14} /> : <Globe size={14} />}
+              <span>{isPublished ? 'Unpublish (Draft)' : 'Publish Item'}</span>
+            </button>
 
-            {/* Remaining Action Icons & Labels */}
-            <div style={{ padding: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <button
-                type="button"
-                onClick={() => {
-                  const target = actionModalRow;
-                  setActionModalRow(null);
-                  onTogglePublish(target);
-                }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  padding: '10px 12px',
-                  borderRadius: 'var(--border-radius-md)',
-                  border: 'none',
-                  background: 'none',
-                  color: isPublished ? 'var(--color-warning)' : 'var(--color-primary)',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  width: '100%',
-                  textAlign: 'left'
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-muted)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-              >
-                {isPublished ? <GlobeLock size={16} /> : <Globe size={16} />}
-                <span>{isPublished ? 'Unpublish (Move to Draft)' : 'Publish Item'}</span>
-              </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPopoverState(null);
+                onToggleStatus(targetRow);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '7px 10px',
+                borderRadius: 'var(--border-radius-sm)',
+                border: 'none',
+                background: 'none',
+                color: isActive ? 'var(--color-danger)' : 'var(--color-success)',
+                fontSize: '12.5px',
+                fontWeight: 500,
+                cursor: 'pointer',
+                width: '100%',
+                textAlign: 'left'
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-muted)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+            >
+              <Power size={14} />
+              <span>{isActive ? 'Deactivate Dish' : 'Activate Dish'}</span>
+            </button>
 
-              <button
-                type="button"
-                onClick={() => {
-                  const target = actionModalRow;
-                  setActionModalRow(null);
-                  onToggleStatus(target);
-                }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  padding: '10px 12px',
-                  borderRadius: 'var(--border-radius-md)',
-                  border: 'none',
-                  background: 'none',
-                  color: isActive ? 'var(--color-danger)' : 'var(--color-success)',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  width: '100%',
-                  textAlign: 'left'
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-muted)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-              >
-                <Power size={16} />
-                <span>{isActive ? 'Deactivate Dish' : 'Activate Dish'}</span>
-              </button>
+            <div style={{ height: '1px', backgroundColor: 'var(--border-color)', margin: '2px 0' }} />
 
-              <div style={{ height: '1px', backgroundColor: 'var(--border-color)', margin: '2px 0' }} />
-
-              <button
-                type="button"
-                onClick={() => {
-                  const target = actionModalRow;
-                  setActionModalRow(null);
-                  onDelete(target);
-                }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  padding: '10px 12px',
-                  borderRadius: 'var(--border-radius-md)',
-                  border: 'none',
-                  background: 'none',
-                  color: 'var(--color-danger)',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  width: '100%',
-                  textAlign: 'left'
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--color-danger-bg)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-              >
-                <Trash2 size={16} />
-                <span>Delete Menu Item</span>
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setPopoverState(null);
+                onDelete(targetRow);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '7px 10px',
+                borderRadius: 'var(--border-radius-sm)',
+                border: 'none',
+                background: 'none',
+                color: 'var(--color-danger)',
+                fontSize: '12.5px',
+                fontWeight: 500,
+                cursor: 'pointer',
+                width: '100%',
+                textAlign: 'left'
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--color-danger-bg)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+            >
+              <Trash2 size={14} />
+              <span>Delete Menu Item</span>
+            </button>
           </div>
-        </div>
+        </>
       )}
     </>
   );

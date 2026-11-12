@@ -100,12 +100,12 @@ export const CategoryTable = ({
     {
       key: 'actions',
       header: 'Actions',
-      align: 'right',
-      width: '240px',
+      align: 'center',
+      width: '96px',
       render: (_, row) => {
         const isActive = row.status === 'Active';
         return (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
             <button
               type="button"
               onClick={() => navigate(`/categories/${row.id}`)}
@@ -113,18 +113,17 @@ export const CategoryTable = ({
                 background: 'none',
                 border: '1px solid var(--border-color)',
                 borderRadius: 'var(--border-radius-sm)',
-                padding: '6px 8px',
+                padding: '5px',
                 color: 'var(--text-secondary)',
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '4px',
-                fontSize: '12px'
+                justifyContent: 'center'
               }}
               title="View Details"
+              aria-label="View Details"
             >
-              <Eye size={13} />
-              <span>View</span>
+              <Eye size={14} />
             </button>
 
             <button
@@ -134,41 +133,37 @@ export const CategoryTable = ({
                 background: 'none',
                 border: '1px solid var(--border-color)',
                 borderRadius: 'var(--border-radius-sm)',
-                padding: '6px 8px',
+                padding: '5px',
                 color: 'var(--color-accent)',
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '4px',
-                fontSize: '12px'
+                justifyContent: 'center'
               }}
               title="Edit Category"
+              aria-label="Edit Category"
             >
-              <Edit size={13} />
-              <span>Edit</span>
+              <Edit size={14} />
             </button>
 
             <button
               type="button"
               onClick={() => onToggleStatus(row)}
               style={{
-                background: 'none',
-                border: `1px solid ${isActive ? '#fecaca' : '#a7f3d0'}`,
+                border: `1px solid ${isActive ? 'var(--color-danger-border)' : 'var(--color-success-border)'}`,
                 backgroundColor: isActive ? 'var(--color-danger-bg)' : 'var(--color-success-bg)',
                 borderRadius: 'var(--border-radius-sm)',
-                padding: '6px 8px',
+                padding: '5px',
                 color: isActive ? 'var(--color-danger)' : 'var(--color-success)',
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '4px',
-                fontSize: '12px',
-                fontWeight: 500
+                justifyContent: 'center'
               }}
               title={isActive ? 'Deactivate Category' : 'Activate Category'}
+              aria-label={isActive ? 'Deactivate Category' : 'Activate Category'}
             >
-              <Power size={13} />
-              <span>{isActive ? 'Deactivate' : 'Activate'}</span>
+              <Power size={14} />
             </button>
           </div>
         );

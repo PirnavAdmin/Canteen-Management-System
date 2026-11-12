@@ -110,27 +110,30 @@ export const FeedbackTable = ({
     {
       key: 'actions',
       header: 'Actions',
-      align: 'right',
+      align: 'center',
+      width: '72px',
       render: (_, row) => (
-        <button
-          type="button"
-          onClick={() => onViewDetails(row)}
-          style={{
-            background: 'none',
-            border: '1px solid var(--border-color)',
-            borderRadius: 'var(--border-radius-sm)',
-            padding: '5px 10px',
-            color: 'var(--text-secondary)',
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '4px',
-            fontSize: '12px'
-          }}
-        >
-          <Eye size={13} />
-          <span>Review</span>
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <button
+            type="button"
+            onClick={() => onViewDetails(row)}
+            title="Review & Resolve Ticket"
+            aria-label="Review & Resolve Ticket"
+            style={{
+              background: 'none',
+              border: '1px solid var(--border-color)',
+              borderRadius: 'var(--border-radius-sm)',
+              padding: '5px',
+              color: 'var(--text-secondary)',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            <Eye size={14} />
+          </button>
+        </div>
       )
     }
   ];

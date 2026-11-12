@@ -27,7 +27,7 @@ export const SlotListPage = () => {
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(5);
 
   // Modals state
   const [isCreateOpen, setIsCreateOpen] = useState(false);
