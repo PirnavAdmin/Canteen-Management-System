@@ -55,14 +55,14 @@ export const LiveOrderQueue = ({ orders = [] }) => {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        {orders.length === 0 ? (
+        {!Array.isArray(orders) || orders.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)', fontSize: '13px' }}>
             No active orders in live queue right now.
           </div>
         ) : (
-          orders.map((ord) => (
+          orders.map((ord, idx) => (
             <div
-              key={ord.id}
+              key={ord.id || ord.orderId || idx}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -85,20 +85,22 @@ export const LiveOrderQueue = ({ orders = [] }) => {
                   fontSize: '13px',
                   letterSpacing: '0.04em'
                 }}>
-                  {ord.token}
+                  {ord.token || 'TKN'}
                 </div>
 
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {ord.customer}
+                      {ord.customer || ord.customerName || 'Customer'}
                     </span>
                     <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                      • {ord.customerRole}
+                      • {ord.customerRole || 'Student'}
                     </span>
                   </div>
                   <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                    {ord.items.map(i => `${i.name} (x${i.qty})`).join(', ')}
+                    {Array.isArray(ord.items) && ord.items.length > 0
+                      ? ord.items.map(i => `${i.name || i.itemName || 'Item'} (x${i.qty || i.quantity || 1})`).join(', ')
+                      : (ord.itemCount ? `${ord.itemCount} items` : 'Standard Order')}
                   </div>
                 </div>
               </div>
@@ -106,15 +108,15 @@ export const LiveOrderQueue = ({ orders = [] }) => {
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginLeft: 'auto' }}>
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                    {formatCurrency(ord.total)}
+                    {formatCurrency(ord.total ?? ord.totalAmount ?? 0)}
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <Clock size={11} />
-                    <span>{ord.slot}</span>
+                    <span>{ord.slot || ord.elapsedTime || 'Live'}</span>
                   </div>
                 </div>
 
-                <StatusBadge status={ord.status} size="sm" />
+                <StatusBadge status={ord.status || 'Preparing'} size="sm" />
               </div>
             </div>
           ))

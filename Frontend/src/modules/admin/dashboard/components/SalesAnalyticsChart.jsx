@@ -6,11 +6,11 @@ export const SalesAnalyticsChart = ({ data = [] }) => {
   const [activeTab, setActiveTab] = useState('sales'); // 'sales' | 'orders'
   const [hoveredPoint, setHoveredPoint] = useState(null);
 
-  if (!data || data.length === 0) {
+  if (!Array.isArray(data) || data.length === 0) {
     return null;
   }
 
-  const maxVal = Math.max(...data.map(d => activeTab === 'sales' ? d.sales : d.orders), 1);
+  const maxVal = Math.max(...data.map(d => Number(activeTab === 'sales' ? (d.sales ?? 0) : (d.orders ?? 0))), 1);
   const chartHeight = 160;
 
   return (
@@ -97,8 +97,8 @@ export const SalesAnalyticsChart = ({ data = [] }) => {
           paddingBottom: '4px'
         }}>
           {data.map((item, idx) => {
-            const currentVal = activeTab === 'sales' ? item.sales : item.orders;
-            const barHeightPercent = Math.max(8, Math.round((currentVal / maxVal) * 100));
+            const currentVal = Number(activeTab === 'sales' ? (item.sales ?? 0) : (item.orders ?? 0));
+            const barHeightPercent = Math.max(8, Math.round((currentVal / (maxVal || 1)) * 100));
             const isHovered = hoveredPoint === idx;
 
             return (

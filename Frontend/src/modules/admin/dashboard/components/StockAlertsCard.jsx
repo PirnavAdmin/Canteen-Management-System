@@ -47,16 +47,16 @@ export const StockAlertsCard = ({ alerts = [] }) => {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {alerts.length === 0 ? (
+        {!Array.isArray(alerts) || alerts.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)', fontSize: '13px' }}>
             All ingredient stock levels are optimal.
           </div>
         ) : (
-          alerts.map((alert) => {
+          alerts.map((alert, idx) => {
             const isExpiring = alert.status === 'Expiring Soon';
             return (
               <div
-                key={alert.id}
+                key={alert.id || alert.itemId || idx}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -69,10 +69,10 @@ export const StockAlertsCard = ({ alerts = [] }) => {
               >
                 <div>
                   <div style={{ fontSize: '13px', fontWeight: 600, color: isExpiring ? '#92400e' : '#991b1b' }}>
-                    {alert.ingredient}
+                    {alert.ingredient || alert.ingredientName || 'Item'}
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                    {alert.outlet} • Available: <strong>{alert.available}</strong> (Reorder at: {alert.reorderLevel})
+                    {alert.outlet || 'Main Canteen'} • Available: <strong>{alert.available || `${alert.availableQuantity ?? 0} ${alert.unit || 'units'}`}</strong> (Reorder at: {alert.reorderLevel ?? 0})
                   </div>
                 </div>
 
@@ -86,7 +86,7 @@ export const StockAlertsCard = ({ alerts = [] }) => {
                   border: `1px solid ${isExpiring ? '#fde68a' : '#fecaca'}`,
                   whiteSpace: 'nowrap'
                 }}>
-                  {alert.status}
+                  {alert.status || 'Stock Alert'}
                 </div>
               </div>
             );
