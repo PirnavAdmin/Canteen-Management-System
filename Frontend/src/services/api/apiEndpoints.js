@@ -24,16 +24,23 @@ export const API_ENDPOINTS = {
   CATEGORIES: {
     BASE: '/canteen-categories',
     BY_ID: (id) => `/canteen-categories/${id}`,
-    STATS: '/canteen-categories/stats',
-    TOGGLE_STATUS: (id) => `/canteen-categories/${id}/status`,
-    LOOKUP: '/canteen-categories/lookup'
+    TOGGLE_STATUS: (id) => `/canteen-categories/${id}/status`
   },
 
   // Menu Management
   MENU: {
     BASE: '/canteen-menu',
     BY_ID: (id) => `/canteen-menu/${id}`,
-    TOGGLE_STATUS: (id) => `/canteen-menu/${id}/status`
+    TOGGLE_STATUS: (id) => `/canteen-menu/${id}/status`,
+    TOGGLE_PUBLISH: (id) => `/canteen-menu/${id}/publish`
+  },
+
+  // Time Slots
+  SLOTS: {
+    BASE: '/canteen-slots',
+    BY_ID: (id) => `/canteen-slots/${id}`,
+    UPDATE_CAPACITY: (id) => `/canteen-slots/${id}/capacity`,
+    TOGGLE_STATUS: (id) => `/canteen-slots/${id}/status`
   },
 
   // Orders
@@ -41,19 +48,53 @@ export const API_ENDPOINTS = {
     BASE: '/canteen-orders',
     BY_ID: (id) => `/canteen-orders/${id}`,
     UPDATE_STATUS: (id) => `/canteen-orders/${id}/status`,
-    LIVE_QUEUE: '/canteen-orders/live-queue'
+    CANCEL: (id) => `/canteen-orders/${id}/cancel`,
+    REFUND: (id) => `/canteen-orders/${id}/refund`,
+    PROCESS_REFUND: (id) => `/canteen-orders/${id}/refund`
   },
 
-  // Slots
-  SLOTS: {
-    BASE: '/canteen-slots',
-    BY_ID: (id) => `/canteen-slots/${id}`
+  // Dashboard & Analytics
+  DASHBOARD: {
+    SUMMARY: '/canteen-dashboard/summary',
+    HOURLY_SALES: '/canteen-dashboard/hourly-sales',
+    LIVE_ORDERS: '/canteen-dashboard/live-orders',
+    TOP_SELLING: '/canteen-dashboard/top-selling',
+    STOCK_ALERTS: '/canteen-dashboard/stock-alerts',
+    OUTLET_SALES: '/canteen-dashboard/outlet-sales'
+  },
+
+  // Inventory
+  INVENTORY: {
+    ITEMS: '/canteen-inventory/items',
+    STOCK_MOVEMENT: '/canteen-inventory/movements',
+    LEDGER: '/canteen-inventory/ledger',
+    PURCHASE_ORDERS: '/canteen-inventory/purchase-orders',
+    PO_UPDATE_STATUS: (id) => `/canteen-inventory/purchase-orders/${id}/status`,
+    SUPPLIERS: '/canteen-inventory/suppliers'
+  },
+
+  // Feedback & Grievances
+  FEEDBACK: {
+    BASE: '/canteen-feedback',
+    BY_ID: (id) => `/canteen-feedback/${id}`,
+    RESOLVE: (id) => `/canteen-feedback/${id}/resolve`
   },
 
   // Reports
   REPORTS: {
     SALES: '/canteen-reports/sales',
+    ITEMS: '/canteen-reports/items',
     EXPORT: '/canteen-reports/export'
+  },
+
+  // System Settings & Privacy
+  SETTINGS: {
+    BASE: '/canteen-settings',
+    OUTLET: '/canteen-settings/outlet',
+    PAYMENTS: '/canteen-settings/payments',
+    RULES: '/canteen-settings/rules',
+    PRIVACY: '/canteen-settings/privacy',
+    UPDATE_REQUEST_STATUS: (id) => `/canteen-settings/dsar/${id}`
   }
 };
 

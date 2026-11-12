@@ -1,7 +1,14 @@
 using CanteenManagement.API.Helpers;
 using CanteenManagement.API.Models.Auth;
+using CanteenManagement.API.Models.Categories;
 using CanteenManagement.API.Models.Common;
+using CanteenManagement.API.Models.Feedback;
+using CanteenManagement.API.Models.Inventory;
+using CanteenManagement.API.Models.Menu;
+using CanteenManagement.API.Models.Orders;
 using CanteenManagement.API.Models.Outlets;
+using CanteenManagement.API.Models.Settings;
+using CanteenManagement.API.Models.Slots;
 using Microsoft.EntityFrameworkCore;
 
 namespace CanteenManagement.API.Data
@@ -16,6 +23,23 @@ namespace CanteenManagement.API.Data
         public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
         public DbSet<CanteenOutlet> CanteenOutlets => Set<CanteenOutlet>();
         public DbSet<CanteenOutletSetting> CanteenOutletSettings => Set<CanteenOutletSetting>();
+        public DbSet<Category> Categories => Set<Category>();
+        public DbSet<MenuItem> MenuItems => Set<MenuItem>();
+        public DbSet<MenuItemVariant> MenuItemVariants => Set<MenuItemVariant>();
+        public DbSet<MenuItemAddon> MenuItemAddons => Set<MenuItemAddon>();
+        public DbSet<Slot> Slots => Set<Slot>();
+        public DbSet<Order> Orders => Set<Order>();
+        public DbSet<OrderItem> OrderItems => Set<OrderItem>();
+        public DbSet<OrderTimeline> OrderTimelines => Set<OrderTimeline>();
+        public DbSet<PaymentTransaction> PaymentTransactions => Set<PaymentTransaction>();
+        public DbSet<InventoryItem> InventoryItems => Set<InventoryItem>();
+        public DbSet<StockMovement> StockMovements => Set<StockMovement>();
+        public DbSet<Supplier> Suppliers => Set<Supplier>();
+        public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
+        public DbSet<FeedbackTicket> FeedbackTickets => Set<FeedbackTicket>();
+        public DbSet<FeedbackHistory> FeedbackHistories => Set<FeedbackHistory>();
+        public DbSet<SystemSetting> SystemSettings => Set<SystemSetting>();
+        public DbSet<DsarRequest> DsarRequests => Set<DsarRequest>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -40,122 +64,45 @@ namespace CanteenManagement.API.Data
                       .OnDelete(DeleteBehavior.Cascade);
             });
 
-            // Seed initial admin user and default outlet
-            var adminPasswordHash = PasswordHasher.HashPassword("Admin@123");
-            var studentPasswordHash = PasswordHasher.HashPassword("Student@123");
-            var staffPasswordHash = PasswordHasher.HashPassword("Staff@123");
-
-            modelBuilder.Entity<User>().HasData(
-                new User
-                {
-                    UserId = 1,
-                    InstitutionId = 1,
-                    Username = "admin",
-                    Email = "admin@canteen.edu",
-                    PasswordHash = adminPasswordHash,
-                    FullName = "Mrs. Sunitha (Canteen Admin)",
-                    Role = "Admin",
-                    PhoneNumber = "+91 98765 43210",
-                    IsActive = true,
-                    CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
-                },
-                new User
-                {
-                    UserId = 2,
-                    InstitutionId = 1,
-                    Username = "staff",
-                    Email = "ravi.staff@canteen.edu",
-                    PasswordHash = staffPasswordHash,
-                    FullName = "Ravi (Kitchen & Counter Staff)",
-                    Role = "Staff",
-                    PhoneNumber = "+91 98765 43211",
-                    IsActive = true,
-                    CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
-                },
-                new User
-                {
-                    UserId = 3,
-                    InstitutionId = 1,
-                    Username = "aarav",
-                    Email = "aarav.student@git.edu",
-                    PasswordHash = studentPasswordHash,
-                    FullName = "Aarav (B.Tech 2nd Year)",
-                    Role = "Student",
-                    PhoneNumber = "+91 98765 43212",
-                    IsActive = true,
-                    CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
-                }
-            );
-
-            modelBuilder.Entity<CanteenOutlet>().HasData(
-                new CanteenOutlet
-                {
-                    OutletId = 1,
-                    InstitutionId = 1,
-                    Code = "MC-01",
-                    Name = "Main Canteen",
-                    Location = "Campus Central Building, Ground Floor",
-                    OpenTime = "08:00",
-                    CloseTime = "16:30",
-                    FssaiLicenseNo = "10022044000123",
-                    ContactNumber = "+91 40 2345 6789",
-                    Status = "Active",
-                    IsOrderAcceptanceEnabled = true,
-                    WorkingDays = "Monday,Tuesday,Wednesday,Thursday,Friday,Saturday",
-                    AdminContactJson = "{\"name\":\"Mrs. Sunitha\",\"email\":\"admin@canteen.edu\",\"phone\":\"+91 98765 43210\"}",
-                    CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
-                }
-            );
-
-            modelBuilder.Entity<CanteenOutletSetting>().HasData(
-                new CanteenOutletSetting
-                {
-                    SettingId = 1,
-                    OutletId = 1,
-                    AutoExpireUnpaidMinutes = 10,
-                    PickupHoldMinutes = 30,
-                    CancellationPolicy = "UntilAccepted",
-                    AllowUpi = true,
-                    AllowCards = true,
-                    AllowWallet = true,
-                    AllowCash = true,
-                    UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
-                }
-            );
-        }
-
-        public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-        {
-            ApplyAuditTimestamps();
-            return base.SaveChangesAsync(cancellationToken);
-        }
-
-        public override int SaveChanges()
-        {
-            ApplyAuditTimestamps();
-            return base.SaveChanges();
-        }
-
-        private void ApplyAuditTimestamps()
-        {
-            var entries = ChangeTracker.Entries()
-                .Where(e => e.Entity is User || e.Entity is CanteenOutlet);
-
-            foreach (var entry in entries)
+            // Category configuration
+            modelBuilder.Entity<Category>(entity =>
             {
-                if (entry.State == EntityState.Added)
-                {
-                    if (entry.Property("CreatedAt").CurrentValue == null || (DateTime)entry.Property("CreatedAt").CurrentValue! == default)
-                    {
-                        entry.Property("CreatedAt").CurrentValue = DateTime.UtcNow;
-                    }
-                }
-                else if (entry.State == EntityState.Modified)
-                {
-                    entry.Property("UpdatedAt").CurrentValue = DateTime.UtcNow;
-                }
-            }
+                entity.HasIndex(c => new { c.InstitutionId, c.Name }).IsUnique();
+            });
+
+            // MenuItem configuration
+            modelBuilder.Entity<MenuItem>(entity =>
+            {
+                entity.HasIndex(m => new { m.InstitutionId, m.Code }).IsUnique();
+                entity.HasOne(m => m.Outlet)
+                      .WithMany()
+                      .HasForeignKey(m => m.OutletId)
+                      .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(m => m.Category)
+                      .WithMany(c => c.MenuItems)
+                      .HasForeignKey(m => m.CategoryId)
+                      .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // Slot configuration
+            modelBuilder.Entity<Slot>(entity =>
+            {
+                entity.HasIndex(s => new { s.OutletId, s.Date, s.StartTime });
+            });
+
+            // Order configuration
+            modelBuilder.Entity<Order>(entity =>
+            {
+                entity.HasIndex(o => o.Token);
+                entity.HasIndex(o => o.Status);
+                entity.HasIndex(o => o.OrderDate);
+            });
+
+            // InventoryItem configuration
+            modelBuilder.Entity<InventoryItem>(entity =>
+            {
+                entity.HasIndex(i => new { i.OutletId, i.IngredientName });
+            });
         }
     }
 }
-

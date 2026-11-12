@@ -48,6 +48,18 @@ namespace CanteenManagement.API.Services.Implementations.Common
                 _logger.LogError(ex, "Failed to persist audit log for Action: {Action}, Entity: {EntityName}", action, entityName);
             }
         }
+
+        public async Task LogActionAsync(
+            int institutionId,
+            int? userId,
+            string userName,
+            string action,
+            string entityName,
+            string? entityId = null,
+            string? details = null,
+            string? ipAddress = null)
+        {
+            await LogAsync(action, entityName, entityId, details, userId, userName, institutionId, ipAddress);
+        }
     }
 }
-
