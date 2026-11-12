@@ -29,9 +29,11 @@ export const OrderListPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
 
-  // Modals state
+  // Modals & action loading state
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [orderToCancel, setOrderToCancel] = useState(null);
+  const [actionLoadingId, setActionLoadingId] = useState(null);
+  const [modalLoading, setModalLoading] = useState(false);
 
   // Filtered orders
   const filteredOrders = useMemo(() => {
@@ -66,16 +68,38 @@ export const OrderListPage = () => {
   };
 
   const handleStatusAdvance = async (order, nextStatus) => {
-    await updateOrderStatus(order.id, nextStatus);
-    if (selectedOrder && selectedOrder.id === order.id) {
-      setSelectedOrder(prev => ({ ...prev, status: nextStatus }));
+    const orderId = typeof order === 'string' ? order : order.id;
+    try {
+      setActionLoadingId(orderId);
+      setModalLoading(true);
+      await updateOrderStatus(orderId, nextStatus);
+      if (selectedOrder && selectedOrder.id === orderId) {
+        setSelectedOrder(prev => ({ ...prev, status: nextStatus }));
+      }
+    } finally {
+      setActionLoadingId(null);
+      setModalLoading(false);
     }
   };
 
   const handleProcessRefund = async (orderId) => {
-    await processRefund(orderId);
-    if (selectedOrder && selectedOrder.id === orderId) {
-      setSelectedOrder(null);
+    try {
+      setModalLoading(true);
+      await processRefund(orderId);
+      if (selectedOrder && selectedOrder.id === orderId) {
+        setSelectedOrder(null);
+      }
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const handleConfirmCancel = async (orderId, reason) => {
+    try {
+      setModalLoading(true);
+      await cancelOrder(orderId, reason);
+    } finally {
+      setModalLoading(false);
     }
   };
 
@@ -117,6 +141,7 @@ export const OrderListPage = () => {
       <OrderTable
         orders={paginatedOrders}
         loading={loading}
+        actionLoadingId={actionLoadingId}
         onView={(ord) => setSelectedOrder(ord)}
         onAdvanceStatus={handleStatusAdvance}
         footer={
@@ -134,8 +159,9 @@ export const OrderListPage = () => {
       {/* Order Details Modal */}
       <OrderDetailsModal
         isOpen={Boolean(selectedOrder)}
-        onClose={() => setSelectedOrder(null)}
+        onClose={() => !modalLoading && setSelectedOrder(null)}
         order={selectedOrder}
+        loading={modalLoading}
         onUpdateStatus={handleStatusAdvance}
         onOpenCancel={(ord) => setOrderToCancel(ord)}
         onProcessRefund={handleProcessRefund}
@@ -144,9 +170,10 @@ export const OrderListPage = () => {
       {/* Cancel Order Modal */}
       <CancelOrderModal
         isOpen={Boolean(orderToCancel)}
-        onClose={() => setOrderToCancel(null)}
+        onClose={() => !modalLoading && setOrderToCancel(null)}
         order={orderToCancel}
-        onConfirmCancel={cancelOrder}
+        loading={modalLoading}
+        onConfirmCancel={handleConfirmCancel}
       />
     </div>
   );

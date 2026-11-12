@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { X } from 'lucide-react';
 import { Button } from '../../../../components/common/Button';
 
-export const SupplierModal = ({ isOpen, onClose, onAddSupplier }) => {
+export const SupplierModal = ({ isOpen, onClose, loading = false, onAddSupplier }) => {
   const [formData, setFormData] = useState({
     name: '',
     contactPerson: '',
@@ -15,13 +15,13 @@ export const SupplierModal = ({ isOpen, onClose, onAddSupplier }) => {
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name.trim() || !formData.phone.trim()) {
       setError('Vendor name and contact phone are required.');
       return;
     }
-    onAddSupplier(formData);
+    await onAddSupplier(formData);
     onClose();
   };
 
@@ -151,10 +151,10 @@ export const SupplierModal = ({ isOpen, onClose, onAddSupplier }) => {
           {error && <div style={{ fontSize: '11.5px', color: 'var(--color-danger)' }}>{error}</div>}
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px', borderTop: '1px solid var(--border-color)', paddingTop: '14px' }}>
-            <Button variant="secondary" onClick={onClose} type="button">
+            <Button variant="secondary" onClick={onClose} type="button" disabled={loading}>
               Cancel
             </Button>
-            <Button variant="primary" type="submit">
+            <Button variant="primary" type="submit" loading={loading}>
               Register Supplier
             </Button>
           </div>

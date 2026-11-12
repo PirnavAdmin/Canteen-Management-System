@@ -32,12 +32,13 @@ export const MenuListPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
 
-  // Modals state
+  // Modals & action loading state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [viewingItem, setViewingItem] = useState(null);
   const [itemToToggle, setItemToToggle] = useState(null);
   const [itemToDelete, setItemToDelete] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
   // Filtered menu items
   const filteredItems = useMemo(() => {
@@ -83,25 +84,38 @@ export const MenuListPage = () => {
   };
 
   const handleFormSubmit = async (formData) => {
-    if (editingItem) {
-      await updateMenuItem(editingItem.id, formData);
-    } else {
-      await createMenuItem(formData);
+    try {
+      setSubmitting(true);
+      if (editingItem) {
+        await updateMenuItem(editingItem.id, formData);
+      } else {
+        await createMenuItem(formData);
+      }
+      setIsModalOpen(false);
+    } finally {
+      setSubmitting(false);
     }
-    setIsModalOpen(false);
   };
 
   const handleConfirmToggle = async () => {
-    if (itemToToggle) {
+    if (!itemToToggle) return;
+    try {
+      setSubmitting(true);
       await toggleStatus(itemToToggle.id);
       setItemToToggle(null);
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleConfirmDelete = async () => {
-    if (itemToDelete) {
+    if (!itemToDelete) return;
+    try {
+      setSubmitting(true);
       await deleteItem(itemToDelete.id);
       setItemToDelete(null);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -160,9 +174,10 @@ export const MenuListPage = () => {
       {/* Create/Edit Modal */}
       <MenuModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => !submitting && setIsModalOpen(false)}
         onSubmit={handleFormSubmit}
         initialData={editingItem}
+        loading={submitting}
         title={editingItem ? 'Edit Menu Item' : 'Create New Menu Item'}
       />
 
@@ -177,8 +192,9 @@ export const MenuListPage = () => {
       {itemToToggle && (
         <ConfirmationModal
           isOpen={Boolean(itemToToggle)}
-          onClose={() => setItemToToggle(null)}
+          onClose={() => !submitting && setItemToToggle(null)}
           onConfirm={handleConfirmToggle}
+          loading={submitting}
           title={itemToToggle.status === 'Active' ? 'Deactivate Menu Item' : 'Activate Menu Item'}
           variant={itemToToggle.status === 'Active' ? 'warning' : 'primary'}
           message={`Are you sure you want to ${itemToToggle.status === 'Active' ? 'deactivate' : 'activate'} "${itemToToggle.name}" (${itemToToggle.code})? ${itemToToggle.status === 'Active' ? 'It will be hidden from instant ordering.' : 'It will become available for order ordering.'}`}
@@ -190,8 +206,9 @@ export const MenuListPage = () => {
       {itemToDelete && (
         <ConfirmationModal
           isOpen={Boolean(itemToDelete)}
-          onClose={() => setItemToDelete(null)}
+          onClose={() => !submitting && setItemToDelete(null)}
           onConfirm={handleConfirmDelete}
+          loading={submitting}
           title="Delete Menu Item"
           variant="danger"
           message={`Are you sure you want to delete "${itemToDelete.name}" (${itemToDelete.code})? If this item has existing historical orders, the institutional policy will prevent hard deletion and recommend deactivation instead.`}

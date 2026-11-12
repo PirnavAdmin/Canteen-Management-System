@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { X, Plus, Trash2 } from 'lucide-react';
 import { Button } from '../../../../components/common/Button';
 
-export const PurchaseOrderModal = ({ isOpen, onClose, suppliers = [], onCreatePO }) => {
+export const PurchaseOrderModal = ({ isOpen, onClose, suppliers = [], loading = false, onCreatePO }) => {
   const [supplierId, setSupplierId] = useState(suppliers[0]?.id || 'sup-01');
   const [expectedDelivery, setExpectedDelivery] = useState('');
   const [items, setItems] = useState([
@@ -27,7 +27,7 @@ export const PurchaseOrderModal = ({ isOpen, onClose, suppliers = [], onCreatePO
     setItems(updated);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!expectedDelivery) {
       setError('Please select an expected delivery date.');
@@ -48,7 +48,7 @@ export const PurchaseOrderModal = ({ isOpen, onClose, suppliers = [], onCreatePO
     }));
     const totalAmount = processedItems.reduce((acc, curr) => acc + curr.total, 0);
 
-    onCreatePO({
+    await onCreatePO({
       supplierId,
       supplierName: selectedSup.name,
       expectedDelivery,
@@ -218,10 +218,10 @@ export const PurchaseOrderModal = ({ isOpen, onClose, suppliers = [], onCreatePO
           {error && <div style={{ fontSize: '11.5px', color: 'var(--color-danger)' }}>{error}</div>}
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px', borderTop: '1px solid var(--border-color)', paddingTop: '14px' }}>
-            <Button variant="secondary" onClick={onClose} type="button">
+            <Button variant="secondary" onClick={onClose} type="button" disabled={loading}>
               Cancel
             </Button>
-            <Button variant="primary" type="submit">
+            <Button variant="primary" type="submit" loading={loading}>
               Submit Purchase Order
             </Button>
           </div>

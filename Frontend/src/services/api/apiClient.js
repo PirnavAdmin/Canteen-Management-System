@@ -8,14 +8,16 @@ import axios from 'axios';
 import { ENV } from '../../config/env';
 
 const rawBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
-const BASE_URL = rawBase.includes('/api/v') ? rawBase : `${rawBase.replace(/\/+$/, '')}/api/v1`;
+const prodBase = rawBase.includes('/api/v') ? rawBase : `${rawBase.replace(/\/+$/, '')}/api/v1`;
+const BASE_URL = import.meta.env.DEV ? '/proxy-api/api/v1' : prodBase;
 
 export const axiosInstance = axios.create({
   baseURL: BASE_URL,
   timeout: ENV.apiTimeout || 15000,
   headers: {
     'Content-Type': 'application/json',
-    'Accept': 'application/json'
+    'Accept': 'application/json',
+    'ngrok-skip-browser-warning': 'true'
   }
 });
 

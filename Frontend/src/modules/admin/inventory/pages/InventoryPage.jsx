@@ -37,13 +37,51 @@ export const InventoryPage = () => {
     return items.slice(start, start + pageSize);
   }, [items, currentPage, pageSize]);
 
-  // Modals state
+  // Modals & action loading state
   const [movementModal, setMovementModal] = useState({ isOpen: false, item: null, type: 'Stock In' });
   const [isPOModalOpen, setIsPOModalOpen] = useState(false);
   const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
+  const [actionLoadingId, setActionLoadingId] = useState(null);
+  const [modalLoading, setModalLoading] = useState(false);
 
   const handleOpenMovement = (item, type = 'Stock In') => {
     setMovementModal({ isOpen: true, item, type });
+  };
+
+  const handleRecordMovement = async (payload) => {
+    try {
+      setModalLoading(true);
+      await recordMovement(payload);
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const handleCreatePO = async (payload) => {
+    try {
+      setModalLoading(true);
+      await createPO(payload);
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const handleCreateSupplier = async (payload) => {
+    try {
+      setModalLoading(true);
+      await createSupplier(payload);
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const handleUpdatePOStatus = async (poId, status) => {
+    try {
+      setActionLoadingId(poId);
+      await updatePOStatus(poId, status);
+    } finally {
+      setActionLoadingId(null);
+    }
   };
 
   return (
@@ -216,7 +254,8 @@ export const InventoryPage = () => {
         <PurchaseOrdersTable
           orders={purchaseOrders}
           loading={loading}
-          onUpdateStatus={updatePOStatus}
+          actionLoadingId={actionLoadingId}
+          onUpdateStatus={handleUpdatePOStatus}
         />
       )}
 
@@ -230,23 +269,26 @@ export const InventoryPage = () => {
       {/* Modals */}
       <StockMovementModal
         isOpen={movementModal.isOpen}
-        onClose={() => setMovementModal({ isOpen: false, item: null, type: 'Stock In' })}
+        onClose={() => !modalLoading && setMovementModal({ isOpen: false, item: null, type: 'Stock In' })}
         item={movementModal.item}
         defaultType={movementModal.type}
-        onRecordMovement={recordMovement}
+        loading={modalLoading}
+        onRecordMovement={handleRecordMovement}
       />
 
       <PurchaseOrderModal
         isOpen={isPOModalOpen}
-        onClose={() => setIsPOModalOpen(false)}
+        onClose={() => !modalLoading && setIsPOModalOpen(false)}
         suppliers={suppliers}
-        onCreatePO={createPO}
+        loading={modalLoading}
+        onCreatePO={handleCreatePO}
       />
 
       <SupplierModal
         isOpen={isSupplierModalOpen}
-        onClose={() => setIsSupplierModalOpen(false)}
-        onAddSupplier={createSupplier}
+        onClose={() => !modalLoading && setIsSupplierModalOpen(false)}
+        loading={modalLoading}
+        onAddSupplier={handleCreateSupplier}
       />
     </div>
   );

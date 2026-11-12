@@ -65,6 +65,12 @@ body, .sidebar, header, nav, main, aside, [data-theme] {
   transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
 }
 
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* Responsive utilities */
 @media (max-width: 640px) {
   .theme-toggle-label {

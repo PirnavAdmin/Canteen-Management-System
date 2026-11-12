@@ -3,7 +3,7 @@ import { X } from 'lucide-react';
 import { Button } from '../../../../components/common/Button';
 import { SLOT_SESSIONS } from '../../../../constants/appConstants';
 
-export const SlotModal = ({ isOpen, onClose, onSubmit }) => {
+export const SlotModal = ({ isOpen, onClose, loading = false, onSubmit }) => {
   const [formData, setFormData] = useState({
     outletId: 'canteen-001',
     outletName: 'Central Dining Hall',
@@ -32,10 +32,10 @@ export const SlotModal = ({ isOpen, onClose, onSubmit }) => {
     return Object.keys(errs).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
-    onSubmit({
+    await onSubmit({
       ...formData,
       maxCapacity: Number(formData.maxCapacity)
     });
@@ -249,10 +249,10 @@ export const SlotModal = ({ isOpen, onClose, onSubmit }) => {
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px', borderTop: '1px solid var(--border-color)', paddingTop: '14px' }}>
-            <Button variant="secondary" onClick={onClose} type="button">
+            <Button variant="secondary" onClick={onClose} type="button" disabled={loading}>
               Cancel
             </Button>
-            <Button variant="primary" type="submit">
+            <Button variant="primary" type="submit" loading={loading}>
               Save Slot
             </Button>
           </div>

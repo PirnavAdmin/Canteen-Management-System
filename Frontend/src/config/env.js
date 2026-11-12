@@ -18,7 +18,7 @@ export const ENV = {
   institutionId: getEnv('VITE_INSTITUTION_ID', 'INST-APEX-01'),
 
   // API Config
-  apiBaseUrl: getEnv('VITE_API_BASE_URL', 'http://localhost:5000/api'),
+  apiBaseUrl: getEnv('VITE_API_BASE_URL', 'https://heroics-ambush-baton.ngrok-free.dev'),
   apiTimeout: Number(getEnv('VITE_API_TIMEOUT', 15000)),
 
   // Public Feature Flags

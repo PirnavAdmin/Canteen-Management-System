@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, SlidersHorizontal, AlertCircle } from 'lucide-react';
 import { Button } from '../../../../components/common/Button';
 
-export const AdjustCapacityModal = ({ isOpen, onClose, slot, onSaveCapacity }) => {
+export const AdjustCapacityModal = ({ isOpen, onClose, slot, loading = false, onSaveCapacity }) => {
   const [newCapacity, setNewCapacity] = useState('');
   const [error, setError] = useState('');
 
@@ -15,7 +15,7 @@ export const AdjustCapacityModal = ({ isOpen, onClose, slot, onSaveCapacity }) =
 
   if (!isOpen || !slot) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const val = Number(newCapacity);
     if (isNaN(val) || val <= 0) {
@@ -29,7 +29,7 @@ export const AdjustCapacityModal = ({ isOpen, onClose, slot, onSaveCapacity }) =
       return;
     }
 
-    onSaveCapacity(slot.id, val);
+    await onSaveCapacity(slot.id, val);
     onClose();
   };
 
@@ -128,10 +128,10 @@ export const AdjustCapacityModal = ({ isOpen, onClose, slot, onSaveCapacity }) =
           )}
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '18px' }}>
-            <Button variant="secondary" onClick={onClose} type="button">
+            <Button variant="secondary" onClick={onClose} type="button" disabled={loading}>
               Cancel
             </Button>
-            <Button variant="primary" type="submit">
+            <Button variant="primary" type="submit" loading={loading}>
               Update Capacity
             </Button>
           </div>

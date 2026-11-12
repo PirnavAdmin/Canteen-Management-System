@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle2, PackageCheck, XCircle } from 'lucide-react';
+import { CheckCircle2, PackageCheck, XCircle, Loader2 } from 'lucide-react';
 import { DataTable } from '../../../../components/tables/DataTable';
 import { StatusBadge } from '../../../../components/common/StatusBadge';
 import { formatCurrency, formatDate } from '../../../../utils/formatters';
@@ -7,6 +7,7 @@ import { formatCurrency, formatDate } from '../../../../utils/formatters';
 export const PurchaseOrdersTable = ({
   orders = [],
   loading = false,
+  actionLoadingId = null,
   onUpdateStatus,
   footer
 }) => {
@@ -110,11 +111,14 @@ export const PurchaseOrdersTable = ({
           );
         }
 
+        const isRowLoading = actionLoadingId === row.id;
+
         return (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
             {canApprove && (
               <button
                 type="button"
+                disabled={isRowLoading}
                 onClick={() => onUpdateStatus(row.id, 'Approved')}
                 style={{
                   background: 'none',
@@ -122,7 +126,8 @@ export const PurchaseOrdersTable = ({
                   borderRadius: 'var(--border-radius-sm)',
                   padding: '5px',
                   color: 'var(--color-accent)',
-                  cursor: 'pointer',
+                  cursor: isRowLoading ? 'not-allowed' : 'pointer',
+                  opacity: isRowLoading ? 0.7 : 1,
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center'
@@ -130,13 +135,14 @@ export const PurchaseOrdersTable = ({
                 title="Approve Purchase Order"
                 aria-label="Approve Purchase Order"
               >
-                <CheckCircle2 size={14} />
+                {isRowLoading ? <Loader2 size={14} style={{ animation: 'spin 0.8s linear infinite' }} /> : <CheckCircle2 size={14} />}
               </button>
             )}
 
             {canReceive && (
               <button
                 type="button"
+                disabled={isRowLoading}
                 onClick={() => onUpdateStatus(row.id, 'Received')}
                 style={{
                   background: 'var(--color-success-bg)',
@@ -144,7 +150,8 @@ export const PurchaseOrdersTable = ({
                   borderRadius: 'var(--border-radius-sm)',
                   padding: '5px',
                   color: 'var(--color-success-text)',
-                  cursor: 'pointer',
+                  cursor: isRowLoading ? 'not-allowed' : 'pointer',
+                  opacity: isRowLoading ? 0.7 : 1,
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center'
@@ -152,13 +159,14 @@ export const PurchaseOrdersTable = ({
                 title="Mark Delivery Received"
                 aria-label="Mark Delivery Received"
               >
-                <PackageCheck size={14} />
+                {isRowLoading ? <Loader2 size={14} style={{ animation: 'spin 0.8s linear infinite' }} /> : <PackageCheck size={14} />}
               </button>
             )}
 
             {canCancel && (
               <button
                 type="button"
+                disabled={isRowLoading}
                 onClick={() => onUpdateStatus(row.id, 'Cancelled')}
                 style={{
                   background: 'none',
@@ -166,7 +174,8 @@ export const PurchaseOrdersTable = ({
                   borderRadius: 'var(--border-radius-sm)',
                   padding: '5px',
                   color: 'var(--color-danger)',
-                  cursor: 'pointer',
+                  cursor: isRowLoading ? 'not-allowed' : 'pointer',
+                  opacity: isRowLoading ? 0.7 : 1,
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center'
