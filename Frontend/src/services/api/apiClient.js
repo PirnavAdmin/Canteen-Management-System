@@ -7,7 +7,8 @@
 import axios from 'axios';
 import { ENV } from '../../config/env';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
+const rawBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
+const BASE_URL = rawBase.includes('/api/v') ? rawBase : `${rawBase.replace(/\/+$/, '')}/api/v1`;
 
 export const axiosInstance = axios.create({
   baseURL: BASE_URL,
