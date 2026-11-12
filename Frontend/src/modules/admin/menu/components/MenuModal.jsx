@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2 } from 'lucide-react';
+import { X, Plus, Trash2, Camera, Upload, Sparkles } from 'lucide-react';
 import { Button } from '../../../../components/common/Button';
 import { ALLERGENS, FOOD_TYPES } from '../../../../constants/appConstants';
 
@@ -82,6 +82,17 @@ export const MenuModal = ({
 
   if (!isOpen) return null;
 
+  const handleImageUpload = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(prev => ({ ...prev, imageUrl: reader.result }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const validate = () => {
     const errs = {};
     if (!formData.name.trim()) errs.name = 'Item name is required.';
@@ -159,8 +170,8 @@ export const MenuModal = ({
     <div style={{
       position: 'fixed',
       inset: 0,
-      backgroundColor: 'rgba(15, 23, 42, 0.6)',
-      backdropFilter: 'blur(3px)',
+      backgroundColor: 'rgba(15, 23, 42, 0.65)',
+      backdropFilter: 'blur(4px)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -168,14 +179,17 @@ export const MenuModal = ({
       padding: '16px'
     }}>
       <div style={{
-        backgroundColor: '#ffffff',
+        backgroundColor: 'var(--modal-bg)',
+        color: 'var(--text-primary)',
         borderRadius: 'var(--border-radius-xl)',
-        maxWidth: '740px',
+        maxWidth: '760px',
         width: '100%',
-        maxHeight: '90vh',
+        maxHeight: '92vh',
         display: 'flex',
         flexDirection: 'column',
-        boxShadow: 'var(--shadow-modal)'
+        boxShadow: 'var(--shadow-modal)',
+        border: '1px solid var(--border-color)',
+        overflow: 'hidden'
       }}>
         {/* Header */}
         <div style={{
@@ -183,14 +197,15 @@ export const MenuModal = ({
           borderBottom: '1px solid var(--border-color)',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between'
+          justifyContent: 'space-between',
+          backgroundColor: 'var(--modal-bg)'
         }}>
           <div>
             <h2 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
               {title}
             </h2>
             <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>
-              Configure dish specification, dietary allergens, pricing and daily kitchen quotas.
+              Configure dish specification, dietary allergens, dish photo, pricing and daily kitchen quotas.
             </p>
           </div>
           <button
@@ -201,7 +216,8 @@ export const MenuModal = ({
               border: 'none',
               color: 'var(--text-muted)',
               cursor: 'pointer',
-              padding: '6px'
+              padding: '6px',
+              borderRadius: 'var(--border-radius-sm)'
             }}
           >
             <X size={20} />
@@ -226,6 +242,8 @@ export const MenuModal = ({
                   height: '36px',
                   padding: '0 10px',
                   fontSize: '13px',
+                  backgroundColor: 'var(--bg-surface)',
+                  color: 'var(--text-primary)',
                   border: `1px solid ${errors.name ? 'var(--color-danger)' : 'var(--border-color)'}`,
                   borderRadius: 'var(--border-radius-md)'
                 }}
@@ -247,6 +265,8 @@ export const MenuModal = ({
                   height: '36px',
                   padding: '0 10px',
                   fontSize: '13px',
+                  backgroundColor: 'var(--bg-surface)',
+                  color: 'var(--text-primary)',
                   border: '1px solid var(--border-color)',
                   borderRadius: 'var(--border-radius-md)'
                 }}
@@ -265,6 +285,8 @@ export const MenuModal = ({
                   height: '36px',
                   padding: '0 10px',
                   fontSize: '13px',
+                  backgroundColor: 'var(--bg-surface)',
+                  color: 'var(--text-primary)',
                   border: '1px solid var(--border-color)',
                   borderRadius: 'var(--border-radius-md)'
                 }}
@@ -290,6 +312,8 @@ export const MenuModal = ({
                   height: '36px',
                   padding: '0 10px',
                   fontSize: '13px',
+                  backgroundColor: 'var(--bg-surface)',
+                  color: 'var(--text-primary)',
                   border: '1px solid var(--border-color)',
                   borderRadius: 'var(--border-radius-md)'
                 }}
@@ -314,6 +338,8 @@ export const MenuModal = ({
                   height: '36px',
                   padding: '0 10px',
                   fontSize: '13px',
+                  backgroundColor: 'var(--bg-surface)',
+                  color: 'var(--text-primary)',
                   border: '1px solid var(--border-color)',
                   borderRadius: 'var(--border-radius-md)'
                 }}
@@ -341,11 +367,191 @@ export const MenuModal = ({
                   height: '36px',
                   padding: '0 10px',
                   fontSize: '13px',
+                  backgroundColor: 'var(--bg-surface)',
+                  color: 'var(--text-primary)',
                   border: `1px solid ${errors.price ? 'var(--color-danger)' : 'var(--border-color)'}`,
                   borderRadius: 'var(--border-radius-md)'
                 }}
               />
               {errors.price && <span style={{ fontSize: '11px', color: 'var(--color-danger)' }}>{errors.price}</span>}
+            </div>
+          </div>
+
+          {/* Dish Photo Capture & Upload Field */}
+          <div style={{
+            border: '1px solid var(--border-color)',
+            borderRadius: 'var(--border-radius-lg)',
+            padding: '14px 16px',
+            backgroundColor: 'var(--bg-app)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
+                  Dish Photo *
+                </label>
+                <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
+                  Take a photo using camera or upload image (displays small in menu table & medium in user item details)
+                </span>
+              </div>
+
+              {formData.imageUrl && (
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, imageUrl: '' })}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontSize: '11.5px',
+                    color: 'var(--color-danger)',
+                    fontWeight: 600,
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Trash2 size={13} />
+                  <span>Remove Photo</span>
+                </button>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+              {/* Photo Preview Thumbnail */}
+              <div style={{
+                width: '140px',
+                height: '110px',
+                borderRadius: 'var(--border-radius-md)',
+                border: '2px dashed var(--border-color)',
+                backgroundColor: 'var(--bg-surface)',
+                overflow: 'hidden',
+                position: 'relative',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0
+              }}>
+                {formData.imageUrl ? (
+                  <img
+                    src={formData.imageUrl}
+                    alt="Dish Preview"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', color: 'var(--text-muted)', textAlign: 'center', padding: '6px' }}>
+                    <Camera size={26} style={{ opacity: 0.6 }} />
+                    <span style={{ fontSize: '11px', fontWeight: 500 }}>No photo selected</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Photo Input Controls */}
+              <div style={{ flex: 1, minWidth: '240px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <label
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '7px 14px',
+                      borderRadius: 'var(--border-radius-md)',
+                      backgroundColor: 'var(--color-accent)',
+                      color: '#ffffff',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      boxShadow: 'var(--shadow-xs)'
+                    }}
+                  >
+                    <Camera size={14} />
+                    <span>Take / Choose Photo</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={handleImageUpload}
+                      style={{ display: 'none' }}
+                    />
+                  </label>
+
+                  <label
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '7px 14px',
+                      borderRadius: 'var(--border-radius-md)',
+                      border: '1px solid var(--border-color)',
+                      backgroundColor: 'var(--bg-surface)',
+                      color: 'var(--text-primary)',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <Upload size={14} />
+                    <span>Upload File</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      style={{ display: 'none' }}
+                    />
+                  </label>
+                </div>
+
+                {/* Direct image URL input */}
+                <input
+                  type="url"
+                  placeholder="Or paste dish image URL (https://...)"
+                  value={formData.imageUrl}
+                  onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+                  style={{
+                    width: '100%',
+                    height: '32px',
+                    padding: '0 10px',
+                    fontSize: '12px',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--border-radius-sm)',
+                    backgroundColor: 'var(--bg-surface)',
+                    color: 'var(--text-primary)'
+                  }}
+                />
+
+                {/* Quick preset dish photo chips */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '2px' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                    <Sparkles size={11} /> Presets:
+                  </span>
+                  {[
+                    { label: '🍛 Thali', url: 'https://images.unsplash.com/photo-1610192244261-3f33de3f55e4?auto=format&fit=crop&w=600&q=80' },
+                    { label: '🍲 Biryani', url: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=600&q=80' },
+                    { label: '🥪 Sandwich', url: 'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?auto=format&fit=crop&w=600&q=80' },
+                    { label: '🧀 Paneer', url: 'https://images.unsplash.com/photo-1631452180519-c014fe946bc7?auto=format&fit=crop&w=600&q=80' },
+                    { label: '🥤 Drink', url: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=600&q=80' }
+                  ].map((preset) => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, imageUrl: preset.url })}
+                      style={{
+                        padding: '2px 8px',
+                        fontSize: '11px',
+                        borderRadius: 'var(--border-radius-full)',
+                        border: '1px solid var(--border-color)',
+                        backgroundColor: formData.imageUrl === preset.url ? 'var(--color-primary-light)' : 'var(--bg-surface)',
+                        color: formData.imageUrl === preset.url ? 'var(--color-primary)' : 'var(--text-secondary)',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
 
@@ -363,6 +569,8 @@ export const MenuModal = ({
                 width: '100%',
                 padding: '8px 10px',
                 fontSize: '13px',
+                backgroundColor: 'var(--bg-surface)',
+                color: 'var(--text-primary)',
                 border: `1px solid ${errors.description ? 'var(--color-danger)' : 'var(--border-color)'}`,
                 borderRadius: 'var(--border-radius-md)'
               }}
@@ -387,6 +595,8 @@ export const MenuModal = ({
                   height: '36px',
                   padding: '0 10px',
                   fontSize: '13px',
+                  backgroundColor: 'var(--bg-surface)',
+                  color: 'var(--text-primary)',
                   border: `1px solid ${errors.dailyCapacity ? 'var(--color-danger)' : 'var(--border-color)'}`,
                   borderRadius: 'var(--border-radius-md)'
                 }}
@@ -407,6 +617,8 @@ export const MenuModal = ({
                   height: '36px',
                   padding: '0 10px',
                   fontSize: '13px',
+                  backgroundColor: 'var(--bg-surface)',
+                  color: 'var(--text-primary)',
                   border: '1px solid var(--border-color)',
                   borderRadius: 'var(--border-radius-md)'
                 }}
@@ -427,6 +639,8 @@ export const MenuModal = ({
                   height: '36px',
                   padding: '0 10px',
                   fontSize: '13px',
+                  backgroundColor: 'var(--bg-surface)',
+                  color: 'var(--text-primary)',
                   border: '1px solid var(--border-color)',
                   borderRadius: 'var(--border-radius-md)'
                 }}
@@ -452,7 +666,7 @@ export const MenuModal = ({
                       borderRadius: 'var(--border-radius-full)',
                       fontSize: '11.5px',
                       border: checked ? '1px solid var(--color-primary)' : '1px solid var(--border-color)',
-                      backgroundColor: checked ? 'var(--color-primary-light)' : '#ffffff',
+                      backgroundColor: checked ? 'var(--color-primary-light)' : 'var(--bg-surface)',
                       color: checked ? 'var(--color-primary)' : 'var(--text-secondary)',
                       cursor: 'pointer'
                     }}
@@ -502,6 +716,8 @@ export const MenuModal = ({
                     height: '32px',
                     padding: '0 8px',
                     fontSize: '12px',
+                    backgroundColor: 'var(--bg-surface)',
+                    color: 'var(--text-primary)',
                     border: '1px solid var(--border-color)',
                     borderRadius: '4px'
                   }}
@@ -516,6 +732,8 @@ export const MenuModal = ({
                     height: '32px',
                     padding: '0 8px',
                     fontSize: '12px',
+                    backgroundColor: 'var(--bg-surface)',
+                    color: 'var(--text-primary)',
                     border: '1px solid var(--border-color)',
                     borderRadius: '4px'
                   }}
@@ -575,6 +793,8 @@ export const MenuModal = ({
                     height: '32px',
                     padding: '0 8px',
                     fontSize: '12px',
+                    backgroundColor: 'var(--bg-surface)',
+                    color: 'var(--text-primary)',
                     border: '1px solid var(--border-color)',
                     borderRadius: '4px'
                   }}
@@ -589,6 +809,8 @@ export const MenuModal = ({
                     height: '32px',
                     padding: '0 8px',
                     fontSize: '12px',
+                    backgroundColor: 'var(--bg-surface)',
+                    color: 'var(--text-primary)',
                     border: '1px solid var(--border-color)',
                     borderRadius: '4px'
                   }}
@@ -625,6 +847,8 @@ export const MenuModal = ({
                   height: '36px',
                   padding: '0 8px',
                   fontSize: '13px',
+                  backgroundColor: 'var(--bg-surface)',
+                  color: 'var(--text-primary)',
                   border: '1px solid var(--border-color)',
                   borderRadius: 'var(--border-radius-md)'
                 }}
@@ -644,6 +868,8 @@ export const MenuModal = ({
                   height: '36px',
                   padding: '0 8px',
                   fontSize: '13px',
+                  backgroundColor: 'var(--bg-surface)',
+                  color: 'var(--text-primary)',
                   border: '1px solid var(--border-color)',
                   borderRadius: 'var(--border-radius-md)'
                 }}
@@ -662,6 +888,8 @@ export const MenuModal = ({
                   height: '36px',
                   padding: '0 10px',
                   fontSize: '13px',
+                  backgroundColor: 'var(--bg-surface)',
+                  color: 'var(--text-primary)',
                   border: '1px solid var(--border-color)',
                   borderRadius: 'var(--border-radius-md)'
                 }}

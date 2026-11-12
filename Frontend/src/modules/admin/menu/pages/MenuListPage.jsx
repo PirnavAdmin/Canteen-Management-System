@@ -110,10 +110,6 @@ export const MenuListPage = () => {
       <PageHeader
         title="Menu Item Management"
         description="Configure institutional meal offerings, dietary classifications, preparation schedules, daily capacities, and publication states."
-        breadcrumbItems={[
-          { label: 'Admin' },
-          { label: 'Menu Management' }
-        ]}
         actions={
           <Button
             variant="primary"

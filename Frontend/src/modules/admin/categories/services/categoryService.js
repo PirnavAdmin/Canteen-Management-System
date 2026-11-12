@@ -78,8 +78,8 @@ export const categoryService = {
     if (!target) throw new Error(`Category with ID ${id} not found.`);
 
     // Check for historical dependencies
-    if ((target.linkedItemCount && target.linkedItemCount > 0) || 
-        (target.historicalOrderCount && target.historicalOrderCount > 0)) {
+    if ((target.linkedItemCount && target.linkedItemCount > 0) ||
+      (target.historicalOrderCount && target.historicalOrderCount > 0)) {
       return {
         success: false,
         blockedByPolicy: true,

@@ -57,7 +57,8 @@ export const Modal = ({
       <div
         style={{
           position: 'relative',
-          backgroundColor: '#ffffff',
+          backgroundColor: 'var(--modal-bg)',
+          color: 'var(--text-primary)',
           borderRadius: 'var(--border-radius-xl)',
           boxShadow: 'var(--shadow-modal)',
           width: '100%',

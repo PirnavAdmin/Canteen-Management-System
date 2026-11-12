@@ -15,15 +15,16 @@ export const SlotFilters = ({
 }) => {
   return (
     <div style={{
-      backgroundColor: '#ffffff',
+      backgroundColor: 'var(--bg-surface)',
       borderRadius: 'var(--border-radius-lg)',
       border: '1px solid var(--border-color)',
-      padding: '12px 16px',
+      padding: '10px 14px',
       marginBottom: '16px',
       display: 'flex',
       alignItems: 'center',
-      gap: '12px',
-      flexWrap: 'wrap',
+      gap: '8px',
+      flexWrap: 'nowrap',
+      overflowX: 'auto',
       boxShadow: 'var(--shadow-xs)'
     }}>
       {/* Date Picker */}
@@ -32,13 +33,14 @@ export const SlotFilters = ({
         value={selectedDate}
         onChange={(e) => onDateChange(e.target.value)}
         style={{
-          height: '36px',
-          padding: '0 10px',
-          fontSize: '13px',
+          height: '34px',
+          padding: '0 8px',
+          fontSize: '12.5px',
           border: '1px solid var(--border-color)',
           borderRadius: 'var(--border-radius-md)',
-          backgroundColor: '#ffffff',
-          color: 'var(--text-secondary)'
+          backgroundColor: 'var(--bg-surface)',
+          color: 'var(--text-secondary)',
+          flexShrink: 0
         }}
       />
 
@@ -47,13 +49,14 @@ export const SlotFilters = ({
         value={selectedOutlet}
         onChange={(e) => onOutletChange(e.target.value)}
         style={{
-          height: '36px',
-          padding: '0 10px',
-          fontSize: '13px',
+          height: '34px',
+          padding: '0 8px',
+          fontSize: '12.5px',
           border: '1px solid var(--border-color)',
           borderRadius: 'var(--border-radius-md)',
-          backgroundColor: '#ffffff',
-          color: 'var(--text-secondary)'
+          backgroundColor: 'var(--bg-surface)',
+          color: 'var(--text-secondary)',
+          flex: '1 1 180px'
         }}
       >
         <option value="ALL">All Outlets</option>
@@ -67,13 +70,14 @@ export const SlotFilters = ({
         value={selectedSession}
         onChange={(e) => onSessionChange(e.target.value)}
         style={{
-          height: '36px',
-          padding: '0 10px',
-          fontSize: '13px',
+          height: '34px',
+          padding: '0 8px',
+          fontSize: '12.5px',
           border: '1px solid var(--border-color)',
           borderRadius: 'var(--border-radius-md)',
-          backgroundColor: '#ffffff',
-          color: 'var(--text-secondary)'
+          backgroundColor: 'var(--bg-surface)',
+          color: 'var(--text-secondary)',
+          flexShrink: 0
         }}
       >
         <option value="ALL">All Sessions</option>
@@ -87,13 +91,14 @@ export const SlotFilters = ({
         value={selectedStatus}
         onChange={(e) => onStatusChange(e.target.value)}
         style={{
-          height: '36px',
-          padding: '0 10px',
-          fontSize: '13px',
+          height: '34px',
+          padding: '0 8px',
+          fontSize: '12.5px',
           border: '1px solid var(--border-color)',
           borderRadius: 'var(--border-radius-md)',
-          backgroundColor: '#ffffff',
-          color: 'var(--text-secondary)'
+          backgroundColor: 'var(--bg-surface)',
+          color: 'var(--text-secondary)',
+          flexShrink: 0
         }}
       >
         <option value="ALL">All Slot States</option>
@@ -102,26 +107,36 @@ export const SlotFilters = ({
         ))}
       </select>
 
-      {/* Reset button */}
+      {/* Reset Icon Button */}
       <button
         type="button"
         onClick={onReset}
+        title="Reset all filters"
+        aria-label="Reset all filters"
         style={{
-          height: '36px',
-          padding: '0 12px',
+          width: '34px',
+          height: '34px',
           border: '1px solid var(--border-color)',
           borderRadius: 'var(--border-radius-md)',
-          backgroundColor: 'transparent',
+          backgroundColor: 'var(--bg-surface)',
           color: 'var(--text-secondary)',
           display: 'flex',
           alignItems: 'center',
-          gap: '6px',
-          fontSize: '12.5px',
-          cursor: 'pointer'
+          justifyContent: 'center',
+          cursor: 'pointer',
+          flexShrink: 0,
+          transition: 'all var(--transition-fast)'
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = 'var(--bg-muted)';
+          e.currentTarget.style.color = 'var(--color-accent)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = 'var(--bg-surface)';
+          e.currentTarget.style.color = 'var(--text-secondary)';
         }}
       >
-        <RotateCcw size={13} />
-        <span>Reset</span>
+        <RotateCcw size={14} />
       </button>
     </div>
   );

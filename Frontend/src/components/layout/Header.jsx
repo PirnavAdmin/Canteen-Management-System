@@ -1,11 +1,13 @@
 import React from 'react';
-import { Menu, ShieldCheck, MapPin, LogOut } from 'lucide-react';
+import { Menu, ShieldCheck, MapPin, LogOut, Sun, Moon } from 'lucide-react';
 import styles from '../../styles/layout.module.css';
 import { useAuth } from '../../app/providers/AuthProvider';
+import { useTheme } from '../../hooks/useTheme';
 import { useNavigate } from 'react-router-dom';
 
 export const Header = ({ onOpenSidebar }) => {
   const { user, role, logout } = useAuth();
+  const { toggleTheme, isDark } = useTheme();
   const navigate = useNavigate();
 
   const displayName = user?.fullName || user?.username || 'Canteen Administrator';
@@ -36,6 +38,48 @@ export const Header = ({ onOpenSidebar }) => {
       </div>
 
       <div className={styles.headerRight}>
+        {/* Light / Dark Theme Switcher Button */}
+        <button
+          type="button"
+          onClick={toggleTheme}
+          title={isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
+          aria-label={isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '6px 12px',
+            borderRadius: 'var(--border-radius-full)',
+            border: '1px solid var(--border-color)',
+            backgroundColor: 'var(--bg-muted)',
+            color: 'var(--text-primary)',
+            fontSize: '12px',
+            fontWeight: 600,
+            cursor: 'pointer',
+            transition: 'all var(--transition-fast)'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)';
+            e.currentTarget.style.borderColor = 'var(--color-accent)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'var(--bg-muted)';
+            e.currentTarget.style.borderColor = 'var(--border-color)';
+          }}
+        >
+          {isDark ? (
+            <>
+              <Sun size={15} style={{ color: '#f59e0b' }} />
+              <span className="theme-toggle-label">Light Mode</span>
+            </>
+          ) : (
+            <>
+              <Moon size={15} style={{ color: '#6366f1' }} />
+              <span className="theme-toggle-label">Dark Mode</span>
+            </>
+          )}
+        </button>
+
         <div style={{
           display: 'flex',
           alignItems: 'center',
@@ -83,3 +127,5 @@ export const Header = ({ onOpenSidebar }) => {
     </header>
   );
 };
+
+export default Header;

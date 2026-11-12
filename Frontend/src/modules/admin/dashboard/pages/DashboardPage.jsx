@@ -28,10 +28,6 @@ export const DashboardPage = () => {
       <PageHeader
         title="Canteen Operations Dashboard"
         description="Comprehensive real-time administrative intelligence across dining halls, order lifecycle, sales revenue, and kitchen inventory."
-        breadcrumbItems={[
-          { label: 'Admin' },
-          { label: 'Dashboard' }
-        ]}
         actions={
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{ position: 'relative' }}>
@@ -44,7 +40,7 @@ export const DashboardPage = () => {
                   fontSize: '13px',
                   fontWeight: 500,
                   color: 'var(--text-primary)',
-                  backgroundColor: '#ffffff',
+                  backgroundColor: 'var(--bg-surface)',
                   border: '1px solid var(--border-color)',
                   borderRadius: 'var(--border-radius-md)',
                   cursor: 'pointer'

@@ -38,7 +38,7 @@ export const SearchInput = ({
           fontSize: '13.5px',
           border: '1px solid var(--border-color)',
           borderRadius: 'var(--border-radius-md)',
-          backgroundColor: '#ffffff',
+          backgroundColor: 'var(--bg-surface)',
           color: 'var(--text-primary)',
           outline: 'none',
           transition: 'border-color var(--transition-fast), box-shadow var(--transition-fast)'
