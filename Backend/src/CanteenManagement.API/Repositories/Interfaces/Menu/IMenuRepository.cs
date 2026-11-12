@@ -14,3 +14,4 @@ namespace CanteenManagement.API.Repositories.Interfaces.Menu
         Task<int> GetHistoricalOrderCountAsync(int menuItemId);
     }
 }
+

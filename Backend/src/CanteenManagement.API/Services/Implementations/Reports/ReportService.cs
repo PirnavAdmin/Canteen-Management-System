@@ -19,3 +19,4 @@ namespace CanteenManagement.API.Services.Implementations.Reports
         }
     }
 }
+

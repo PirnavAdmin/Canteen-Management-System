@@ -64,3 +64,4 @@ namespace CanteenManagement.API.Models.Settings
         public DateTime? FulfilledAt { get; set; }
     }
 }
+

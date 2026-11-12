@@ -57,11 +57,11 @@ var builder = WebApplication.CreateBuilder(args);
 
 // 1. Configure Connection String & EF Core MySQL DbContext
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? "Server=localhost;Port=3306;Database=canteen_db;User=root;Password=root;";
+    ?? "Server=srv1061.hstgr.io;Port=3306;Database=u819242402_canteendb;User=u819242402_canteendbuser;Password=Pirnav@2026;SslMode=None;";
 
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
-    options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 0, 36)), mySqlOptions =>
+    options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString), mySqlOptions =>
     {
         mySqlOptions.EnableRetryOnFailure(
             maxRetryCount: 3,

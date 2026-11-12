@@ -20,6 +20,7 @@ namespace CanteenManagement.API.Controllers.V1
             _inventoryService = inventoryService;
         }
 
+        [HttpGet]
         [HttpGet("items")]
         public async Task<IActionResult> GetItems([FromQuery] int? outletId)
         {
@@ -133,3 +134,4 @@ namespace CanteenManagement.API.Controllers.V1
         public string Status { get; set; } = string.Empty;
     }
 }
+

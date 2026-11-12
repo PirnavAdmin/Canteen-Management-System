@@ -17,3 +17,4 @@ namespace CanteenManagement.API.Repositories.Interfaces.Inventory
         Task<Supplier> CreateSupplierAsync(Supplier supplier);
     }
 }
+

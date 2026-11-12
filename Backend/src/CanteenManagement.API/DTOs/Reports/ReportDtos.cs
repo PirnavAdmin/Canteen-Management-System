@@ -22,3 +22,4 @@ namespace CanteenManagement.API.DTOs.Reports
         public string Header { get; set; } = string.Empty;
     }
 }
+

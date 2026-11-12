@@ -66,3 +66,4 @@ namespace CanteenManagement.API.DTOs.Settings
         public string? Notes { get; set; }
     }
 }
+

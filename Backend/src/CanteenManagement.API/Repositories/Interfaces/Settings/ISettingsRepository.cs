@@ -12,3 +12,4 @@ namespace CanteenManagement.API.Repositories.Interfaces.Settings
         Task<DsarRequest> UpdateDsarRequestAsync(DsarRequest request);
     }
 }
+

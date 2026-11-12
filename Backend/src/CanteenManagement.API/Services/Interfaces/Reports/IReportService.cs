@@ -7,3 +7,4 @@ namespace CanteenManagement.API.Services.Interfaces.Reports
         Task<ReportResultDto> GetReportDataAsync(int institutionId, ReportFilterDto filter);
     }
 }
+

@@ -293,3 +293,4 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
         };
     }
 }
+

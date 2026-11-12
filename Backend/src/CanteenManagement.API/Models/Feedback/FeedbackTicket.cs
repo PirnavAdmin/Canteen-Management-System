@@ -87,3 +87,4 @@ namespace CanteenManagement.API.Models.Feedback
         public virtual FeedbackTicket? Ticket { get; set; }
     }
 }
+

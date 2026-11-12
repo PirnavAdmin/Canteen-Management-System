@@ -12,3 +12,4 @@ namespace CanteenManagement.API.Services.Interfaces.Dashboard
         Task<IEnumerable<OutletSalesDto>> GetOutletSalesAsync(int institutionId);
     }
 }
+

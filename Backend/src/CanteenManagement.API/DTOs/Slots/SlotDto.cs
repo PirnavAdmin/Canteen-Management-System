@@ -47,3 +47,4 @@ namespace CanteenManagement.API.DTOs.Slots
         public int MaxCapacity { get; set; }
     }
 }
+

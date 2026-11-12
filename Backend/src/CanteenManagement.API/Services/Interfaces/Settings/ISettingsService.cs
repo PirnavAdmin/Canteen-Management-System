@@ -12,3 +12,4 @@ namespace CanteenManagement.API.Services.Interfaces.Settings
         Task<DsarRequestDto> UpdateDsarStatusAsync(string requestId, UpdateDsarStatusDto dto, int institutionId, string performedBy);
     }
 }
+

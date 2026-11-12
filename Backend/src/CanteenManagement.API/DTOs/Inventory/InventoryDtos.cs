@@ -103,3 +103,4 @@ namespace CanteenManagement.API.DTOs.Inventory
         public string? FssaiNumber { get; set; }
     }
 }
+

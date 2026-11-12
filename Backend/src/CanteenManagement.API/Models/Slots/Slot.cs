@@ -47,3 +47,4 @@ namespace CanteenManagement.API.Models.Slots
         public virtual CanteenOutlet? Outlet { get; set; }
     }
 }
+

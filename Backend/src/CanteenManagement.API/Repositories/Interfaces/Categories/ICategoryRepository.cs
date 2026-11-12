@@ -13,3 +13,4 @@ namespace CanteenManagement.API.Repositories.Interfaces.Categories
         Task<(int linkedItemCount, int historicalOrderCount)> GetDependencyCountsAsync(int categoryId);
     }
 }
+

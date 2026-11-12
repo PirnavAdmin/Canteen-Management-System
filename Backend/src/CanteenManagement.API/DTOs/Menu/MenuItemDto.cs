@@ -112,3 +112,4 @@ namespace CanteenManagement.API.DTOs.Menu
         public string? SearchTerm { get; set; }
     }
 }
+

@@ -14,3 +14,4 @@ namespace CanteenManagement.API.Services.Interfaces.Inventory
         Task<SupplierDto> CreateSupplierAsync(CreateSupplierDto dto, int institutionId, string performedBy);
     }
 }
+

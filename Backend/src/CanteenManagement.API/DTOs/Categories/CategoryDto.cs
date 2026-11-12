@@ -36,3 +36,4 @@ namespace CanteenManagement.API.DTOs.Categories
     {
     }
 }
+

@@ -10,3 +10,4 @@ namespace CanteenManagement.API.Services.Interfaces.Feedback
         Task<FeedbackDto> ResolveTicketAsync(string id, ResolveFeedbackDto dto, int institutionId, string performedBy);
     }
 }
+

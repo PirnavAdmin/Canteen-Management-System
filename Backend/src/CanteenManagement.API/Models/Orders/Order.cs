@@ -166,3 +166,4 @@ namespace CanteenManagement.API.Models.Orders
         public virtual Order? Order { get; set; }
     }
 }
+

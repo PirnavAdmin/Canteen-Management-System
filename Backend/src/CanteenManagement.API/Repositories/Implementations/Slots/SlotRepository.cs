@@ -88,3 +88,4 @@ namespace CanteenManagement.API.Repositories.Implementations.Slots
         }
     }
 }
+

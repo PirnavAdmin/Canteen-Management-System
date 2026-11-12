@@ -133,3 +133,4 @@ namespace CanteenManagement.API.Models.Menu
         public virtual MenuItem? MenuItem { get; set; }
     }
 }
+

@@ -10,3 +10,4 @@ namespace CanteenManagement.API.Repositories.Interfaces.Feedback
         Task<FeedbackTicket> UpdateAsync(FeedbackTicket ticket);
     }
 }
+

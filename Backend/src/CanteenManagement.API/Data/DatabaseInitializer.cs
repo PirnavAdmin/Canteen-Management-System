@@ -31,7 +31,7 @@ namespace CanteenManagement.API.Data
                 {
                     var builder = new MySqlConnectionStringBuilder(cs)
                     {
-                        ConnectionTimeout = 2
+                        ConnectionTimeout = 8
                     };
                     using var testConn = new MySqlConnection(builder.ConnectionString);
                     await testConn.OpenAsync();
@@ -42,7 +42,7 @@ namespace CanteenManagement.API.Data
                 }
                 catch (Exception ex)
                 {
-                    logger.LogDebug("Candidate connection failed for {Cs}: {Msg}", cs, ex.Message);
+                    logger.LogInformation("Candidate connection test failed for {Server}: {Msg}", cs, ex.Message);
                 }
             }
 
@@ -60,14 +60,19 @@ namespace CanteenManagement.API.Data
                 using var connection = new MySqlConnection(activeCs);
                 await connection.OpenAsync();
 
-                try
+                var csBuilder = new MySqlConnectionStringBuilder(activeCs);
+                if (string.Equals(csBuilder.Server, "localhost", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(csBuilder.Server, "127.0.0.1", StringComparison.OrdinalIgnoreCase))
                 {
-                    await connection.ExecuteAsync("CREATE DATABASE IF NOT EXISTS `canteen_db` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;");
-                    await connection.ExecuteAsync("USE `canteen_db`;");
-                }
-                catch
-                {
-                    // Ignore if cannot create database
+                    try
+                    {
+                        await connection.ExecuteAsync("CREATE DATABASE IF NOT EXISTS `canteen_db` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;");
+                        await connection.ExecuteAsync("USE `canteen_db`;");
+                    }
+                    catch
+                    {
+                        // Ignore if cannot create database
+                    }
                 }
 
                 // 1. Users

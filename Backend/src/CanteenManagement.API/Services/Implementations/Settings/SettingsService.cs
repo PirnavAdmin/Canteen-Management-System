@@ -206,3 +206,4 @@ namespace CanteenManagement.API.Services.Implementations.Settings
         }
     }
 }
+

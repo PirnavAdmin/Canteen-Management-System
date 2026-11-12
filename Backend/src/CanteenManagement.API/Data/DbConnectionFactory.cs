@@ -10,7 +10,7 @@ namespace CanteenManagement.API.Data
         public DbConnectionFactory(IConfiguration configuration)
         {
             _connectionString = configuration.GetConnectionString("DefaultConnection")
-                ?? "Server=localhost;Port=3306;Database=canteen_db;Uid=root;Pwd=root;CharSet=utf8mb4;";
+                ?? "Server=srv1061.hstgr.io;Port=3306;Database=u819242402_canteendb;User=u819242402_canteendbuser;Password=Pirnav@2026;SslMode=None;";
         }
 
         public IDbConnection CreateConnection()

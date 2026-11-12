@@ -11,3 +11,4 @@ namespace CanteenManagement.API.Repositories.Interfaces.Orders
         Task<Order> UpdateAsync(Order order);
     }
 }
+

@@ -13,3 +13,4 @@ namespace CanteenManagement.API.Services.Interfaces.Menu
         Task<(bool success, bool blockedByPolicy, string? message)> DeleteAsync(int id, int institutionId, string performedBy);
     }
 }
+

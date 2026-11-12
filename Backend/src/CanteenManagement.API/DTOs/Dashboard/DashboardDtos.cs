@@ -56,3 +56,4 @@ namespace CanteenManagement.API.DTOs.Dashboard
         public decimal NetSales { get; set; }
     }
 }
+

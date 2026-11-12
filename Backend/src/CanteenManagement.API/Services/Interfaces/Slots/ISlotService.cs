@@ -12,3 +12,4 @@ namespace CanteenManagement.API.Services.Interfaces.Slots
         Task<bool> DeleteAsync(int id, int institutionId, string performedBy);
     }
 }
+

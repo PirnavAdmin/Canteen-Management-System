@@ -175,3 +175,4 @@ namespace CanteenManagement.API.Services.Implementations.Slots
         };
     }
 }
+

@@ -175,3 +175,4 @@ namespace CanteenManagement.API.Models.Inventory
         public virtual Supplier? Supplier { get; set; }
     }
 }
+
