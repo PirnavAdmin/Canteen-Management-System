@@ -109,6 +109,7 @@ builder.Services.AddAuthorization(options =>
 // 4. Register Services & Repositories (N-Tier Clean Architecture)
 builder.Services.AddScoped<IJwtTokenHelper, JwtTokenHelper>();
 builder.Services.AddScoped<IAuditLoggingService, AuditLoggingService>();
+builder.Services.AddScoped<IMediaStorageService, MediaStorageService>();
 
 // Auth
 builder.Services.AddScoped<IAuthRepository, AuthRepository>();
@@ -232,6 +233,23 @@ var app = builder.Build();
 
 // 10. Configure Middleware Pipeline - CORS must be first
 app.UseCors("AllowFrontend");
+
+// Configure Static Files for Media Uploads (/uploads)
+var uploadsDirectory = Path.Combine(builder.Environment.ContentRootPath, "uploads");
+if (!Directory.Exists(uploadsDirectory))
+{
+    Directory.CreateDirectory(uploadsDirectory);
+}
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(uploadsDirectory),
+    RequestPath = "/uploads",
+    OnPrepareResponse = ctx =>
+    {
+        ctx.Context.Response.Headers.Append("Cache-Control", "public, max-age=2592000");
+    }
+});
 
 // 9. Initialize Database Schema and Seed Data
 using (var scope = app.Services.CreateScope())

@@ -2,7 +2,7 @@ import React from 'react';
 import { X, Utensils, MapPin } from 'lucide-react';
 import { Button } from '../../../../components/common/Button';
 import { StatusBadge } from '../../../../components/common/StatusBadge';
-import { formatCurrency } from '../../../../utils/formatters';
+import { formatCurrency, resolveImageUrl } from '../../../../utils/formatters';
 
 export const MenuItemDetailsModal = ({ isOpen, onClose, item }) => {
   if (!isOpen || !item) return null;
@@ -93,37 +93,44 @@ export const MenuItemDetailsModal = ({ isOpen, onClose, item }) => {
             border: '1px solid var(--border-color)',
             boxShadow: 'var(--shadow-xs)'
           }}>
-            {item.imageUrl ? (
-              <img
-                src={item.imageUrl}
-                alt={item.name}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover'
-                }}
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                  if (e.currentTarget.nextElementSibling) {
-                    e.currentTarget.nextElementSibling.style.display = 'flex';
-                  }
-                }}
-              />
-            ) : null}
-            <div style={{
-              display: item.imageUrl ? 'none' : 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '100%',
-              height: '100%',
-              backgroundColor: 'var(--bg-muted)',
-              color: 'var(--text-muted)',
-              gap: '8px'
-            }}>
-              <Utensils size={36} style={{ opacity: 0.6 }} />
-              <span style={{ fontSize: '12px' }}>No dish photo uploaded</span>
-            </div>
+            {(() => {
+              const displayUrl = resolveImageUrl(item.imageUrl);
+              return (
+                <>
+                  {displayUrl ? (
+                    <img
+                      src={displayUrl}
+                      alt={item.name}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover'
+                      }}
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        if (e.currentTarget.nextElementSibling) {
+                          e.currentTarget.nextElementSibling.style.display = 'flex';
+                        }
+                      }}
+                    />
+                  ) : null}
+                  <div style={{
+                    display: displayUrl ? 'none' : 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '100%',
+                    height: '100%',
+                    backgroundColor: 'var(--bg-muted)',
+                    color: 'var(--text-muted)',
+                    gap: '8px'
+                  }}>
+                    <Utensils size={36} style={{ opacity: 0.6 }} />
+                    <span style={{ fontSize: '12px' }}>No dish photo uploaded</span>
+                  </div>
+                </>
+              );
+            })()}
 
             {/* Medium image overlay pill with outlet and dietary type */}
             <div style={{

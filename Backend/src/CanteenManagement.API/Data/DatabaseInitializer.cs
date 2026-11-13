@@ -184,7 +184,7 @@ namespace CanteenManagement.API.Data
                     PublicationStatus VARCHAR(20) NOT NULL DEFAULT 'Published',
                     ServingSize VARCHAR(50) NULL,
                     Calories VARCHAR(50) NULL,
-                    ImageUrl VARCHAR(500) NULL,
+                    ImageUrl LONGTEXT NULL,
                     AllergensJson TEXT NULL,
                     WorkingDaysJson TEXT NULL,
                     StartTime VARCHAR(10) NULL,
@@ -213,6 +213,12 @@ namespace CanteenManagement.API.Data
                     CONSTRAINT fk_addon_menu FOREIGN KEY (MenuItemId) REFERENCES MenuItems (MenuItemId) ON DELETE CASCADE
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;";
                 await connection.ExecuteAsync(createMenuItemsSql);
+
+                try
+                {
+                    await connection.ExecuteAsync("ALTER TABLE MenuItems MODIFY ImageUrl LONGTEXT NULL;");
+                }
+                catch { }
 
                 // 7. Slots
                 const string createSlotsTableSql = @"
@@ -578,6 +584,13 @@ namespace CanteenManagement.API.Data
                     ('DSAR-2026-081', 1, 'Rohit Verma', 'Student Alumnus', 'rohit.v@alumni.edu', 'Right to Erasure / De-identification', 'Pending', 'Graduated batch 2025; requested identity erasure under DPDP Act.', UTC_TIMESTAMP());";
                     await connection.ExecuteAsync(insertDsarSql);
                     logger.LogInformation("Seeded default system settings and DSAR requests.");
+                }
+
+                // Cleanup corrupted/truncated base64 images from legacy uploads
+                var cleanedRows = await connection.ExecuteAsync("UPDATE MenuItems SET ImageUrl = NULL WHERE ImageUrl LIKE 'data:%';");
+                if (cleanedRows > 0)
+                {
+                    logger.LogInformation("Cleaned up {Count} corrupted Base64 image records from MenuItems table.", cleanedRows);
                 }
 
                 logger.LogInformation("Database tables and seed data verified successfully on {ActiveCs}.", activeCs);

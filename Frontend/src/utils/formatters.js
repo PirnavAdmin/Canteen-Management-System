@@ -87,3 +87,61 @@ export const formatDateTime = (dateString) => {
     return dateString;
   }
 };
+
+/**
+ * Universal Image URL Resolver
+ * Supports:
+ * 1. External Web URLs (https://...) -> Rendered directly from internet
+ * 2. Blob URLs (blob:http://...) -> Instant mobile camera preview
+ * 3. Server Relative Paths (/uploads/menu/...) -> Dynamically maps to active host:
+ *    - On localhost -> http://localhost:5000/uploads/...
+ *    - On mobile Wi-Fi (192.168.X.X) -> http://192.168.X.X:5000/uploads/...
+ *    - On ngrok tunnel -> https://...ngrok-free.dev/uploads/...?ngrok-skip-browser-warning=true
+ */
+export const resolveImageUrl = (path, fallback = '') => {
+  if (!path || typeof path !== 'string') return fallback;
+
+  const trimmed = path.trim();
+  if (!trimmed) return fallback;
+
+  // Corrupted base64 string
+  if (trimmed.startsWith('data:') && (!trimmed.includes(',') || trimmed.length < 50)) {
+    return fallback;
+  }
+
+  // 1. External Web URL (from internet, e.g. Unsplash, CDN, or pasted web link)
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    if (trimmed.includes('ngrok-free.dev') && !trimmed.includes('ngrok-skip-browser-warning')) {
+      return `${trimmed}${trimmed.includes('?') ? '&' : '?'}ngrok-skip-browser-warning=true`;
+    }
+    return trimmed;
+  }
+
+  // 2. Blob URL or inline base64 (Instant camera/file preview)
+  if (trimmed.startsWith('blob:') || trimmed.startsWith('data:image/')) {
+    return trimmed;
+  }
+
+  // 3. Server Relative Upload Path (/uploads/menu/...)
+  const cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+
+  let backendOrigin = '';
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    // Local device or mobile connected via LAN Wi-Fi (localhost, 127.0.0.1, 192.168.x.x, 10.x.x.x)
+    if (host === 'localhost' || host === '127.0.0.1' || /^192\.168\./.test(host) || /^10\./.test(host)) {
+      backendOrigin = `http://${host}:5000`;
+    }
+  }
+
+  if (!backendOrigin) {
+    const rawBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+    backendOrigin = rawBase.replace(/\/api(\/v\d+)?\/?$/, '').replace(/\/+$/, '');
+  }
+
+  let finalUrl = `${backendOrigin}${cleanPath}`;
+  if (finalUrl.includes('ngrok-free.dev') && !finalUrl.includes('ngrok-skip-browser-warning')) {
+    finalUrl += `${finalUrl.includes('?') ? '&' : '?'}ngrok-skip-browser-warning=true`;
+  }
+  return finalUrl;
+};

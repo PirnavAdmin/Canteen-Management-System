@@ -1,6 +1,7 @@
 using Asp.Versioning;
 using CanteenManagement.API.DTOs.Menu;
 using CanteenManagement.API.Helpers;
+using CanteenManagement.API.Services.Interfaces.Common;
 using CanteenManagement.API.Services.Interfaces.Menu;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -13,10 +14,12 @@ namespace CanteenManagement.API.Controllers.V1
     public class MenuController : ControllerBase
     {
         private readonly IMenuService _menuService;
+        private readonly IMediaStorageService _mediaStorageService;
 
-        public MenuController(IMenuService menuService)
+        public MenuController(IMenuService menuService, IMediaStorageService mediaStorageService)
         {
             _menuService = menuService;
+            _mediaStorageService = mediaStorageService;
         }
 
         [HttpGet]
@@ -142,6 +145,32 @@ namespace CanteenManagement.API.Controllers.V1
             }
 
             return Ok(ApiResponse<bool>.SuccessResponse(true, "Menu item deleted successfully."));
+        }
+
+        [HttpPost("upload-image")]
+        [RequestSizeLimit(10 * 1024 * 1024)]
+        public async Task<IActionResult> UploadImage([FromForm] IFormFile? file)
+        {
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest(ApiResponse<string>.ErrorResponse("No file was uploaded."));
+            }
+
+            try
+            {
+                var relativePath = await _mediaStorageService.SaveImageAsync(file, "menu");
+                var result = new
+                {
+                    fileUrl = relativePath,
+                    fileName = Path.GetFileName(relativePath),
+                    fileSizeBytes = file.Length
+                };
+                return Ok(ApiResponse<object>.SuccessResponse(result, "Image uploaded successfully."));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<string>.ErrorResponse(ex.Message));
+            }
         }
     }
 }
