@@ -19,16 +19,45 @@ export const formatNumber = (val) => {
   return num.toLocaleString('en-IN');
 };
 
-export const formatTime12Hour = (time24) => {
-  if (!time24) return '--:--';
-  const parts = time24.split(':');
-  if (parts.length < 2) return time24;
+export const formatTime12Hour = (timeStr) => {
+  if (!timeStr) return '--:--';
+  const trimmed = String(timeStr).trim();
+  // Return as-is if already formatted in 12-hour AM/PM
+  if (/\b(AM|PM)\b/i.test(trimmed)) {
+    return trimmed;
+  }
+  const parts = trimmed.split(':');
+  if (parts.length < 2) return trimmed;
   let hours = parseInt(parts[0], 10);
-  const minutes = parts[1];
+  const minutes = parts[1].slice(0, 2);
+  if (isNaN(hours)) return trimmed;
   const ampm = hours >= 12 ? 'PM' : 'AM';
   hours = hours % 12;
   hours = hours ? hours : 12;
   return `${hours.toString().padStart(2, '0')}:${minutes} ${ampm}`;
+};
+
+const parseTimeToMinutes = (timeStr) => {
+  if (!timeStr) return null;
+  const trimmed = String(timeStr).trim();
+  const match = trimmed.match(/^(\d{1,2}):(\d{2})(?:\s*(AM|PM))?$/i);
+  if (!match) return null;
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const meridiem = match[3] ? match[3].toUpperCase() : null;
+  if (meridiem === 'PM' && hours < 12) hours += 12;
+  if (meridiem === 'AM' && hours === 12) hours = 0;
+  return hours * 60 + minutes;
+};
+
+export const calculateDuration = (startTime, endTime) => {
+  const startMins = parseTimeToMinutes(startTime);
+  const endMins = parseTimeToMinutes(endTime);
+  if (startMins === null || endMins === null) return '--';
+  let diff = endMins - startMins;
+  if (diff < 0) diff += 24 * 60;
+  if (diff === 0) return '0 mins';
+  return `${diff} mins`;
 };
 
 export const formatWorkingDays = (days = []) => {

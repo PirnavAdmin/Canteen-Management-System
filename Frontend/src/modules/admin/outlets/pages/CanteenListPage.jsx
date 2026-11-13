@@ -146,3 +146,5 @@ export const CanteenListPage = () => {
   );
 };
 
+export default CanteenListPage;
+

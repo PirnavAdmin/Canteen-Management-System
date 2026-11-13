@@ -15,7 +15,7 @@ export const EditCategoryPage = () => {
 
   const handleUpdate = async (formData) => {
     await updateCategory(id, formData);
-    navigate(`/categories/${id}`);
+    navigate(`/admin/categories/${id}`);
   };
 
   if (loading) {
@@ -32,7 +32,7 @@ export const EditCategoryPage = () => {
         <PageHeader
           title="Edit Food Category"
           breadcrumbItems={[
-            { label: 'Food Categories', path: '/categories' },
+            { label: 'Food Categories', path: '/admin/categories' },
             { label: 'Edit' }
           ]}
         />
@@ -41,7 +41,7 @@ export const EditCategoryPage = () => {
           title="Category Not Found"
           message={`No food category found with identifier "${id}".`}
           actionLabel="Return to Categories List"
-          onAction={() => navigate('/categories')}
+          onAction={() => navigate('/admin/categories')}
         />
       </div>
     );
@@ -53,8 +53,8 @@ export const EditCategoryPage = () => {
         title={`Edit Category: ${category.name}`}
         description={`Modify menu display order #${category.displayOrder}, active state, or description.`}
         breadcrumbItems={[
-          { label: 'Food Categories', path: '/categories' },
-          { label: category.name, path: `/categories/${id}` },
+          { label: 'Food Categories', path: '/admin/categories' },
+          { label: category.name, path: `/admin/categories/${id}` },
           { label: 'Edit' }
         ]}
       />
@@ -68,4 +68,6 @@ export const EditCategoryPage = () => {
     </div>
   );
 };
+
+export default EditCategoryPage;
 

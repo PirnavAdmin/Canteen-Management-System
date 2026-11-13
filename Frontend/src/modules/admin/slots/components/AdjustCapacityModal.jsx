@@ -76,7 +76,7 @@ export const AdjustCapacityModal = ({ isOpen, onClose, slot, loading = false, on
         <form onSubmit={handleSubmit} style={{ padding: '20px' }}>
           <div style={{ marginBottom: '14px', fontSize: '13px', color: 'var(--text-secondary)' }}>
             <div><strong>{slot.outletName}</strong></div>
-            <div>{slot.mealSession} • {slot.startTime} to {slot.endTime}</div>
+            <div>{slot.session || slot.mealSession} • {slot.startTime} to {slot.endTime}</div>
           </div>
 
           <div style={{

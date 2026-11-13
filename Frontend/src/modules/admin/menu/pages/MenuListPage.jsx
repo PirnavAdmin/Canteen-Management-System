@@ -52,7 +52,7 @@ export const MenuListPage = () => {
       }
       if (selectedCategory !== 'ALL' && item.category !== selectedCategory) return false;
       if (selectedFoodType !== 'ALL' && item.foodType !== selectedFoodType) return false;
-      if (selectedOutlet !== 'ALL' && item.outletId !== selectedOutlet) return false;
+      if (selectedOutlet !== 'ALL' && String(item.outletId ?? item.canteenId ?? '') !== String(selectedOutlet)) return false;
       if (selectedStatus !== 'ALL' && item.status !== selectedStatus) return false;
       return true;
     });

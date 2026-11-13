@@ -23,7 +23,7 @@ export const CategoryTable = ({
       render: (val, row) => (
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <span
-            onClick={() => navigate(`/categories/${row.id}`)}
+            onClick={() => navigate(`/admin/categories/${row.id}`)}
             style={{
               fontWeight: 600,
               color: 'var(--color-primary)',
@@ -108,7 +108,7 @@ export const CategoryTable = ({
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
             <button
               type="button"
-              onClick={() => navigate(`/categories/${row.id}`)}
+              onClick={() => navigate(`/admin/categories/${row.id}`)}
               style={{
                 background: 'none',
                 border: '1px solid var(--border-color)',
@@ -128,7 +128,7 @@ export const CategoryTable = ({
 
             <button
               type="button"
-              onClick={() => navigate(`/categories/${row.id}/edit`)}
+              onClick={() => navigate(`/admin/categories/${row.id}/edit`)}
               style={{
                 background: 'none',
                 border: '1px solid var(--border-color)',

@@ -10,7 +10,7 @@ export const AddCategoryPage = () => {
 
   const handleCreate = async (formData) => {
     const created = await createCategory(formData);
-    navigate(`/categories/${created.id}`);
+    navigate(`/admin/categories/${created.id}`);
   };
 
   return (
@@ -19,7 +19,7 @@ export const AddCategoryPage = () => {
         title="Add New Food Category"
         description="Define a new food classification for menu organization (e.g., Breakfast, Meals, Beverages)."
         breadcrumbItems={[
-          { label: 'Food Categories', path: '/categories' },
+          { label: 'Food Categories', path: '/admin/categories' },
           { label: 'Add Category' }
         ]}
       />
@@ -32,4 +32,6 @@ export const AddCategoryPage = () => {
     </div>
   );
 };
+
+export default AddCategoryPage;
 

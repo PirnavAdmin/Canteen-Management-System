@@ -4,7 +4,7 @@ import { defineConfig, loadEnv } from 'vite';
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
-  const apiTarget = (env.VITE_API_BASE_URL || 'https://heroics-ambush-baton.ngrok-free.dev').replace(/\/api\/v\d+.*$/, '');
+  const apiTarget = env.VITE_API_BASE_URL || 'https://heroics-ambush-baton.ngrok-free.dev';
 
   return {
     plugins: [react()],

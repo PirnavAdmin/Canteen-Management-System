@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { RotateCcw } from 'lucide-react';
 import { SLOT_SESSIONS, SLOT_STATUS } from '../../../../constants/appConstants';
-import { canteenService } from '../../outlets/services/canteenService';
+import { useCanteensContext } from '../../../../app/providers/CanteenProvider';
 
 export const SlotFilters = ({
   selectedOutlet = 'ALL',
@@ -14,15 +14,7 @@ export const SlotFilters = ({
   onDateChange,
   onReset
 }) => {
-  const [outlets, setOutlets] = useState([]);
-
-  useEffect(() => {
-    let isMounted = true;
-    canteenService.getAll().then((data) => {
-      if (isMounted && Array.isArray(data)) setOutlets(data);
-    }).catch(() => {});
-    return () => { isMounted = false; };
-  }, []);
+  const { canteens: outlets } = useCanteensContext();
   return (
     <div style={{
       backgroundColor: 'var(--bg-surface)',

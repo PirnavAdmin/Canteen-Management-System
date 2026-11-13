@@ -48,7 +48,7 @@ export const OrderListPage = () => {
       }
       if (selectedStatus !== 'ALL' && order.status !== selectedStatus) return false;
       if (selectedPayment !== 'ALL' && order.payment?.status !== selectedPayment) return false;
-      if (selectedOutlet !== 'ALL' && order.outletId !== selectedOutlet) return false;
+      if (selectedOutlet !== 'ALL' && String(order.outletId ?? order.canteenId ?? '') !== String(selectedOutlet)) return false;
       return true;
     });
   }, [orders, searchTerm, selectedStatus, selectedPayment, selectedOutlet]);

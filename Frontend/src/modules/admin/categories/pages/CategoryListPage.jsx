@@ -109,7 +109,7 @@ export const CategoryListPage = () => {
           <Button
             variant="primary"
             icon={PlusCircle}
-            onClick={() => navigate('/categories/create')}
+            onClick={() => navigate('/admin/categories/create')}
           >
             Add Food Category
           </Button>
@@ -167,4 +167,6 @@ export const CategoryListPage = () => {
     </div>
   );
 };
+
+export default CategoryListPage;
 

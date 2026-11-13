@@ -69,3 +69,5 @@ export const EditCanteenPage = () => {
   );
 };
 
+export default EditCanteenPage;
+

@@ -174,6 +174,29 @@ export const router = createBrowserRouter([
         ]
       },
 
+      // Compatibility routes for /categories
+      {
+        path: 'categories',
+        children: [
+          {
+            index: true,
+            element: <LazyRoute><CategoryListPage /></LazyRoute>
+          },
+          {
+            path: 'create',
+            element: <LazyRoute><AddCategoryPage /></LazyRoute>
+          },
+          {
+            path: ':id',
+            element: <LazyRoute><CategoryDetailsPage /></LazyRoute>
+          },
+          {
+            path: ':id/edit',
+            element: <LazyRoute><EditCategoryPage /></LazyRoute>
+          }
+        ]
+      },
+
       // 404 Fallback within Layout
       {
         path: '*',

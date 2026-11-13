@@ -323,3 +323,5 @@ export const CanteenDetailsPage = () => {
     </div>
   );
 };
+
+export default CanteenDetailsPage;

@@ -169,7 +169,7 @@ export const CategoryForm = ({
         }}>
           <Button
             variant="secondary"
-            onClick={() => navigate(initialValues?.id ? `/categories/${initialValues.id}` : '/categories')}
+            onClick={() => navigate(initialValues?.id ? `/admin/categories/${initialValues.id}` : '/admin/categories')}
             icon={X}
             disabled={isSubmitting}
           >

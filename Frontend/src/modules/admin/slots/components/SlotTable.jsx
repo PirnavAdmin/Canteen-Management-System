@@ -2,7 +2,7 @@ import React from 'react';
 import { SlidersHorizontal, PauseCircle, PlayCircle, Clock, Loader2 } from 'lucide-react';
 import { DataTable } from '../../../../components/tables/DataTable';
 import { StatusBadge } from '../../../../components/common/StatusBadge';
-import { formatTime12Hour, formatDate } from '../../../../utils/formatters';
+import { formatTime12Hour, formatDate, calculateDuration } from '../../../../utils/formatters';
 import { SLOT_STATUS } from '../../../../constants/appConstants';
 
 export const SlotTable = ({
@@ -39,7 +39,7 @@ export const SlotTable = ({
     {
       key: 'mealSession',
       header: 'Session',
-      render: (val) => (
+      render: (val, row) => (
         <span style={{
           backgroundColor: 'var(--bg-muted)',
           padding: '2px 7px',
@@ -49,7 +49,7 @@ export const SlotTable = ({
           color: 'var(--text-secondary)',
           whiteSpace: 'nowrap'
         }}>
-          {val}
+          {row.session || val || '--'}
         </span>
       )
     },
@@ -59,7 +59,9 @@ export const SlotTable = ({
       render: (_, row) => (
         <div style={{ color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
           <div style={{ fontSize: '11px', fontWeight: 600 }}>{formatTime12Hour(row.startTime)} - {formatTime12Hour(row.endTime)}</div>
-          <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Duration: {row.slotDuration}</div>
+          <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+            Duration: {row.slotDuration || calculateDuration(row.startTime, row.endTime)}
+          </div>
         </div>
       )
     },
