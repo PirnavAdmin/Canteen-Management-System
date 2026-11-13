@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Eye, Edit, Power, Globe, GlobeLock, Trash2, Utensils, MoreVertical } from 'lucide-react';
 import { DataTable } from '../../../../components/tables/DataTable';
 import { StatusBadge } from '../../../../components/common/StatusBadge';
-import { formatCurrency, formatNumber } from '../../../../utils/formatters';
+import { formatCurrency, formatNumber, resolveImageUrl } from '../../../../utils/formatters';
 
 export const MenuTable = ({
   items = [],
@@ -60,30 +60,37 @@ export const MenuTable = ({
               }}
               title={`View ${val} details`}
             >
-              {row.imageUrl ? (
-                <img
-                  src={row.imageUrl}
-                  alt={val}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                    if (e.currentTarget.nextElementSibling) {
-                      e.currentTarget.nextElementSibling.style.display = 'flex';
-                    }
-                  }}
-                />
-              ) : null}
-              <div style={{
-                display: row.imageUrl ? 'none' : 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '100%',
-                height: '100%',
-                backgroundColor: 'var(--bg-muted)',
-                color: 'var(--text-muted)'
-              }}>
-                <Utensils size={15} />
-              </div>
+              {(() => {
+                const displayUrl = resolveImageUrl(row.imageUrl);
+                return (
+                  <>
+                    {displayUrl ? (
+                      <img
+                        src={displayUrl}
+                        alt={val}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                          if (e.currentTarget.nextElementSibling) {
+                            e.currentTarget.nextElementSibling.style.display = 'flex';
+                          }
+                        }}
+                      />
+                    ) : null}
+                    <div style={{
+                      display: displayUrl ? 'none' : 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '100%',
+                      height: '100%',
+                      backgroundColor: 'var(--bg-muted)',
+                      color: 'var(--text-muted)'
+                    }}>
+                      <Utensils size={15} />
+                    </div>
+                  </>
+                );
+              })()}
             </div>
 
             {/* Dish text with ellipsis and tooltip */}

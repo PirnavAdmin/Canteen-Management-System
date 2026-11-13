@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2, Upload, Image as ImageIcon } from 'lucide-react';
+import { X, Plus, Trash2, Camera, Upload, Sparkles, Loader2, CheckCircle2, Globe, AlertCircle } from 'lucide-react';
 import { Button } from '../../../../components/common/Button';
 import { ALLERGENS, FOOD_TYPES } from '../../../../constants/appConstants';
 import { canteenService } from '../../outlets/services/canteenService';
 import { categoryService } from '../../categories/services/categoryService';
+import { mediaService } from '../../../../services/api/mediaService';
+import { resolveImageUrl } from '../../../../utils/formatters';
 
 export const MenuModal = ({
   isOpen,
@@ -15,6 +17,10 @@ export const MenuModal = ({
 }) => {
   const [outlets, setOutlets] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imagePreview, setImagePreview] = useState('');
+  const [photoSourceMode, setPhotoSourceMode] = useState('upload'); // 'upload' | 'url'
+  const [imageLoadError, setImageLoadError] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -39,7 +45,6 @@ export const MenuModal = ({
   });
 
   const [errors, setErrors] = useState({});
-  const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -61,6 +66,7 @@ export const MenuModal = ({
 
   useEffect(() => {
     if (initialData) {
+      const currentImg = initialData.imageUrl || '';
       setFormData({
         name: initialData.name || '',
         code: initialData.code || '',
@@ -73,7 +79,7 @@ export const MenuModal = ({
         dailyCapacity: initialData.dailyCapacity || '',
         servingSize: initialData.servingSize || '',
         calories: initialData.calories || '',
-        imageUrl: initialData.imageUrl || '',
+        imageUrl: currentImg,
         allergens: initialData.allergens || [],
         publicationStatus: initialData.publicationStatus || 'Published',
         workingDays: initialData.workingDays || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
@@ -82,6 +88,13 @@ export const MenuModal = ({
         variants: initialData.variants || [],
         addOns: initialData.addOns || []
       });
+      setImagePreview(currentImg);
+      setImageLoadError(false);
+      if (currentImg.startsWith('http://') || currentImg.startsWith('https://')) {
+        setPhotoSourceMode('url');
+      } else {
+        setPhotoSourceMode('upload');
+      }
     } else {
       setFormData({
         name: '',
@@ -104,48 +117,64 @@ export const MenuModal = ({
         variants: [],
         addOns: []
       });
+      setImagePreview('');
+      setImageLoadError(false);
+      setPhotoSourceMode('upload');
     }
     setErrors({});
-    setImageError(false);
   }, [initialData, isOpen]);
 
   if (!isOpen) return null;
 
-  const handleImageUpload = (e) => {
+  const handleImageUpload = async (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new window.Image();
-      img.onload = () => {
-        const maxSize = 200;
-        let { width, height } = img;
-        if (width > height && width > maxSize) {
-          height = Math.round((height * maxSize) / width);
-          width = maxSize;
-        } else if (height > maxSize) {
-          width = Math.round((width * maxSize) / height);
-          height = maxSize;
-        }
+    // Check size limit: 5MB
+    if (file.size > 5 * 1024 * 1024) {
+      setErrors(prev => ({ ...prev, imageUrl: 'Image size exceeds 5MB limit. Please upload a smaller photo.' }));
+      return;
+    }
 
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.6);
+    // Instant local preview
+    const localBlobUrl = URL.createObjectURL(file);
+    setImagePreview(localBlobUrl);
+    setImageLoadError(false);
+    setUploadingImage(true);
+    setPhotoSourceMode('upload');
+    setErrors(prev => {
+      const { imageUrl, ...rest } = prev;
+      return rest;
+    });
 
-        setImageError(false);
-        setFormData(prev => ({ ...prev, imageUrl: compressedDataUrl }));
-      };
-      img.onerror = () => {
-        setImageError(false);
-        setFormData(prev => ({ ...prev, imageUrl: event.target.result }));
-      };
-      img.src = event.target.result;
-    };
-    reader.readAsDataURL(file);
+    try {
+      const result = await mediaService.uploadImage(file, 'menu');
+      const savedPath = result?.fileUrl || result?.data?.fileUrl || '';
+      if (savedPath) {
+        setFormData(prev => ({ ...prev, imageUrl: savedPath }));
+        setImagePreview(savedPath);
+      }
+    } catch (err) {
+      console.error('Image upload failed:', err);
+      setErrors(prev => ({
+        ...prev,
+        imageUrl: err?.message || 'Failed to upload image. Please try again.'
+      }));
+      setImagePreview(formData.imageUrl || '');
+    } finally {
+      setUploadingImage(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleRemovePhoto = () => {
+    setFormData(prev => ({ ...prev, imageUrl: '' }));
+    setImagePreview('');
+    setImageLoadError(false);
+    setErrors(prev => {
+      const { imageUrl, ...rest } = prev;
+      return rest;
+    });
   };
 
   const validate = () => {
@@ -288,7 +317,7 @@ export const MenuModal = ({
         </div>
 
         {/* Scrollable Form Body */}
-        <form onSubmit={handleSubmit} style={{ overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <form onSubmit={handleSubmit} noValidate style={{ overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {/* Row 1: Item Name, Code & Food Type */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
             <div>
@@ -463,7 +492,7 @@ export const MenuModal = ({
             </div>
           </div>
 
-          {/* Dish Photo Capture & Upload Field */}
+          {/* Dish Photo Capture & Upload Field (Dual-Mode: Device Upload / Web Link) */}
           <div style={{
             border: '1px solid var(--border-color)',
             borderRadius: 'var(--border-radius-lg)',
@@ -471,41 +500,100 @@ export const MenuModal = ({
             backgroundColor: 'var(--bg-app)',
             display: 'flex',
             flexDirection: 'column',
-            gap: '10px'
+            gap: '12px'
           }}>
+            {/* Header: Title + Mode Toggle + Remove */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
-                  Dish Photo *
+                  Dish Photo
                 </label>
                 <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
-                  Upload dish image or paste image URL (displays small in menu table & medium in user item details)
+                  Upload from camera/file (saved to server) or paste a web image link from the internet
                 </span>
               </div>
 
-              {formData.imageUrl && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFormData({ ...formData, imageUrl: '' });
-                    setImageError(false);
-                  }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    fontSize: '11.5px',
-                    color: 'var(--color-danger)',
-                    fontWeight: 600,
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <Trash2 size={13} />
-                  <span>Remove Photo</span>
-                </button>
-              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                {/* Segmented Source Mode Selector */}
+                <div style={{
+                  display: 'flex',
+                  backgroundColor: 'var(--bg-muted)',
+                  padding: '2px',
+                  borderRadius: 'var(--border-radius-full)',
+                  border: '1px solid var(--border-color)'
+                }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPhotoSourceMode('upload');
+                      setImageLoadError(false);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '4px 10px',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      borderRadius: 'var(--border-radius-full)',
+                      border: 'none',
+                      backgroundColor: photoSourceMode === 'upload' ? 'var(--color-primary)' : 'transparent',
+                      color: photoSourceMode === 'upload' ? '#ffffff' : 'var(--text-secondary)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <Camera size={12} />
+                    <span>Device Upload</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPhotoSourceMode('url');
+                      setImageLoadError(false);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '4px 10px',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      borderRadius: 'var(--border-radius-full)',
+                      border: 'none',
+                      backgroundColor: photoSourceMode === 'url' ? 'var(--color-primary)' : 'transparent',
+                      color: photoSourceMode === 'url' ? '#ffffff' : 'var(--text-secondary)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <Globe size={12} />
+                    <span>Web Link</span>
+                  </button>
+                </div>
+
+                {(formData.imageUrl || imagePreview) && (
+                  <button
+                    type="button"
+                    onClick={handleRemovePhoto}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      fontSize: '11.5px',
+                      color: 'var(--color-danger)',
+                      fontWeight: 600,
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <Trash2 size={13} />
+                    <span>Remove</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
@@ -523,75 +611,193 @@ export const MenuModal = ({
                 justifyContent: 'center',
                 flexShrink: 0
               }}>
-                {formData.imageUrl && !imageError ? (
+                {(imagePreview || formData.imageUrl) && !imageLoadError ? (
                   <img
-                    src={formData.imageUrl}
+                    src={resolveImageUrl(imagePreview || formData.imageUrl)}
                     alt="Dish Preview"
-                    onError={() => setImageError(true)}
-                    onLoad={() => setImageError(false)}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    onError={() => setImageLoadError(true)}
                   />
+                ) : imageLoadError ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', color: 'var(--color-danger)', textAlign: 'center', padding: '6px' }}>
+                    <AlertCircle size={22} />
+                    <span style={{ fontSize: '10.5px', fontWeight: 500 }}>Invalid image URL</span>
+                  </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', color: 'var(--text-muted)', textAlign: 'center', padding: '6px' }}>
-                    <ImageIcon size={26} style={{ opacity: 0.6 }} />
+                    <Camera size={26} style={{ opacity: 0.6 }} />
                     <span style={{ fontSize: '11px', fontWeight: 500 }}>No photo selected</span>
+                  </div>
+                )}
+
+                {uploadingImage && (
+                  <div style={{
+                    position: 'absolute',
+                    inset: 0,
+                    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#ffffff',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    gap: '6px'
+                  }}>
+                    <Loader2 size={18} className="animate-spin" />
+                    <span>Uploading...</span>
                   </div>
                 )}
               </div>
 
-              {/* Photo Input Controls */}
+              {/* Photo Controls: Dynamically swapped by Mode */}
               <div style={{ flex: 1, minWidth: '240px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  <label
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '7px 14px',
-                      borderRadius: 'var(--border-radius-md)',
-                      border: '1px solid var(--border-color)',
-                      backgroundColor: 'var(--bg-surface)',
-                      color: 'var(--text-primary)',
-                      fontSize: '12px',
-                      fontWeight: 600,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <Upload size={14} />
-                    <span>Upload File</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      style={{ display: 'none' }}
-                    />
-                  </label>
-                </div>
+                {photoSourceMode === 'upload' ? (
+                  <>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      <label
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '7px 14px',
+                          borderRadius: 'var(--border-radius-md)',
+                          backgroundColor: 'var(--color-accent)',
+                          color: '#ffffff',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          cursor: uploadingImage ? 'not-allowed' : 'pointer',
+                          opacity: uploadingImage ? 0.7 : 1,
+                          boxShadow: 'var(--shadow-xs)'
+                        }}
+                      >
+                        <Camera size={14} />
+                        <span>Take / Choose Photo</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          disabled={uploadingImage}
+                          onChange={handleImageUpload}
+                          style={{ display: 'none' }}
+                        />
+                      </label>
 
-                {formData.imageUrl ? (
-                  <span style={{ fontSize: '11.5px', color: 'var(--color-danger)', fontWeight: 500 }}>
-                    Image is uploaded
-                  </span>
+                      <label
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '7px 14px',
+                          borderRadius: 'var(--border-radius-md)',
+                          border: '1px solid var(--border-color)',
+                          backgroundColor: 'var(--bg-surface)',
+                          color: 'var(--text-primary)',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          cursor: uploadingImage ? 'not-allowed' : 'pointer',
+                          opacity: uploadingImage ? 0.7 : 1
+                        }}
+                      >
+                        <Upload size={14} />
+                        <span>Upload File</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          disabled={uploadingImage}
+                          onChange={handleImageUpload}
+                          style={{ display: 'none' }}
+                        />
+                      </label>
+                    </div>
+
+                    {formData.imageUrl?.startsWith('/uploads/') ? (
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '6px 10px',
+                        borderRadius: 'var(--border-radius-sm)',
+                        backgroundColor: 'rgba(5, 150, 105, 0.1)',
+                        border: '1px solid rgba(5, 150, 105, 0.25)',
+                        color: '#059669',
+                        fontSize: '11.5px',
+                        fontWeight: 500
+                      }}>
+                        <CheckCircle2 size={14} />
+                        <span>Saved on server: {formData.imageUrl.split('/').pop()}</span>
+                      </div>
+                    ) : (
+                      <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
+                        Upload photo from phone camera or local gallery. Max 5MB (.jpg, .png, .webp).
+                      </span>
+                    )}
+                  </>
                 ) : (
-                  <input
-                    type="url"
-                    placeholder="Or paste dish image URL (https://...)"
-                    value={formData.imageUrl}
-                    onChange={(e) => {
-                      setFormData({ ...formData, imageUrl: e.target.value });
-                      setImageError(false);
-                    }}
-                    style={{
-                      width: '100%',
-                      height: '32px',
-                      padding: '0 10px',
-                      fontSize: '12px',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: 'var(--border-radius-sm)',
-                      backgroundColor: 'var(--bg-surface)',
-                      color: 'var(--text-primary)'
-                    }}
-                  />
+                  <>
+                    <input
+                      type="text"
+                      placeholder="Paste dish image web URL (e.g. https://images.unsplash.com/...)"
+                      value={formData.imageUrl?.startsWith('http') ? formData.imageUrl : ''}
+                      onChange={(e) => {
+                        const val = e.target.value.trim();
+                        setFormData(prev => ({ ...prev, imageUrl: val }));
+                        setImagePreview(val);
+                        setImageLoadError(false);
+                      }}
+                      style={{
+                        width: '100%',
+                        height: '34px',
+                        padding: '0 10px',
+                        fontSize: '12px',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: 'var(--border-radius-sm)',
+                        backgroundColor: 'var(--bg-surface)',
+                        color: 'var(--text-primary)'
+                      }}
+                    />
+
+                    {/* Quick preset dish photo chips */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '2px' }}>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                        <Sparkles size={11} /> Presets:
+                      </span>
+                      {[
+                        { label: '🍛 Thali', url: 'https://images.unsplash.com/photo-1610192244261-3f33de3f55e4?auto=format&fit=crop&w=600&q=80' },
+                        { label: '🍲 Biryani', url: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=600&q=80' },
+                        { label: '🥪 Sandwich', url: 'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?auto=format&fit=crop&w=600&q=80' },
+                        { label: '🧀 Paneer', url: 'https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&w=600&q=80' },
+                        { label: '🥤 Drink', url: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=600&q=80' }
+                      ].map((preset) => (
+                        <button
+                          key={preset.label}
+                          type="button"
+                          onClick={() => {
+                            setFormData(prev => ({ ...prev, imageUrl: preset.url }));
+                            setImagePreview(preset.url);
+                            setImageLoadError(false);
+                          }}
+                          style={{
+                            padding: '2px 8px',
+                            fontSize: '11px',
+                            borderRadius: 'var(--border-radius-full)',
+                            border: '1px solid var(--border-color)',
+                            backgroundColor: formData.imageUrl === preset.url ? 'var(--color-primary-light)' : 'var(--bg-surface)',
+                            color: formData.imageUrl === preset.url ? 'var(--color-primary)' : 'var(--text-secondary)',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {errors.imageUrl && (
+                  <span style={{ color: 'var(--color-danger)', fontSize: '11.5px', fontWeight: 500 }}>
+                    {errors.imageUrl}
+                  </span>
                 )}
               </div>
             </div>

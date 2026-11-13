@@ -2,7 +2,7 @@ import React from 'react';
 import { X, Utensils, MapPin, Clock, Flame, Users } from 'lucide-react';
 import { Button } from '../../../../components/common/Button';
 import { StatusBadge } from '../../../../components/common/StatusBadge';
-import { formatCurrency } from '../../../../utils/formatters';
+import { formatCurrency, resolveImageUrl } from '../../../../utils/formatters';
 
 export const MenuItemDetailsModal = ({ isOpen, onClose, item }) => {
   if (!isOpen || !item) return null;
@@ -117,41 +117,48 @@ export const MenuItemDetailsModal = ({ isOpen, onClose, item }) => {
         <div className="menu-details-card-container">
           {/* Left Side: Recipe Image */}
           <div className="menu-details-image-side">
-            {item.imageUrl ? (
-              <img
-                src={item.imageUrl}
-                alt={item.name}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  display: 'block'
-                }}
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                  if (e.currentTarget.nextElementSibling) {
-                    e.currentTarget.nextElementSibling.style.display = 'flex';
-                  }
-                }}
-              />
-            ) : null}
+            {(() => {
+              const displayUrl = resolveImageUrl(item.imageUrl);
+              return (
+                <>
+                  {displayUrl ? (
+                    <img
+                      src={displayUrl}
+                      alt={item.name}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        display: 'block'
+                      }}
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        if (e.currentTarget.nextElementSibling) {
+                          e.currentTarget.nextElementSibling.style.display = 'flex';
+                        }
+                      }}
+                    />
+                  ) : null}
 
-            <div style={{
-              display: item.imageUrl ? 'none' : 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '100%',
-              height: '100%',
-              minHeight: '220px',
-              backgroundColor: 'var(--bg-muted)',
-              color: 'var(--text-muted)',
-              gap: '8px',
-              padding: '24px'
-            }}>
-              <Utensils size={40} style={{ opacity: 0.5 }} />
-              <span style={{ fontSize: '12px', fontWeight: 500 }}>No dish photo uploaded</span>
-            </div>
+                  <div style={{
+                    display: displayUrl ? 'none' : 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '100%',
+                    height: '100%',
+                    minHeight: '220px',
+                    backgroundColor: 'var(--bg-muted)',
+                    color: 'var(--text-muted)',
+                    gap: '8px',
+                    padding: '24px'
+                  }}>
+                    <Utensils size={40} style={{ opacity: 0.5 }} />
+                    <span style={{ fontSize: '12px', fontWeight: 500 }}>No dish photo uploaded</span>
+                  </div>
+                </>
+              );
+            })()}
 
             {/* Badges Overlaid on Image */}
             <div style={{

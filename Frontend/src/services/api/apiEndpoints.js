@@ -87,6 +87,12 @@ export const API_ENDPOINTS = {
     EXPORT: '/canteen-reports/export'
   },
 
+  // Media Uploads
+  MEDIA: {
+    UPLOAD: '/media/upload',
+    MENU_UPLOAD: '/canteen-menu/upload-image'
+  },
+
   // System Settings & Privacy
   SETTINGS: {
     BASE: '/canteen-settings',

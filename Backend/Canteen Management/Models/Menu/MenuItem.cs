@@ -61,7 +61,6 @@ namespace CanteenManagement.API.Models.Menu
         [MaxLength(50)]
         public string? Calories { get; set; }
 
-        [MaxLength(500)]
         public string? ImageUrl { get; set; }
 
         public string? AllergensJson { get; set; } // JSON array of string e.g. ["Dairy", "Nuts"]
