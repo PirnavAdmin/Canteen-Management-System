@@ -39,7 +39,7 @@ export const PurchaseOrderModal = ({ isOpen, onClose, suppliers = [], loading = 
       return;
     }
 
-    const selectedSup = suppliers.find(s => s.id === supplierId) || { name: 'Institutional Vendor' };
+    const selectedSup = suppliers.find(s => String(s.id) === String(supplierId)) || suppliers[0] || { name: 'Institutional Vendor' };
     const processedItems = items.map(it => ({
       ...it,
       qty: Number(it.qty),

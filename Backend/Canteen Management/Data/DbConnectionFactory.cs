@@ -15,7 +15,10 @@ namespace CanteenManagement.API.Data
 
         public IDbConnection CreateConnection()
         {
-            return new MySqlConnection(_connectionString);
+            var activeCs = !string.IsNullOrEmpty(DatabaseInitializer.WorkingConnectionString)
+                ? DatabaseInitializer.WorkingConnectionString
+                : _connectionString;
+            return new MySqlConnection(activeCs);
         }
     }
 }

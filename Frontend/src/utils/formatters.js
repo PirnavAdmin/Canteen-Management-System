@@ -133,8 +133,8 @@ export const resolveImageUrl = (path, fallback = '') => {
   const trimmed = path.trim();
   if (!trimmed) return fallback;
 
-  // Corrupted base64 string
-  if (trimmed.startsWith('data:') && (!trimmed.includes(',') || trimmed.length < 50)) {
+  // Corrupted base64 string or truncated data URL
+  if (trimmed.startsWith('data:') && (!trimmed.includes(';base64,') || trimmed.length < 100 || trimmed.endsWith('...'))) {
     return fallback;
   }
 
@@ -147,12 +147,15 @@ export const resolveImageUrl = (path, fallback = '') => {
   }
 
   // 2. Blob URL or inline base64 (Instant camera/file preview)
-  if (trimmed.startsWith('blob:') || trimmed.startsWith('data:image/')) {
+  if (trimmed.startsWith('blob:') || (trimmed.startsWith('data:image/') && trimmed.includes(';base64,'))) {
     return trimmed;
   }
 
   // 3. Server Relative Upload Path (/uploads/menu/...)
-  const cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  let cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  if (cleanPath.toLowerCase().startsWith('/upload/')) {
+    cleanPath = '/uploads/' + cleanPath.slice('/upload/'.length);
+  }
 
   let backendOrigin = '';
   if (typeof window !== 'undefined') {

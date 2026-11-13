@@ -65,15 +65,21 @@ export const PurchaseOrdersTable = ({
       header: 'Line Items',
       render: (items) => (
         <div style={{ fontSize: '11px', color: 'var(--text-secondary)', maxWidth: '220px' }}>
-          {items?.map((it, i) => (
-            <div
-              key={i}
-              title={`${it.ingredientName}: ${it.qty} ${it.unit} @ ₹${it.unitPrice}`}
-              style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-            >
-              {it.ingredientName}: {it.qty} {it.unit} @ ₹{it.unitPrice}
-            </div>
-          ))}
+          {items?.map((it, i) => {
+            const name = it.ingredientName || it.name || 'Item';
+            const qty = it.qty || it.quantity || 1;
+            const unit = it.unit || 'units';
+            const price = it.unitPrice || it.price || 0;
+            return (
+              <div
+                key={i}
+                title={`${name}: ${qty} ${unit} @ ₹${price}`}
+                style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+              >
+                {name}: {qty} {unit} @ ₹{price}
+              </div>
+            );
+          })}
         </div>
       )
     },
@@ -100,7 +106,7 @@ export const PurchaseOrdersTable = ({
       width: '88px',
       render: (_, row) => {
         const canApprove = row.status === 'Submitted';
-        const canReceive = row.status === 'Approved';
+        const canReceive = row.status === 'Approved' || row.status === 'Submitted';
         const canCancel = row.status !== 'Received' && row.status !== 'Cancelled';
 
         if (!canApprove && !canReceive && !canCancel) {

@@ -43,19 +43,21 @@ export const SuppliersTable = ({ suppliers = [], loading = false }) => {
       key: 'suppliedCategories',
       header: 'Supplied Raw Materials',
       render: (val) => (
-        <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-          {val}
+        <span style={{ fontSize: '12px', color: val ? 'var(--text-secondary)' : 'var(--text-muted)' }}>
+          {val || '--'}
         </span>
       )
     },
     {
       key: 'address',
       header: 'Location / Warehouse',
-      render: (val) => (
+      render: (val) => val ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11.5px', color: 'var(--text-muted)', maxWidth: '200px' }} className="text-truncate">
           <MapPin size={11} style={{ flexShrink: 0 }} />
           <span>{val}</span>
         </div>
+      ) : (
+        <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>--</span>
       )
     },
     {

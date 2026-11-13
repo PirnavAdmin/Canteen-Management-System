@@ -1,3 +1,4 @@
+using System.Data;
 using CanteenManagement.API.Data;
 using CanteenManagement.API.Models.Categories;
 using CanteenManagement.API.Repositories.Interfaces.Categories;
@@ -73,44 +74,48 @@ namespace CanteenManagement.API.Repositories.Implementations.Categories
 
         public async Task<(int linkedItemCount, int historicalOrderCount)> GetDependencyCountsAsync(int categoryId)
         {
-            using var connection = _connectionFactory.CreateConnection();
-            const string sql = @"
-                SELECT 
-                    (SELECT COUNT(1) FROM MenuItems WHERE CategoryId = @CategoryId) AS LinkedItemCount,
-                    (SELECT COUNT(1) FROM OrderItems oi 
-                     INNER JOIN MenuItems mi ON oi.MenuItemId = mi.MenuItemId 
-                     WHERE mi.CategoryId = @CategoryId) AS HistoricalOrderCount;";
+            try
+            {
+                using var connection = _connectionFactory.CreateConnection();
+                var counts = await connection.QueryFirstOrDefaultAsync<dynamic>(
+                    "sp_GetCategoryDependencyCounts",
+                    new { p_CategoryId = categoryId },
+                    commandType: CommandType.StoredProcedure);
 
-            var counts = await connection.QueryFirstOrDefaultAsync<dynamic>(sql, new { CategoryId = categoryId });
-            int linkedItems = (int)(counts?.LinkedItemCount ?? 0);
-            int orders = (int)(counts?.HistoricalOrderCount ?? 0);
-            return (linkedItems, orders);
+                int linkedItems = (int)(counts?.LinkedItemCount ?? 0);
+                int orders = (int)(counts?.HistoricalOrderCount ?? 0);
+                return (linkedItems, orders);
+            }
+            catch
+            {
+                return (0, 0);
+            }
         }
 
         public async Task<Dictionary<int, (int linkedItemCount, int historicalOrderCount)>> GetBatchDependencyCountsAsync(int institutionId)
         {
-            using var connection = _connectionFactory.CreateConnection();
-            const string sql = @"
-                SELECT 
-                    c.CategoryId,
-                    COUNT(DISTINCT mi.MenuItemId) AS LinkedItemCount,
-                    COUNT(DISTINCT oi.OrderItemId) AS HistoricalOrderCount
-                FROM Categories c
-                LEFT JOIN MenuItems mi ON mi.CategoryId = c.CategoryId
-                LEFT JOIN OrderItems oi ON oi.MenuItemId = mi.MenuItemId
-                WHERE c.InstitutionId = @InstitutionId
-                GROUP BY c.CategoryId;";
-
-            var rows = await connection.QueryAsync<dynamic>(sql, new { InstitutionId = institutionId });
-            var result = new Dictionary<int, (int, int)>();
-            foreach (var row in rows)
+            try
             {
-                int catId = (int)row.CategoryId;
-                int linked = (int)(row.LinkedItemCount ?? 0);
-                int orders = (int)(row.HistoricalOrderCount ?? 0);
-                result[catId] = (linked, orders);
+                using var connection = _connectionFactory.CreateConnection();
+                var rows = await connection.QueryAsync<dynamic>(
+                    "sp_GetBatchCategoryDependencyCounts",
+                    new { p_InstitutionId = institutionId },
+                    commandType: CommandType.StoredProcedure);
+
+                var result = new Dictionary<int, (int, int)>();
+                foreach (var row in rows)
+                {
+                    int catId = (int)row.CategoryId;
+                    int linked = (int)(row.LinkedItemCount ?? 0);
+                    int orders = (int)(row.HistoricalOrderCount ?? 0);
+                    result[catId] = (linked, orders);
+                }
+                return result;
             }
-            return result;
+            catch
+            {
+                return new Dictionary<int, (int, int)>();
+            }
         }
     }
 }

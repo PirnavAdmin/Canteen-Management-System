@@ -54,14 +54,27 @@ export const inventoryService = {
   },
 
   createPurchaseOrder: async (poData) => {
+    const items = (poData.items || []).map(item => {
+      const q = Number(item.qty || item.quantity) || 1;
+      const p = Number(item.unitPrice || item.price || item.estimatedCost) || 0;
+      return {
+        ingredientName: item.ingredientName || item.name || '',
+        qty: q,
+        unit: item.unit || 'kg',
+        unitPrice: p,
+        total: Number(item.total) || (q * p)
+      };
+    });
+
+    const calculatedTotal = items.reduce((acc, curr) => acc + curr.total, 0);
+
     const payload = {
       outletId: Number(poData.outletId) || 1,
       supplierId: Number(poData.supplierId) || 1,
-      items: (poData.items || []).map(item => ({
-        ingredientId: Number(item.ingredientId || item.id),
-        quantity: Number(item.quantity),
-        estimatedCost: Number(item.estimatedCost || 0)
-      }))
+      supplierName: poData.supplierName || null,
+      expectedDelivery: poData.expectedDelivery || null,
+      totalAmount: Number(poData.totalAmount) || calculatedTotal,
+      items
     };
     const response = await apiClient.post(API_ENDPOINTS.INVENTORY.PURCHASE_ORDERS, payload);
     return response?.data ?? response;

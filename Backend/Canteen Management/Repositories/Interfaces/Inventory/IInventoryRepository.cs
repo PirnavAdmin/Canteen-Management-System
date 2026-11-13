@@ -6,6 +6,7 @@ namespace CanteenManagement.API.Repositories.Interfaces.Inventory
     {
         Task<IEnumerable<InventoryItem>> GetItemsAsync(int institutionId, int? outletId = null);
         Task<InventoryItem?> GetItemByIdAsync(int id, int institutionId);
+        Task<InventoryItem> AddItemAsync(InventoryItem item);
         Task<InventoryItem> UpdateItemAsync(InventoryItem item);
         Task<StockMovement> AddMovementAsync(StockMovement movement);
         Task<IEnumerable<StockMovement>> GetLedgerAsync(int institutionId, int? outletId = null);
@@ -14,6 +15,7 @@ namespace CanteenManagement.API.Repositories.Interfaces.Inventory
         Task<PurchaseOrder> CreatePurchaseOrderAsync(PurchaseOrder po);
         Task<PurchaseOrder> UpdatePurchaseOrderAsync(PurchaseOrder po);
         Task<IEnumerable<Supplier>> GetSuppliersAsync(int institutionId);
+        Task<Supplier?> GetSupplierByIdAsync(int id, int institutionId);
         Task<Supplier> CreateSupplierAsync(Supplier supplier);
     }
 }

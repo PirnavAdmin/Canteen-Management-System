@@ -1,3 +1,4 @@
+using System.Data;
 using CanteenManagement.API.Data;
 using CanteenManagement.API.DTOs.Reports;
 using CanteenManagement.API.Repositories.Interfaces.Reports;
@@ -17,28 +18,20 @@ namespace CanteenManagement.API.Repositories.Implementations.Reports
         public async Task<ReportResultDto> GetReportDataAsync(int institutionId, ReportFilterDto filter)
         {
             using var connection = _connectionFactory.CreateConnection();
-            string outletFilter = filter.OutletId.HasValue && filter.OutletId.Value > 0 ? "AND o.OutletId = @OutletId" : "";
             var reportType = filter.ReportType.ToLower();
+            var parameters = new
+            {
+                p_InstitutionId = institutionId,
+                p_OutletId = filter.OutletId ?? 0
+            };
 
             if (reportType == "item_wise")
             {
-                string sql = $@"
-                    SELECT 
-                        mi.Code AS itemCode,
-                        mi.Name AS name,
-                        cat.Name AS category,
-                        mi.Price AS unitPrice,
-                        COALESCE(SUM(oi.Quantity), 0) AS qtySold,
-                        COALESCE(SUM(oi.TotalPrice), 0) AS totalRevenue
-                    FROM OrderItems oi
-                    INNER JOIN Orders o ON oi.OrderId = o.OrderId
-                    INNER JOIN MenuItems mi ON oi.MenuItemId = mi.MenuItemId
-                    INNER JOIN Categories cat ON mi.CategoryId = cat.CategoryId
-                    WHERE o.InstitutionId = @InstitutionId AND o.Status != 'Cancelled' {outletFilter}
-                    GROUP BY mi.Code, mi.Name, cat.Name, mi.Price
-                    ORDER BY qtySold DESC;";
+                var items = (await connection.QueryAsync(
+                    "sp_GetReportItemWise",
+                    parameters,
+                    commandType: CommandType.StoredProcedure)).ToList();
 
-                var items = (await connection.QueryAsync(sql, new { InstitutionId = institutionId, OutletId = filter.OutletId })).ToList();
                 var rows = items.Select(r => new Dictionary<string, object>
                 {
                     ["itemCode"] = r.itemCode,
@@ -74,22 +67,12 @@ namespace CanteenManagement.API.Repositories.Implementations.Reports
                 };
             }
 
-            // Default: Sales Summary Report
-            string salesSql = $@"
-                SELECT 
-                    DATE_FORMAT(o.OrderDate, '%Y-%m-%d') AS date,
-                    co.Name AS outlet,
-                    COUNT(o.OrderId) AS orders,
-                    COALESCE(SUM(o.Subtotal), 0) AS grossSales,
-                    COALESCE(SUM(o.TaxAmount), 0) AS tax,
-                    COALESCE(SUM(o.TotalAmount), 0) AS netSales
-                FROM Orders o
-                INNER JOIN CanteenOutlets co ON o.OutletId = co.OutletId
-                WHERE o.InstitutionId = @InstitutionId AND o.Status != 'Cancelled' {outletFilter}
-                GROUP BY DATE_FORMAT(o.OrderDate, '%Y-%m-%d'), co.Name
-                ORDER BY date DESC, grossSales DESC;";
+            // Default: Sales Summary Report via Stored Procedure
+            var sales = (await connection.QueryAsync(
+                "sp_GetReportSalesSummary",
+                parameters,
+                commandType: CommandType.StoredProcedure)).ToList();
 
-            var sales = (await connection.QueryAsync(salesSql, new { InstitutionId = institutionId, OutletId = filter.OutletId })).ToList();
             var salesRows = sales.Select(s => new Dictionary<string, object>
             {
                 ["date"] = s.date,
@@ -102,6 +85,7 @@ namespace CanteenManagement.API.Repositories.Implementations.Reports
 
             decimal sumGross = sales.Sum(s => (decimal)s.grossSales);
             decimal sumNet = sales.Sum(s => (decimal)s.netSales);
+            decimal sumTax = sales.Sum(s => (decimal)s.tax);
             int sumOrders = sales.Sum(s => (int)s.orders);
 
             return new ReportResultDto
@@ -109,24 +93,22 @@ namespace CanteenManagement.API.Repositories.Implementations.Reports
                 ReportType = "sales_summary",
                 SummaryMetrics = new Dictionary<string, object>
                 {
-                    ["totalRevenue"] = sumNet,
                     ["totalOrders"] = sumOrders,
-                    ["averageOrderValue"] = sumOrders > 0 ? Math.Round(sumNet / sumOrders, 2) : 0,
-                    ["completedOrders"] = sumOrders,
-                    ["cancelledOrders"] = 0
+                    ["grossSales"] = sumGross,
+                    ["taxCollected"] = sumTax,
+                    ["netSales"] = sumNet
                 },
                 Columns = new List<ReportColumnDto>
                 {
                     new() { Key = "date", Header = "Date" },
-                    new() { Key = "outlet", Header = "Outlet" },
-                    new() { Key = "orders", Header = "Orders Count" },
+                    new() { Key = "outlet", Header = "Canteen Outlet" },
+                    new() { Key = "orders", Header = "Total Orders" },
                     new() { Key = "grossSales", Header = "Gross Sales (₹)" },
-                    new() { Key = "tax", Header = "GST (5%)" },
-                    new() { Key = "netSales", Header = "Net Settled (₹)" }
+                    new() { Key = "tax", Header = "Taxes (₹)" },
+                    new() { Key = "netSales", Header = "Net Revenue (₹)" }
                 },
                 Rows = salesRows
             };
         }
     }
 }
-

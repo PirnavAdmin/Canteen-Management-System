@@ -120,6 +120,12 @@ namespace CanteenManagement.API.Models.Inventory
         [MaxLength(100)]
         public string? Email { get; set; }
 
+        [MaxLength(255)]
+        public string? Address { get; set; }
+
+        [MaxLength(255)]
+        public string? SuppliedCategories { get; set; }
+
         [MaxLength(50)]
         public string? Gstin { get; set; }
 
@@ -167,6 +173,8 @@ namespace CanteenManagement.API.Models.Inventory
         [Required]
         [MaxLength(30)]
         public string Status { get; set; } = "Submitted"; // Draft, Submitted, Received, Cancelled
+
+        public string? ItemsJson { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? UpdatedAt { get; set; }

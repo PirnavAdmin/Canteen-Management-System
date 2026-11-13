@@ -67,13 +67,26 @@ export const useInventory = () => {
     try {
       const updated = await inventoryService.updatePOStatus(id, status);
       setPurchaseOrders(prev => prev.map(p => p.id === id ? updated : p));
-      info('PO Updated', `Purchase Order ${updated.poNumber} moved to ${status}.`);
+
+      // Step 5 -> Step 6: When marked Received, auto-reload stock and ledger so tabs reflect inward immediately!
+      if (status === 'Received') {
+        const [updatedItems, updatedLedger] = await Promise.all([
+          inventoryService.getItems(),
+          inventoryService.getLedger()
+        ]);
+        setItems(updatedItems);
+        setLedger(updatedLedger);
+        success('Delivery Received', `Stock inward completed for PO ${updated.poNumber}. Stock & Movement Ledger updated!`);
+      } else {
+        info('PO Updated', `Purchase Order ${updated.poNumber} moved to ${status}.`);
+      }
+
       return updated;
     } catch (err) {
       toastError('Status Failed', err.message);
       throw err;
     }
-  }, [info, toastError]);
+  }, [info, success, toastError]);
 
   const createSupplier = useCallback(async (supData) => {
     try {

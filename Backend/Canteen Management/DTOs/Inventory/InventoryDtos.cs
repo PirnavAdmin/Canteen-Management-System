@@ -6,6 +6,8 @@ namespace CanteenManagement.API.DTOs.Inventory
     {
         public int Id { get; set; }
         public int OutletId { get; set; }
+        public string OutletName { get; set; } = "Main Canteen";
+        public string ItemCode { get; set; } = string.Empty;
         public string IngredientName { get; set; } = string.Empty;
         public string Category { get; set; } = "Groceries";
         public decimal AvailableQuantity { get; set; }
@@ -14,6 +16,7 @@ namespace CanteenManagement.API.DTOs.Inventory
         public decimal CostPerUnit { get; set; }
         public string? BatchNumber { get; set; }
         public string? ExpiryDate { get; set; }
+        public string? SupplierName { get; set; }
         public string Status { get; set; } = "In Stock";
         public DateTime? UpdatedAt { get; set; }
     }
@@ -56,6 +59,15 @@ namespace CanteenManagement.API.DTOs.Inventory
         public DateTime DateTime { get; set; }
     }
 
+    public class PurchaseOrderItemDto
+    {
+        public string IngredientName { get; set; } = string.Empty;
+        public decimal Qty { get; set; } = 1;
+        public string Unit { get; set; } = "kg";
+        public decimal UnitPrice { get; set; }
+        public decimal Total { get; set; }
+    }
+
     public class PurchaseOrderDto
     {
         public int Id { get; set; }
@@ -67,6 +79,7 @@ namespace CanteenManagement.API.DTOs.Inventory
         public string? ExpectedDelivery { get; set; }
         public decimal TotalAmount { get; set; }
         public string Status { get; set; } = "Submitted";
+        public List<PurchaseOrderItemDto> Items { get; set; } = new();
         public DateTime CreatedAt { get; set; }
     }
 
@@ -78,6 +91,7 @@ namespace CanteenManagement.API.DTOs.Inventory
         public string? SupplierName { get; set; }
         public DateTime? ExpectedDelivery { get; set; }
         public decimal TotalAmount { get; set; }
+        public List<PurchaseOrderItemDto>? Items { get; set; }
     }
 
     public class SupplierDto
@@ -87,6 +101,8 @@ namespace CanteenManagement.API.DTOs.Inventory
         public string? ContactPerson { get; set; }
         public string? Phone { get; set; }
         public string? Email { get; set; }
+        public string? Address { get; set; }
+        public string? SuppliedCategories { get; set; }
         public string? Gstin { get; set; }
         public string? FssaiNumber { get; set; }
         public string Status { get; set; } = "Active";
@@ -99,6 +115,8 @@ namespace CanteenManagement.API.DTOs.Inventory
         public string? ContactPerson { get; set; }
         public string? Phone { get; set; }
         public string? Email { get; set; }
+        public string? Address { get; set; }
+        public string? SuppliedCategories { get; set; }
         public string? Gstin { get; set; }
         public string? FssaiNumber { get; set; }
     }

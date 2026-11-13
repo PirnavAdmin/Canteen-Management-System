@@ -1,3 +1,4 @@
+using System.Data;
 using CanteenManagement.API.Data;
 using CanteenManagement.API.DTOs.Outlets;
 using CanteenManagement.API.Models.Outlets;
@@ -113,18 +114,10 @@ namespace CanteenManagement.API.Repositories.Implementations.Outlets
             try
             {
                 using var connection = _dbConnectionFactory.CreateConnection();
-                const string sql = @"
-                    SELECT 
-                        COUNT(*) AS TotalOutlets,
-                        SUM(CASE WHEN Status = 'Active' THEN 1 ELSE 0 END) AS ActiveOutlets,
-                        SUM(CASE WHEN Status != 'Active' THEN 1 ELSE 0 END) AS InactiveOutlets,
-                        0 AS TotalMenuItems,
-                        0 AS OrdersToday,
-                        0.00 AS RevenueToday
-                    FROM CanteenOutlets
-                    WHERE InstitutionId = @InstitutionId;";
-
-                var stats = await connection.QueryFirstOrDefaultAsync<CanteenOutletStatsDto>(sql, new { InstitutionId = institutionId });
+                var stats = await connection.QueryFirstOrDefaultAsync<CanteenOutletStatsDto>(
+                    "sp_GetCanteenOutletStats",
+                    new { p_InstitutionId = institutionId },
+                    commandType: CommandType.StoredProcedure);
                 return stats ?? new CanteenOutletStatsDto();
             }
             catch

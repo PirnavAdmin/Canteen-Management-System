@@ -711,7 +711,7 @@ export const MenuModal = ({
                       </label>
                     </div>
 
-                    {formData.imageUrl?.startsWith('/uploads/') ? (
+                    {formData.imageUrl && !formData.imageUrl.startsWith('http') && !formData.imageUrl.startsWith('data:') ? (
                       <div style={{
                         display: 'flex',
                         alignItems: 'center',

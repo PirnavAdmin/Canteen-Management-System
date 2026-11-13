@@ -1,3 +1,4 @@
+using System.Text.Json;
 using CanteenManagement.API.DTOs.Inventory;
 using CanteenManagement.API.Models.Inventory;
 using CanteenManagement.API.Repositories.Interfaces.Inventory;
@@ -123,6 +124,20 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
             }).ToList();
         }
 
+        private static List<PurchaseOrderItemDto> ParseItemsJson(string? json)
+        {
+            if (string.IsNullOrWhiteSpace(json)) return new List<PurchaseOrderItemDto>();
+            try
+            {
+                return JsonSerializer.Deserialize<List<PurchaseOrderItemDto>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                    ?? new List<PurchaseOrderItemDto>();
+            }
+            catch
+            {
+                return new List<PurchaseOrderItemDto>();
+            }
+        }
+
         public async Task<IEnumerable<PurchaseOrderDto>> GetPurchaseOrdersAsync(int institutionId, int? outletId = null)
         {
             var pos = await _repository.GetPurchaseOrdersAsync(institutionId, outletId);
@@ -132,28 +147,47 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
                 OutletId = p.OutletId,
                 PoNumber = p.PoNumber,
                 SupplierId = p.SupplierId,
-                SupplierName = p.SupplierName ?? p.Supplier?.Name,
+                SupplierName = p.SupplierName ?? p.Supplier?.Name ?? "Institutional Supplier",
                 OrderDate = p.OrderDate.ToString("yyyy-MM-dd"),
                 ExpectedDelivery = p.ExpectedDelivery?.ToString("yyyy-MM-dd"),
                 TotalAmount = p.TotalAmount,
                 Status = p.Status,
+                Items = ParseItemsJson(p.ItemsJson),
                 CreatedAt = p.CreatedAt
             }).ToList();
         }
 
         public async Task<PurchaseOrderDto> CreatePurchaseOrderAsync(CreatePurchaseOrderDto dto, int institutionId, string performedBy)
         {
+            var supplierName = dto.SupplierName;
+            if (string.IsNullOrWhiteSpace(supplierName) && dto.SupplierId.HasValue)
+            {
+                var sup = await _repository.GetSupplierByIdAsync(dto.SupplierId.Value, institutionId);
+                supplierName = sup?.Name;
+            }
+
+            var totalAmount = dto.TotalAmount;
+            if (totalAmount <= 0 && dto.Items != null && dto.Items.Count > 0)
+            {
+                totalAmount = dto.Items.Sum(i => i.Total > 0 ? i.Total : (i.Qty * i.UnitPrice));
+            }
+
+            var itemsJson = dto.Items != null && dto.Items.Count > 0
+                ? JsonSerializer.Serialize(dto.Items)
+                : null;
+
             var po = new PurchaseOrder
             {
                 InstitutionId = institutionId,
                 OutletId = dto.OutletId,
                 PoNumber = $"PO-{DateTime.UtcNow.Year}-{Random.Shared.Next(1000, 9999)}",
                 SupplierId = dto.SupplierId,
-                SupplierName = dto.SupplierName,
+                SupplierName = supplierName,
                 OrderDate = DateTime.UtcNow.Date,
                 ExpectedDelivery = dto.ExpectedDelivery?.Date,
-                TotalAmount = dto.TotalAmount,
+                TotalAmount = totalAmount,
                 Status = "Submitted",
+                ItemsJson = itemsJson,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -180,6 +214,7 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
                 ExpectedDelivery = created.ExpectedDelivery?.ToString("yyyy-MM-dd"),
                 TotalAmount = created.TotalAmount,
                 Status = created.Status,
+                Items = ParseItemsJson(created.ItemsJson),
                 CreatedAt = created.CreatedAt
             };
         }
@@ -192,8 +227,81 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
                 throw new KeyNotFoundException($"Purchase order {id} was not found.");
             }
 
+            var previousStatus = po.Status;
             po.Status = status;
             var updated = await _repository.UpdatePurchaseOrderAsync(po);
+
+            // Step 5 -> Step 6: When PO status transitions to "Received", automatically inward goods to stock & ledger!
+            if (!string.Equals(previousStatus, "Received", StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(status, "Received", StringComparison.OrdinalIgnoreCase))
+            {
+                var items = ParseItemsJson(po.ItemsJson);
+                if (items != null && items.Count > 0)
+                {
+                    var existingStockItems = (await _repository.GetItemsAsync(institutionId, po.OutletId > 0 ? po.OutletId : null)).ToList();
+
+                    foreach (var item in items)
+                    {
+                        if (string.IsNullOrWhiteSpace(item.IngredientName) || item.Qty <= 0) continue;
+
+                        var targetName = item.IngredientName.Trim();
+                        var match = existingStockItems.FirstOrDefault(s =>
+                            string.Equals(s.IngredientName.Trim(), targetName, StringComparison.OrdinalIgnoreCase));
+
+                        int targetItemId;
+                        string unit = string.IsNullOrWhiteSpace(item.Unit) ? "kg" : item.Unit.Trim();
+
+                        if (match != null)
+                        {
+                            match.AvailableQuantity += (decimal)item.Qty;
+                            if (item.UnitPrice > 0) match.CostPerUnit = item.UnitPrice;
+
+                            if (match.AvailableQuantity <= 0) match.Status = "Out of Stock";
+                            else if (match.AvailableQuantity <= match.ReorderLevel) match.Status = "Low Stock";
+                            else match.Status = "In Stock";
+
+                            await _repository.UpdateItemAsync(match);
+                            targetItemId = match.ItemId;
+                        }
+                        else
+                        {
+                            var newItem = new InventoryItem
+                            {
+                                InstitutionId = institutionId,
+                                OutletId = po.OutletId > 0 ? po.OutletId : 1,
+                                IngredientName = targetName,
+                                Category = "Groceries",
+                                AvailableQuantity = (decimal)item.Qty,
+                                Unit = unit,
+                                ReorderLevel = Math.Max(5, (decimal)item.Qty * 0.2m),
+                                CostPerUnit = item.UnitPrice > 0 ? item.UnitPrice : 0,
+                                BatchNumber = $"PO-{po.PurchaseOrderId}-{DateTime.UtcNow:yyyyMMdd}",
+                                ExpiryDate = po.ExpectedDelivery?.AddDays(30) ?? DateTime.UtcNow.AddDays(30),
+                                Status = "In Stock",
+                                CreatedAt = DateTime.UtcNow
+                            };
+                            var createdItem = await _repository.AddItemAsync(newItem);
+                            targetItemId = createdItem.ItemId;
+                            existingStockItems.Add(createdItem);
+                        }
+
+                        // Create Stock Movement log entry for Movement Ledger
+                        var movement = new StockMovement
+                        {
+                            ItemId = targetItemId,
+                            MovementType = "Stock In",
+                            Quantity = (decimal)item.Qty,
+                            BatchNumber = $"PO-{po.PurchaseOrderId}-{DateTime.UtcNow:yyyyMMdd}",
+                            ExpiryDate = po.ExpectedDelivery?.AddDays(30) ?? DateTime.UtcNow.AddDays(30),
+                            Reference = po.PoNumber,
+                            Reason = $"Procurement arrival from {po.SupplierName ?? "Supplier"} (PO: {po.PoNumber})",
+                            PerformedBy = string.IsNullOrWhiteSpace(performedBy) ? "Campus Inventory Incharge" : performedBy,
+                            DateTime = DateTime.UtcNow
+                        };
+                        await _repository.AddMovementAsync(movement);
+                    }
+                }
+            }
 
             await _auditService.LogActionAsync(
                 institutionId,
@@ -216,6 +324,7 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
                 ExpectedDelivery = updated.ExpectedDelivery?.ToString("yyyy-MM-dd"),
                 TotalAmount = updated.TotalAmount,
                 Status = updated.Status,
+                Items = ParseItemsJson(updated.ItemsJson),
                 CreatedAt = updated.CreatedAt
             };
         }
@@ -230,6 +339,8 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
                 ContactPerson = s.ContactPerson,
                 Phone = s.Phone,
                 Email = s.Email,
+                Address = s.Address,
+                SuppliedCategories = s.SuppliedCategories,
                 Gstin = s.Gstin,
                 FssaiNumber = s.FssaiNumber,
                 Status = s.Status
@@ -245,6 +356,8 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
                 ContactPerson = dto.ContactPerson?.Trim(),
                 Phone = dto.Phone?.Trim(),
                 Email = dto.Email?.Trim(),
+                Address = dto.Address?.Trim(),
+                SuppliedCategories = dto.SuppliedCategories?.Trim(),
                 Gstin = dto.Gstin?.Trim(),
                 FssaiNumber = dto.FssaiNumber?.Trim(),
                 Status = "Active",
@@ -270,6 +383,8 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
                 ContactPerson = created.ContactPerson,
                 Phone = created.Phone,
                 Email = created.Email,
+                Address = created.Address,
+                SuppliedCategories = created.SuppliedCategories,
                 Gstin = created.Gstin,
                 FssaiNumber = created.FssaiNumber,
                 Status = created.Status
@@ -280,6 +395,8 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
         {
             Id = i.ItemId,
             OutletId = i.OutletId,
+            OutletName = i.Outlet?.Name ?? "Main Canteen",
+            ItemCode = $"ING-{i.ItemId:D3}",
             IngredientName = i.IngredientName,
             Category = i.Category,
             AvailableQuantity = i.AvailableQuantity,
@@ -288,6 +405,7 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
             CostPerUnit = i.CostPerUnit,
             BatchNumber = i.BatchNumber,
             ExpiryDate = i.ExpiryDate?.ToString("yyyy-MM-dd"),
+            SupplierName = "Institutional Vendor",
             Status = i.Status,
             UpdatedAt = i.UpdatedAt
         };

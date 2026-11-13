@@ -47,7 +47,7 @@ export const StockTable = ({
             {val}
           </strong>
           <div
-            title={row.outletName}
+            title={row.outletName || 'Main Canteen'}
             style={{
               fontSize: '10.5px',
               color: 'var(--text-muted)',
@@ -56,7 +56,7 @@ export const StockTable = ({
               textOverflow: 'ellipsis'
             }}
           >
-            {row.outletName}
+            {row.outletName || 'Main Canteen'}
           </div>
         </div>
       )
@@ -64,19 +64,22 @@ export const StockTable = ({
     {
       key: 'itemCode',
       header: 'Code',
-      render: (val) => (
-        <code style={{
-          backgroundColor: 'var(--bg-muted)',
-          padding: '2px 6px',
-          borderRadius: '4px',
-          fontSize: '11px',
-          fontWeight: 600,
-          color: 'var(--color-primary)',
-          whiteSpace: 'nowrap'
-        }}>
-          {val}
-        </code>
-      )
+      render: (val, row) => {
+        const code = val || row.code || `ING-${String(row.id || row.itemId || 1).padStart(3, '0')}`;
+        return (
+          <code style={{
+            backgroundColor: 'var(--bg-muted)',
+            padding: '2px 6px',
+            borderRadius: '4px',
+            fontSize: '11px',
+            fontWeight: 600,
+            color: 'var(--color-primary)',
+            whiteSpace: 'nowrap'
+          }}>
+            {code}
+          </code>
+        );
+      }
     },
     {
       key: 'availableQuantity',
