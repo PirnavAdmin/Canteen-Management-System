@@ -1,8 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { Button } from '../../../../components/common/Button';
 
-export const SupplierModal = ({ isOpen, onClose, loading = false, onAddSupplier }) => {
+export const SupplierModal = ({
+  isOpen,
+  onClose,
+  loading = false,
+  onAddSupplier,
+  onSaveSupplier,
+  initialData = null
+}) => {
   const [formData, setFormData] = useState({
     name: '',
     contactPerson: '',
@@ -13,6 +20,31 @@ export const SupplierModal = ({ isOpen, onClose, loading = false, onAddSupplier 
   });
   const [error, setError] = useState('');
 
+  const isEdit = Boolean(initialData);
+
+  useEffect(() => {
+    if (initialData) {
+      setFormData({
+        name: initialData.name || initialData.contactPerson || '',
+        contactPerson: initialData.contactPerson || initialData.name || '',
+        email: initialData.email || '',
+        phone: initialData.phone || '',
+        address: initialData.address || '',
+        suppliedCategories: initialData.suppliedCategories || ''
+      });
+    } else {
+      setFormData({
+        name: '',
+        contactPerson: '',
+        email: '',
+        phone: '',
+        address: '',
+        suppliedCategories: ''
+      });
+    }
+    setError('');
+  }, [initialData, isOpen]);
+
   if (!isOpen) return null;
 
   const handleSubmit = async (e) => {
@@ -21,8 +53,12 @@ export const SupplierModal = ({ isOpen, onClose, loading = false, onAddSupplier 
       setError('Vendor name and contact phone are required.');
       return;
     }
-    await onAddSupplier(formData);
-    onClose();
+    if (onSaveSupplier) {
+      await onSaveSupplier(formData);
+    } else if (onAddSupplier) {
+      await onAddSupplier(formData);
+      onClose();
+    }
   };
 
   return (
@@ -56,10 +92,10 @@ export const SupplierModal = ({ isOpen, onClose, loading = false, onAddSupplier 
         }}>
           <div>
             <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
-              Register Vendor / Supplier
+              {isEdit ? 'Edit Vendor / Supplier' : 'Register Vendor / Supplier'}
             </h3>
             <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>
-              Add a trusted kitchen raw material supplier.
+              {isEdit ? 'Update existing supplier fields and raw material mappings.' : 'Add a trusted kitchen raw material supplier.'}
             </p>
           </div>
           <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>
@@ -155,7 +191,7 @@ export const SupplierModal = ({ isOpen, onClose, loading = false, onAddSupplier 
               Cancel
             </Button>
             <Button variant="primary" type="submit" loading={loading}>
-              Register Supplier
+              {isEdit ? 'Edit Supplier' : 'Register Supplier'}
             </Button>
           </div>
         </form>

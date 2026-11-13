@@ -195,8 +195,15 @@ export const MenuModal = ({
     const matchedCategory = categories.find(c => c.name === formData.category || c.id === formData.categoryId);
     const numericCategoryId = Number(formData.categoryId) || (matchedCategory?.id || matchedCategory?.categoryId || 1);
 
+    let cleanedImageUrl = formData.imageUrl ? formData.imageUrl.trim() : '';
+    const uploadsMatch = cleanedImageUrl.match(/\/uploads\/.*$/i);
+    if (uploadsMatch) {
+      cleanedImageUrl = uploadsMatch[0];
+    }
+
     onSubmit({
       ...formData,
+      imageUrl: cleanedImageUrl,
       outletId: numericOutletId,
       categoryId: numericCategoryId,
       price: Number(formData.price),
