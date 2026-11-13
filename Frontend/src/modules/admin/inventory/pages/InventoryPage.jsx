@@ -22,7 +22,9 @@ export const InventoryPage = () => {
     recordMovement,
     createPO,
     updatePOStatus,
-    createSupplier
+    createSupplier,
+    updateSupplier,
+    deactivateSupplier
   } = useInventory();
 
   // Tab state: 'items' | 'ledger' | 'pos' | 'suppliers'
@@ -41,6 +43,7 @@ export const InventoryPage = () => {
   const [movementModal, setMovementModal] = useState({ isOpen: false, item: null, type: 'Stock In' });
   const [isPOModalOpen, setIsPOModalOpen] = useState(false);
   const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
+  const [editingSupplier, setEditingSupplier] = useState(null);
   const [actionLoadingId, setActionLoadingId] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
 
@@ -70,6 +73,26 @@ export const InventoryPage = () => {
     try {
       setModalLoading(true);
       await createSupplier(payload);
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const handleOpenEditSupplier = (supplier) => {
+    setEditingSupplier(supplier);
+    setIsSupplierModalOpen(true);
+  };
+
+  const handleSaveSupplier = async (payload) => {
+    try {
+      setModalLoading(true);
+      if (editingSupplier) {
+        updateSupplier(editingSupplier.id, payload);
+      } else {
+        await createSupplier(payload);
+      }
+      setIsSupplierModalOpen(false);
+      setEditingSupplier(null);
     } finally {
       setModalLoading(false);
     }
@@ -115,7 +138,10 @@ export const InventoryPage = () => {
               <Button
                 variant="primary"
                 icon={PlusCircle}
-                onClick={() => setIsSupplierModalOpen(true)}
+                onClick={() => {
+                  setEditingSupplier(null);
+                  setIsSupplierModalOpen(true);
+                }}
               >
                 Register Supplier
               </Button>
@@ -263,6 +289,8 @@ export const InventoryPage = () => {
         <SuppliersTable
           suppliers={suppliers}
           loading={loading}
+          onEdit={handleOpenEditSupplier}
+          onDeactivate={(supplier) => deactivateSupplier(supplier.id)}
         />
       )}
 
@@ -286,8 +314,15 @@ export const InventoryPage = () => {
 
       <SupplierModal
         isOpen={isSupplierModalOpen}
-        onClose={() => !modalLoading && setIsSupplierModalOpen(false)}
+        onClose={() => {
+          if (!modalLoading) {
+            setIsSupplierModalOpen(false);
+            setEditingSupplier(null);
+          }
+        }}
+        initialData={editingSupplier}
         loading={modalLoading}
+        onSaveSupplier={handleSaveSupplier}
         onAddSupplier={handleCreateSupplier}
       />
     </div>

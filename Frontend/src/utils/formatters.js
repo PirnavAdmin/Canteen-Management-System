@@ -63,7 +63,7 @@ export const calculateDuration = (startTime, endTime) => {
 export const formatWorkingDays = (days = []) => {
   if (!Array.isArray(days) || days.length === 0) return 'None';
   if (days.length === 7) return 'All 7 Days (Mon - Sun)';
-  
+
   const standardWeekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
   const isAllWeekdays = standardWeekdays.every(d => days.includes(d)) && days.length === 5;
   if (isAllWeekdays) return 'Weekdays (Mon - Fri)';
@@ -117,33 +117,39 @@ export const formatDateTime = (dateString) => {
   }
 };
 
-/**
- * Universal Image URL Resolver
- * Supports:
- * 1. External Web URLs (https://...) -> Rendered directly from internet
- * 2. Blob URLs (blob:http://...) -> Instant mobile camera preview
- * 3. Server Relative Paths (/uploads/menu/...) -> Dynamically maps to active host:
- *    - On localhost -> http://localhost:5000/uploads/...
- *    - On mobile Wi-Fi (192.168.X.X) -> http://192.168.X.X:5000/uploads/...
- *    - On ngrok tunnel -> https://...ngrok-free.dev/uploads/...?ngrok-skip-browser-warning=true
- */
+export const getActiveBackendOrigin = () => {
+  const rawBase = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE_URL);
+  let origin = rawBase.replace(/\/api(\/v\d+)?\/?$/, '').replace(/\/+$/, '');
+
+  // If the base URL is local (localhost/127.0.0.1) but client is accessing from a LAN IP (e.g. mobile 192.168.x.x)
+  if (typeof window !== 'undefined' && window.location) {
+    const host = window.location.hostname;
+    const isClientOnLan = /^192\.168\./.test(host) || /^10\./.test(host);
+    const isConfigLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(origin);
+
+    if (isClientOnLan && isConfigLocal) {
+      try {
+        const urlObj = new URL(origin);
+        urlObj.hostname = host;
+        origin = urlObj.origin;
+      } catch {
+        origin = `http://${host}:5000`;
+      }
+    }
+  }
+
+  return origin;
+};
+
 export const resolveImageUrl = (path, fallback = '') => {
   if (!path || typeof path !== 'string') return fallback;
 
   const trimmed = path.trim();
   if (!trimmed) return fallback;
 
-  // Corrupted base64 string
+  // 1. Corrupted base64 string
   if (trimmed.startsWith('data:') && (!trimmed.includes(',') || trimmed.length < 50)) {
     return fallback;
-  }
-
-  // 1. External Web URL (from internet, e.g. Unsplash, CDN, or pasted web link)
-  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-    if (trimmed.includes('ngrok-free.dev') && !trimmed.includes('ngrok-skip-browser-warning')) {
-      return `${trimmed}${trimmed.includes('?') ? '&' : '?'}ngrok-skip-browser-warning=true`;
-    }
-    return trimmed;
   }
 
   // 2. Blob URL or inline base64 (Instant camera/file preview)
@@ -151,23 +157,47 @@ export const resolveImageUrl = (path, fallback = '') => {
     return trimmed;
   }
 
-  // 3. Server Relative Upload Path (/uploads/menu/...)
-  const cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  const backendOrigin = getActiveBackendOrigin();
 
-  let backendOrigin = '';
-  if (typeof window !== 'undefined') {
-    const host = window.location.hostname;
-    // Local device or mobile connected via LAN Wi-Fi (localhost, 127.0.0.1, 192.168.x.x, 10.x.x.x)
-    if (host === 'localhost' || host === '127.0.0.1' || /^192\.168\./.test(host) || /^10\./.test(host)) {
-      backendOrigin = `http://${host}:5000`;
+  // 3. Server Relative or Absolute Upload Path (contains /uploads/...)
+  // Handles:
+  // - "/uploads/menu/xyz.png"
+  // - "http://localhost:5000/uploads/menu/xyz.png" (uploaded from another machine/local dev)
+  // - "http://127.0.0.1:5000/uploads/menu/xyz.png"
+  // - "https://old-tunnel.ngrok-free.dev/uploads/menu/xyz.png"
+  // Strips foreign/local origins and re-routes directly to the active backend origin.
+  const uploadsIdx = trimmed.indexOf('/uploads/');
+  if (uploadsIdx !== -1) {
+    const relativePath = trimmed.slice(uploadsIdx);
+    let finalUrl = `${backendOrigin}${relativePath}`;
+    if (finalUrl.includes('ngrok-free.dev') && !finalUrl.includes('ngrok-skip-browser-warning')) {
+      finalUrl += `${finalUrl.includes('?') ? '&' : '?'}ngrok-skip-browser-warning=true`;
     }
+    return finalUrl;
   }
 
-  if (!backendOrigin) {
-    const rawBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
-    backendOrigin = rawBase.replace(/\/api(\/v\d+)?\/?$/, '').replace(/\/+$/, '');
+  // 4. External Web URL (from internet, e.g. Unsplash, CDN, or pasted web link)
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    // If it's a localhost URL that wasn't an upload, but client is remote, remap to active backend
+    if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(trimmed)) {
+      if (backendOrigin && !/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(backendOrigin)) {
+        const pathPart = trimmed.replace(/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i, '');
+        let remapped = `${backendOrigin}${pathPart.startsWith('/') ? pathPart : `/${pathPart}`}`;
+        if (remapped.includes('ngrok-free.dev') && !remapped.includes('ngrok-skip-browser-warning')) {
+          remapped += `${remapped.includes('?') ? '&' : '?'}ngrok-skip-browser-warning=true`;
+        }
+        return remapped;
+      }
+    }
+
+    if (trimmed.includes('ngrok-free.dev') && !trimmed.includes('ngrok-skip-browser-warning')) {
+      return `${trimmed}${trimmed.includes('?') ? '&' : '?'}ngrok-skip-browser-warning=true`;
+    }
+    return trimmed;
   }
 
+  // 5. General relative path
+  const cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
   let finalUrl = `${backendOrigin}${cleanPath}`;
   if (finalUrl.includes('ngrok-free.dev') && !finalUrl.includes('ngrok-skip-browser-warning')) {
     finalUrl += `${finalUrl.includes('?') ? '&' : '?'}ngrok-skip-browser-warning=true`;

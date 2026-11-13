@@ -87,6 +87,26 @@ export const useInventory = () => {
     }
   }, [success, toastError]);
 
+  const updateSupplier = useCallback((id, updatedData) => {
+    setSuppliers(prev => prev.map(s => {
+      const isMatch = s.id === id || String(s.id) === String(id);
+      return isMatch ? { ...s, ...updatedData } : s;
+    }));
+    success('Supplier Updated', `Updated details for "${updatedData.name || updatedData.contactPerson || 'Supplier'}".`);
+  }, [success]);
+
+  const deactivateSupplier = useCallback((id) => {
+    setSuppliers(prev => prev.map(s => {
+      const isMatch = s.id === id || String(s.id) === String(id);
+      if (isMatch) {
+        const nextStatus = s.status === 'Inactive' ? 'Active' : 'Inactive';
+        info('Status Updated', `Supplier "${s.name || s.contactPerson || 'Supplier'}" marked as ${nextStatus}.`);
+        return { ...s, status: nextStatus };
+      }
+      return s;
+    }));
+  }, [info]);
+
   return {
     items,
     ledger,
@@ -98,6 +118,8 @@ export const useInventory = () => {
     createPO,
     updatePOStatus,
     createSupplier,
+    updateSupplier,
+    deactivateSupplier,
     refreshInventory: loadAll
   };
 };
