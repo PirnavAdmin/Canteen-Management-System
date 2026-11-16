@@ -7,6 +7,7 @@ export const SuppliersTable = ({
   suppliers = [],
   loading = false,
   onEdit,
+  onDelete,
   onDeactivate
 }) => {
   const columns = [
@@ -97,9 +98,12 @@ export const SuppliersTable = ({
 
           <button
             type="button"
-            onClick={() => onDeactivate && onDeactivate(row)}
-            title={row.status === 'Inactive' ? 'Activate Supplier' : 'Deactivate Supplier'}
-            aria-label="Deactivate Supplier"
+            onClick={() => {
+              if (onDelete) onDelete(row);
+              else if (onDeactivate) onDeactivate(row);
+            }}
+            title={onDelete ? "Delete Supplier" : (row.status === 'Inactive' ? 'Activate Supplier' : 'Deactivate Supplier')}
+            aria-label="Delete Supplier"
             style={{
               background: 'none',
               border: '1px solid var(--border-color)',

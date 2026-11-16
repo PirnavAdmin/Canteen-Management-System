@@ -127,6 +127,57 @@ namespace CanteenManagement.API.Controllers.V1
             var created = await _inventoryService.CreateSupplierAsync(dto, institutionId, userName);
             return Ok(ApiResponse<SupplierDto>.SuccessResponse(created, $"Supplier '{created.Name}' created."));
         }
+
+        [HttpPut("suppliers/{id:int}")]
+        [Authorize(Policy = "RequireAdmin")]
+        public async Task<IActionResult> UpdateSupplier(int id, [FromBody] UpdateSupplierDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
+                return BadRequest(ApiResponse<string>.ErrorResponse("Validation failed.", errors));
+            }
+
+            var institutionId = User.ResolveInstitutionId();
+            var userName = User.ResolveUserName();
+            var updated = await _inventoryService.UpdateSupplierAsync(id, dto, institutionId, userName);
+            if (updated == null)
+            {
+                return NotFound(ApiResponse<string>.ErrorResponse($"Supplier with ID {id} was not found."));
+            }
+
+            return Ok(ApiResponse<SupplierDto>.SuccessResponse(updated, $"Supplier '{updated.Name}' updated successfully."));
+        }
+
+        [HttpDelete("suppliers/{id:int}")]
+        [Authorize(Policy = "RequireAdmin")]
+        public async Task<IActionResult> DeleteSupplier(int id)
+        {
+            var institutionId = User.ResolveInstitutionId();
+            var userName = User.ResolveUserName();
+            var result = await _inventoryService.DeleteSupplierAsync(id, institutionId, userName);
+            if (!result.Success && result.ActionTaken == "NOT_FOUND")
+            {
+                return NotFound(ApiResponse<string>.ErrorResponse(result.Message));
+            }
+
+            return Ok(ApiResponse<SupplierDeleteResultDto>.SuccessResponse(result, result.Message));
+        }
+
+        [HttpPatch("suppliers/{id:int}/status")]
+        [Authorize(Policy = "RequireAdmin")]
+        public async Task<IActionResult> UpdateSupplierStatus(int id, [FromBody] UpdateSupplierStatusDto dto)
+        {
+            var institutionId = User.ResolveInstitutionId();
+            var userName = User.ResolveUserName();
+            var updated = await _inventoryService.UpdateSupplierStatusAsync(id, dto.Status, institutionId, userName);
+            if (updated == null)
+            {
+                return NotFound(ApiResponse<string>.ErrorResponse($"Supplier with ID {id} was not found."));
+            }
+
+            return Ok(ApiResponse<SupplierDto>.SuccessResponse(updated, $"Supplier status updated to '{dto.Status}'."));
+        }
     }
 
     public class UpdatePOStatusRequest

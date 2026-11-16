@@ -102,10 +102,14 @@ namespace CanteenManagement.API.Repositories.Implementations.Menu
                     menuItem.Variants = (await multi.ReadAsync<MenuItemVariant>()).ToList();
                     menuItem.AddOns = (await multi.ReadAsync<MenuItemAddon>()).ToList();
 
-                    var cat = await _dbContext.Categories.FindAsync(menuItem.CategoryId);
-                    var outlet = await _dbContext.CanteenOutlets.FindAsync(menuItem.OutletId);
-                    menuItem.Category = cat;
-                    menuItem.Outlet = outlet;
+                    if (menuItem.CategoryId > 0)
+                    {
+                        menuItem.Category = await _dbContext.Categories.AsNoTracking().FirstOrDefaultAsync(c => c.CategoryId == menuItem.CategoryId);
+                    }
+                    if (menuItem.OutletId > 0)
+                    {
+                        menuItem.Outlet = await _dbContext.CanteenOutlets.AsNoTracking().FirstOrDefaultAsync(o => o.OutletId == menuItem.OutletId);
+                    }
                 }
 
                 return menuItem;
@@ -166,6 +170,32 @@ namespace CanteenManagement.API.Repositories.Implementations.Menu
                     },
                     commandType: CommandType.StoredProcedure);
 
+                var targetId = created?.MenuItemId ?? item.MenuItemId;
+                if (targetId > 0)
+                {
+                    if (item.Variants != null && item.Variants.Any())
+                    {
+                        foreach (var v in item.Variants)
+                        {
+                            await connection.ExecuteAsync(
+                                "sp_AddMenuItemVariant",
+                                new { p_MenuItemId = targetId, p_Name = v.Name, p_Price = v.Price },
+                                commandType: CommandType.StoredProcedure);
+                        }
+                    }
+
+                    if (item.AddOns != null && item.AddOns.Any())
+                    {
+                        foreach (var a in item.AddOns)
+                        {
+                            await connection.ExecuteAsync(
+                                "sp_AddMenuItemAddon",
+                                new { p_MenuItemId = targetId, p_Name = a.Name, p_Price = a.Price },
+                                commandType: CommandType.StoredProcedure);
+                        }
+                    }
+                }
+
                 return created ?? item;
             }
             catch
@@ -208,6 +238,38 @@ namespace CanteenManagement.API.Repositories.Implementations.Menu
                         p_EndTime = item.EndTime
                     },
                     commandType: CommandType.StoredProcedure);
+
+                if (item.Variants != null)
+                {
+                    await connection.ExecuteAsync(
+                        "sp_ClearMenuItemVariants",
+                        new { p_MenuItemId = item.MenuItemId },
+                        commandType: CommandType.StoredProcedure);
+
+                    foreach (var v in item.Variants)
+                    {
+                        await connection.ExecuteAsync(
+                            "sp_AddMenuItemVariant",
+                            new { p_MenuItemId = item.MenuItemId, p_Name = v.Name, p_Price = v.Price },
+                            commandType: CommandType.StoredProcedure);
+                    }
+                }
+
+                if (item.AddOns != null)
+                {
+                    await connection.ExecuteAsync(
+                        "sp_ClearMenuItemAddons",
+                        new { p_MenuItemId = item.MenuItemId },
+                        commandType: CommandType.StoredProcedure);
+
+                    foreach (var a in item.AddOns)
+                    {
+                        await connection.ExecuteAsync(
+                            "sp_AddMenuItemAddon",
+                            new { p_MenuItemId = item.MenuItemId, p_Name = a.Name, p_Price = a.Price },
+                            commandType: CommandType.StoredProcedure);
+                    }
+                }
 
                 return updated ?? item;
             }

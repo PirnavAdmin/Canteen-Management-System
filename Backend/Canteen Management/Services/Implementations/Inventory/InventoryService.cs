@@ -391,6 +391,124 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
             };
         }
 
+        public async Task<SupplierDto?> UpdateSupplierAsync(int id, UpdateSupplierDto dto, int institutionId, string performedBy)
+        {
+            var existing = await _repository.GetSupplierByIdAsync(id, institutionId);
+            if (existing == null) return null;
+
+            existing.Name = dto.Name.Trim();
+            existing.ContactPerson = dto.ContactPerson?.Trim();
+            existing.Phone = dto.Phone?.Trim();
+            existing.Email = dto.Email?.Trim();
+            existing.Address = dto.Address?.Trim();
+            existing.SuppliedCategories = dto.SuppliedCategories?.Trim();
+            existing.Gstin = dto.Gstin?.Trim();
+            existing.FssaiNumber = dto.FssaiNumber?.Trim();
+            if (!string.IsNullOrWhiteSpace(dto.Status))
+            {
+                existing.Status = dto.Status.Trim();
+            }
+
+            var updated = await _repository.UpdateSupplierAsync(existing);
+            if (updated == null) return null;
+
+            await _auditService.LogActionAsync(
+                institutionId,
+                null,
+                performedBy,
+                "UPDATE_SUPPLIER",
+                "Supplier",
+                updated.SupplierId.ToString(),
+                $"Updated supplier '{updated.Name}'."
+            );
+
+            return new SupplierDto
+            {
+                Id = updated.SupplierId,
+                Name = updated.Name,
+                ContactPerson = updated.ContactPerson,
+                Phone = updated.Phone,
+                Email = updated.Email,
+                Address = updated.Address,
+                SuppliedCategories = updated.SuppliedCategories,
+                Gstin = updated.Gstin,
+                FssaiNumber = updated.FssaiNumber,
+                Status = updated.Status
+            };
+        }
+
+        public async Task<SupplierDeleteResultDto> DeleteSupplierAsync(int id, int institutionId, string performedBy)
+        {
+            var existing = await _repository.GetSupplierByIdAsync(id, institutionId);
+            if (existing == null)
+            {
+                return new SupplierDeleteResultDto
+                {
+                    Success = false,
+                    ActionTaken = "NOT_FOUND",
+                    LinkedPOCount = 0,
+                    Message = $"Supplier with ID {id} not found."
+                };
+            }
+
+            var (success, actionTaken, linkedPoCount) = await _repository.DeleteSupplierAsync(id, institutionId);
+
+            await _auditService.LogActionAsync(
+                institutionId,
+                null,
+                performedBy,
+                actionTaken == "HARD_DELETED" ? "DELETE_SUPPLIER" : "DEACTIVATE_SUPPLIER",
+                "Supplier",
+                id.ToString(),
+                actionTaken == "HARD_DELETED"
+                    ? $"Permanently deleted supplier '{existing.Name}'."
+                    : $"Supplier '{existing.Name}' has {linkedPoCount} linked purchase order(s). Marked status as 'Inactive'."
+            );
+
+            return new SupplierDeleteResultDto
+            {
+                Success = success,
+                ActionTaken = actionTaken,
+                LinkedPOCount = linkedPoCount,
+                Message = actionTaken == "HARD_DELETED"
+                    ? $"Supplier '{existing.Name}' deleted successfully."
+                    : $"Supplier '{existing.Name}' has {linkedPoCount} purchase orders on record. Marked as Inactive for compliance."
+            };
+        }
+
+        public async Task<SupplierDto?> UpdateSupplierStatusAsync(int id, string status, int institutionId, string performedBy)
+        {
+            var existing = await _repository.GetSupplierByIdAsync(id, institutionId);
+            if (existing == null) return null;
+
+            var updated = await _repository.ToggleSupplierStatusAsync(id, institutionId, status);
+            if (updated == null) return null;
+
+            await _auditService.LogActionAsync(
+                institutionId,
+                null,
+                performedBy,
+                "UPDATE_SUPPLIER_STATUS",
+                "Supplier",
+                id.ToString(),
+                $"Changed status of supplier '{updated.Name}' to '{status}'."
+            );
+
+            return new SupplierDto
+            {
+                Id = updated.SupplierId,
+                Name = updated.Name,
+                ContactPerson = updated.ContactPerson,
+                Phone = updated.Phone,
+                Email = updated.Email,
+                Address = updated.Address,
+                SuppliedCategories = updated.SuppliedCategories,
+                Gstin = updated.Gstin,
+                FssaiNumber = updated.FssaiNumber,
+                Status = updated.Status
+            };
+        }
+
         private static InventoryItemDto MapToItemDto(InventoryItem i) => new()
         {
             Id = i.ItemId,

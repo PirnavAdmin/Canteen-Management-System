@@ -100,25 +100,57 @@ export const useInventory = () => {
     }
   }, [success, toastError]);
 
-  const updateSupplier = useCallback((id, updatedData) => {
-    setSuppliers(prev => prev.map(s => {
-      const isMatch = s.id === id || String(s.id) === String(id);
-      return isMatch ? { ...s, ...updatedData } : s;
-    }));
-    success('Supplier Updated', `Updated details for "${updatedData.name || updatedData.contactPerson || 'Supplier'}".`);
-  }, [success]);
+  const updateSupplier = useCallback(async (id, updatedData) => {
+    try {
+      const updated = await inventoryService.updateSupplier(id, updatedData);
+      setSuppliers(prev => prev.map(s => {
+        const isMatch = s.id === id || String(s.id) === String(id);
+        return isMatch ? { ...s, ...updated } : s;
+      }));
+      success('Supplier Updated', `Updated details for "${updated?.name || updatedData?.name || 'Supplier'}".`);
+      return updated;
+    } catch (err) {
+      toastError('Update Failed', err.message || 'Failed to update supplier.');
+      throw err;
+    }
+  }, [success, toastError]);
 
-  const deactivateSupplier = useCallback((id) => {
-    setSuppliers(prev => prev.map(s => {
-      const isMatch = s.id === id || String(s.id) === String(id);
-      if (isMatch) {
-        const nextStatus = s.status === 'Inactive' ? 'Active' : 'Inactive';
-        info('Status Updated', `Supplier "${s.name || s.contactPerson || 'Supplier'}" marked as ${nextStatus}.`);
-        return { ...s, status: nextStatus };
+  const deleteSupplier = useCallback(async (id) => {
+    try {
+      const result = await inventoryService.deleteSupplier(id);
+      if (result?.actionTaken === 'SOFT_DELETED') {
+        setSuppliers(prev => prev.map(s => {
+          const isMatch = s.id === id || String(s.id) === String(id);
+          return isMatch ? { ...s, status: 'Inactive' } : s;
+        }));
+        info('Supplier Inactivated', result?.message || 'Supplier has linked purchase orders, so status was set to Inactive.');
+      } else {
+        setSuppliers(prev => prev.filter(s => !(s.id === id || String(s.id) === String(id))));
+        success('Supplier Deleted', result?.message || 'Supplier deleted successfully.');
       }
-      return s;
-    }));
-  }, [info]);
+      return result;
+    } catch (err) {
+      toastError('Delete Failed', err.message || 'Failed to delete supplier.');
+      throw err;
+    }
+  }, [success, info, toastError]);
+
+  const deactivateSupplier = useCallback(async (id) => {
+    try {
+      const current = suppliers.find(s => s.id === id || String(s.id) === String(id));
+      const nextStatus = current?.status === 'Inactive' ? 'Active' : 'Inactive';
+      const updated = await inventoryService.updateSupplierStatus(id, nextStatus);
+      setSuppliers(prev => prev.map(s => {
+        const isMatch = s.id === id || String(s.id) === String(id);
+        return isMatch ? { ...s, ...updated, status: nextStatus } : s;
+      }));
+      info('Status Updated', `Supplier "${current?.name || current?.contactPerson || 'Supplier'}" marked as ${nextStatus}.`);
+      return updated;
+    } catch (err) {
+      toastError('Status Update Failed', err.message || 'Failed to update supplier status.');
+      throw err;
+    }
+  }, [suppliers, info, toastError]);
 
   return {
     items,
@@ -132,6 +164,7 @@ export const useInventory = () => {
     updatePOStatus,
     createSupplier,
     updateSupplier,
+    deleteSupplier,
     deactivateSupplier,
     refreshInventory: loadAll
   };

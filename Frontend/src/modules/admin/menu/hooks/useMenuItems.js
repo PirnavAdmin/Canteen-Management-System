@@ -42,7 +42,7 @@ export const useMenuItems = () => {
   const updateMenuItem = useCallback(async (id, data) => {
     try {
       const updated = await menuService.update(id, data);
-      setMenuItems(prev => prev.map(item => item.id === id ? updated : item));
+      setMenuItems(prev => prev.map(item => (item.id === id || String(item.id) === String(id) || item.menuItemId === id || String(item.menuItemId) === String(id)) ? updated : item));
       success('Item Updated', `"${updated.name}" updated successfully.`);
       return updated;
     } catch (err) {
@@ -54,7 +54,7 @@ export const useMenuItems = () => {
   const toggleStatus = useCallback(async (id) => {
     try {
       const updated = await menuService.toggleStatus(id);
-      setMenuItems(prev => prev.map(item => item.id === id ? updated : item));
+      setMenuItems(prev => prev.map(item => (item.id === id || String(item.id) === String(id) || item.menuItemId === id || String(item.menuItemId) === String(id)) ? updated : item));
       info('Status Changed', `"${updated.name}" is now ${updated.status}.`);
       return updated;
     } catch (err) {
@@ -66,7 +66,7 @@ export const useMenuItems = () => {
   const togglePublish = useCallback(async (id) => {
     try {
       const updated = await menuService.togglePublish(id);
-      setMenuItems(prev => prev.map(item => item.id === id ? updated : item));
+      setMenuItems(prev => prev.map(item => (item.id === id || String(item.id) === String(id) || item.menuItemId === id || String(item.menuItemId) === String(id)) ? updated : item));
       info('Publication Updated', `"${updated.name}" marked as ${updated.publicationStatus}.`);
       return updated;
     } catch (err) {

@@ -87,7 +87,8 @@ export const MenuListPage = () => {
     try {
       setSubmitting(true);
       if (editingItem) {
-        await updateMenuItem(editingItem.id, formData);
+        const targetId = editingItem.id ?? editingItem.menuItemId;
+        await updateMenuItem(targetId, formData);
       } else {
         await createMenuItem(formData);
       }

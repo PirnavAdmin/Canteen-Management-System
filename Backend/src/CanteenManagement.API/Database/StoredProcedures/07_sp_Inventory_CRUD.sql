@@ -53,6 +53,88 @@ BEGIN
 END $$
 DELIMITER ;
 
+DROP PROCEDURE IF EXISTS sp_UpdateSupplier;
+DELIMITER $$
+CREATE PROCEDURE sp_UpdateSupplier(
+    IN p_SupplierId INT,
+    IN p_InstitutionId INT,
+    IN p_Name VARCHAR(100),
+    IN p_ContactPerson VARCHAR(100),
+    IN p_Phone VARCHAR(20),
+    IN p_Email VARCHAR(100),
+    IN p_Address VARCHAR(255),
+    IN p_SuppliedCategories VARCHAR(255),
+    IN p_Gstin VARCHAR(50),
+    IN p_FssaiNumber VARCHAR(50),
+    IN p_Status VARCHAR(20)
+)
+BEGIN
+    UPDATE Suppliers
+    SET Name = p_Name,
+        ContactPerson = p_ContactPerson,
+        Phone = p_Phone,
+        Email = p_Email,
+        Address = p_Address,
+        SuppliedCategories = p_SuppliedCategories,
+        Gstin = CASE WHEN p_Gstin IS NOT NULL THEN p_Gstin ELSE Gstin END,
+        FssaiNumber = CASE WHEN p_FssaiNumber IS NOT NULL THEN p_FssaiNumber ELSE FssaiNumber END,
+        Status = COALESCE(p_Status, Status)
+    WHERE SupplierId = p_SupplierId AND InstitutionId = p_InstitutionId;
+
+    SELECT SupplierId, InstitutionId, Name, ContactPerson, Phone, Email, Address, SuppliedCategories, Gstin, FssaiNumber, Status, CreatedAt
+    FROM Suppliers
+    WHERE SupplierId = p_SupplierId AND InstitutionId = p_InstitutionId
+    LIMIT 1;
+END $$
+DELIMITER ;
+
+DROP PROCEDURE IF EXISTS sp_DeleteSupplier;
+DELIMITER $$
+CREATE PROCEDURE sp_DeleteSupplier(
+    IN p_SupplierId INT,
+    IN p_InstitutionId INT
+)
+BEGIN
+    DECLARE v_PoCount INT DEFAULT 0;
+
+    SELECT COUNT(1) INTO v_PoCount
+    FROM PurchaseOrders
+    WHERE SupplierId = p_SupplierId AND InstitutionId = p_InstitutionId;
+
+    IF v_PoCount > 0 THEN
+        UPDATE Suppliers
+        SET Status = 'Inactive'
+        WHERE SupplierId = p_SupplierId AND InstitutionId = p_InstitutionId;
+
+        SELECT 1 AS Success, 'SOFT_DELETED' AS ActionTaken, v_PoCount AS LinkedPOCount;
+    ELSE
+        DELETE FROM Suppliers
+        WHERE SupplierId = p_SupplierId AND InstitutionId = p_InstitutionId;
+
+        SELECT 1 AS Success, 'HARD_DELETED' AS ActionTaken, 0 AS LinkedPOCount;
+    END IF;
+END $$
+DELIMITER ;
+
+DROP PROCEDURE IF EXISTS sp_ToggleSupplierStatus;
+DELIMITER $$
+CREATE PROCEDURE sp_ToggleSupplierStatus(
+    IN p_SupplierId INT,
+    IN p_InstitutionId INT,
+    IN p_Status VARCHAR(20)
+)
+BEGIN
+    UPDATE Suppliers
+    SET Status = p_Status
+    WHERE SupplierId = p_SupplierId AND InstitutionId = p_InstitutionId;
+
+    SELECT SupplierId, InstitutionId, Name, ContactPerson, Phone, Email, Address, SuppliedCategories, Gstin, FssaiNumber, Status, CreatedAt
+    FROM Suppliers
+    WHERE SupplierId = p_SupplierId AND InstitutionId = p_InstitutionId
+    LIMIT 1;
+END $$
+DELIMITER ;
+
 -- 2. Purchase Orders
 DROP PROCEDURE IF EXISTS sp_GetPurchaseOrders;
 DELIMITER $$
