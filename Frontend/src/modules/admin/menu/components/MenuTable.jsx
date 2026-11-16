@@ -37,7 +37,7 @@ export const MenuTable = ({
       header: 'Menu Item',
       width: '205px',
       render: (val, row) => {
-        const typeColor = row.foodType === 'Veg' ? '#059669' : row.foodType === 'Non-veg' ? '#dc2626' : '#d97706';
+        const typeColor = row.foodType === 'Veg' ? '#059669' : row.foodType === 'Non-veg' ? '#dc2626' : row.foodType === 'Egg' ? '#d97706' : '#7c3aed';
         return (
           <div style={{ display: 'flex', alignItems: 'center', gap: '9px', minWidth: 0 }}>
             {/* Small format dish photo in the list */}

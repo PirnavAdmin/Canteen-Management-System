@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, AlertCircle, RotateCcw, Ban, CreditCard } from 'lucide-react';
+import { X, AlertCircle, RotateCcw, Ban, CreditCard, CheckCheck, BellRing, ChefHat, CheckCircle } from 'lucide-react';
 import { Button } from '../../../../components/common/Button';
 import { StatusBadge } from '../../../../components/common/StatusBadge';
 import { formatCurrency } from '../../../../utils/formatters';
@@ -294,10 +294,15 @@ export const OrderDetailsModal = ({
 
             {nextSteps.map(nextSt => {
               if (nextSt === ORDER_STATUS.CANCELLED || nextSt === ORDER_STATUS.REFUNDED) return null;
+              const ActionIcon = nextSt === ORDER_STATUS.COMPLETED ? CheckCheck
+                : nextSt === ORDER_STATUS.READY_FOR_PICKUP ? BellRing
+                  : nextSt === ORDER_STATUS.PREPARING ? ChefHat
+                    : nextSt === ORDER_STATUS.ACCEPTED ? CheckCircle : null;
               return (
                 <Button
                   key={nextSt}
                   variant="primary"
+                  icon={ActionIcon}
                   loading={loading}
                   onClick={() => onUpdateStatus(order.id, nextSt)}
                 >

@@ -102,46 +102,36 @@ export const router = createBrowserRouter([
           // Outlet Management Routes (First Domain Module)
           {
             path: 'outlets',
-            children: [
-              {
-                index: true,
-                element: <LazyRoute><CanteenListPage /></LazyRoute>
-              },
-              {
-                path: 'create',
-                element: <LazyRoute><AddCanteenPage /></LazyRoute>
-              },
-              {
-                path: ':id',
-                element: <LazyRoute><CanteenDetailsPage /></LazyRoute>
-              },
-              {
-                path: ':id/edit',
-                element: <LazyRoute><EditCanteenPage /></LazyRoute>
-              }
-            ]
+            element: <LazyRoute><CanteenListPage /></LazyRoute>
+          },
+          {
+            path: 'outlets/create',
+            element: <LazyRoute><AddCanteenPage /></LazyRoute>
+          },
+          {
+            path: 'outlets/:id',
+            element: <LazyRoute><CanteenDetailsPage /></LazyRoute>
+          },
+          {
+            path: 'outlets/:id/edit',
+            element: <LazyRoute><EditCanteenPage /></LazyRoute>
           },
           // Category Management Routes
           {
             path: 'categories',
-            children: [
-              {
-                index: true,
-                element: <LazyRoute><CategoryListPage /></LazyRoute>
-              },
-              {
-                path: 'create',
-                element: <LazyRoute><AddCategoryPage /></LazyRoute>
-              },
-              {
-                path: ':id',
-                element: <LazyRoute><CategoryDetailsPage /></LazyRoute>
-              },
-              {
-                path: ':id/edit',
-                element: <LazyRoute><EditCategoryPage /></LazyRoute>
-              }
-            ]
+            element: <LazyRoute><CategoryListPage /></LazyRoute>
+          },
+          {
+            path: 'categories/create',
+            element: <LazyRoute><AddCategoryPage /></LazyRoute>
+          },
+          {
+            path: 'categories/:id',
+            element: <LazyRoute><CategoryDetailsPage /></LazyRoute>
+          },
+          {
+            path: 'categories/:id/edit',
+            element: <LazyRoute><EditCategoryPage /></LazyRoute>
           },
           // Settings & Privacy Routes
           {
@@ -154,47 +144,37 @@ export const router = createBrowserRouter([
       // Compatibility routes for /canteen
       {
         path: 'canteen',
-        children: [
-          {
-            index: true,
-            element: <LazyRoute><CanteenListPage /></LazyRoute>
-          },
-          {
-            path: 'create',
-            element: <LazyRoute><AddCanteenPage /></LazyRoute>
-          },
-          {
-            path: ':id',
-            element: <LazyRoute><CanteenDetailsPage /></LazyRoute>
-          },
-          {
-            path: ':id/edit',
-            element: <LazyRoute><EditCanteenPage /></LazyRoute>
-          }
-        ]
+        element: <LazyRoute><CanteenListPage /></LazyRoute>
+      },
+      {
+        path: 'canteen/create',
+        element: <LazyRoute><AddCanteenPage /></LazyRoute>
+      },
+      {
+        path: 'canteen/:id',
+        element: <LazyRoute><CanteenDetailsPage /></LazyRoute>
+      },
+      {
+        path: 'canteen/:id/edit',
+        element: <LazyRoute><EditCanteenPage /></LazyRoute>
       },
 
       // Compatibility routes for /categories
       {
         path: 'categories',
-        children: [
-          {
-            index: true,
-            element: <LazyRoute><CategoryListPage /></LazyRoute>
-          },
-          {
-            path: 'create',
-            element: <LazyRoute><AddCategoryPage /></LazyRoute>
-          },
-          {
-            path: ':id',
-            element: <LazyRoute><CategoryDetailsPage /></LazyRoute>
-          },
-          {
-            path: ':id/edit',
-            element: <LazyRoute><EditCategoryPage /></LazyRoute>
-          }
-        ]
+        element: <LazyRoute><CategoryListPage /></LazyRoute>
+      },
+      {
+        path: 'categories/create',
+        element: <LazyRoute><AddCategoryPage /></LazyRoute>
+      },
+      {
+        path: 'categories/:id',
+        element: <LazyRoute><CategoryDetailsPage /></LazyRoute>
+      },
+      {
+        path: 'categories/:id/edit',
+        element: <LazyRoute><EditCategoryPage /></LazyRoute>
       },
 
       // 404 Fallback within Layout

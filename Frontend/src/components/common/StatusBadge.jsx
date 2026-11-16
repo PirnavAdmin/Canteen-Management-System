@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle2, XCircle, AlertCircle, Clock } from 'lucide-react';
+import { CheckCircle2, CheckCheck, XCircle, AlertCircle, Clock, BellRing, ChefHat } from 'lucide-react';
 
 export const StatusBadge = ({ status, size = 'md' }) => {
   const isStatusActive = status === 'Active' || status === true || status === 'true';
@@ -27,6 +27,8 @@ export const StatusBadge = ({ status, size = 'md' }) => {
   const iconSize = size === 'sm' ? 11 : 13;
 
   if (isSuccess) {
+    const isCompleted = ['collected', 'completed'].includes(normalized);
+    const SuccessIcon = isCompleted ? CheckCheck : CheckCircle2;
     return (
       <span
         style={{
@@ -36,7 +38,7 @@ export const StatusBadge = ({ status, size = 'md' }) => {
           border: '1px solid var(--color-success-border)'
         }}
       >
-        <CheckCircle2 size={iconSize} />
+        <SuccessIcon size={iconSize} />
         {isStatusActive ? 'Active' : status}
       </span>
     );
@@ -85,6 +87,54 @@ export const StatusBadge = ({ status, size = 'md' }) => {
         }}
       >
         <AlertCircle size={iconSize} />
+        {status}
+      </span>
+    );
+  }
+
+  if (normalized === 'ready for pickup' || normalized === 'ready') {
+    return (
+      <span
+        style={{
+          ...style,
+          backgroundColor: 'var(--color-info-bg)',
+          color: 'var(--color-info-text)',
+          border: '1px solid var(--color-info-border)'
+        }}
+      >
+        <BellRing size={iconSize} />
+        {status}
+      </span>
+    );
+  }
+
+  if (normalized === 'preparing') {
+    return (
+      <span
+        style={{
+          ...style,
+          backgroundColor: 'var(--color-info-bg)',
+          color: 'var(--color-info-text)',
+          border: '1px solid var(--color-info-border)'
+        }}
+      >
+        <ChefHat size={iconSize} />
+        {status}
+      </span>
+    );
+  }
+
+  if (normalized === 'accepted') {
+    return (
+      <span
+        style={{
+          ...style,
+          backgroundColor: 'var(--color-info-bg)',
+          color: 'var(--color-info-text)',
+          border: '1px solid var(--color-info-border)'
+        }}
+      >
+        <CheckCircle2 size={iconSize} />
         {status}
       </span>
     );

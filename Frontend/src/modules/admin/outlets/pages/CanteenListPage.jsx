@@ -88,7 +88,7 @@ export const CanteenListPage = () => {
           <Button
             variant="primary"
             icon={PlusCircle}
-            onClick={() => navigate('/canteen/create')}
+            onClick={() => navigate('/admin/outlets/create')}
           >
             Add Canteen Outlet
           </Button>

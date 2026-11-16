@@ -1,6 +1,5 @@
 import React from 'react';
 import { Clock } from 'lucide-react';
-import { formatTime12Hour } from '../../utils/formatters';
 
 export const TimeInput = ({
   label,
@@ -73,18 +72,6 @@ export const TimeInput = ({
             }
           }}
         />
-        {value && (
-          <span style={{
-            position: 'absolute',
-            right: '12px',
-            fontSize: '12px',
-            color: 'var(--text-muted)',
-            fontWeight: 500,
-            pointerEvents: 'none'
-          }}>
-            {formatTime12Hour(value)}
-          </span>
-        )}
       </div>
 
       {error ? (

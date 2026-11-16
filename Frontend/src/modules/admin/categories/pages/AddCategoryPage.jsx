@@ -1,7 +1,9 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import { useCategories } from '../hooks/useCategories';
 import { PageHeader } from '../../../../components/common/PageHeader';
+import { Button } from '../../../../components/common/Button';
 import { CategoryForm } from '../components/CategoryForm';
 
 export const AddCategoryPage = () => {
@@ -13,6 +15,14 @@ export const AddCategoryPage = () => {
     navigate(`/admin/categories/${created.id}`);
   };
 
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate('/admin/categories');
+    }
+  };
+
   return (
     <div>
       <PageHeader
@@ -22,6 +32,15 @@ export const AddCategoryPage = () => {
           { label: 'Food Categories', path: '/admin/categories' },
           { label: 'Add Category' }
         ]}
+        actions={
+          <Button
+            variant="secondary"
+            icon={ArrowLeft}
+            onClick={handleBack}
+          >
+            Back to Categories
+          </Button>
+        }
       />
 
       <CategoryForm
