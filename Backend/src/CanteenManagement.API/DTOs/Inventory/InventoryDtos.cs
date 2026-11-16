@@ -120,5 +120,33 @@ namespace CanteenManagement.API.DTOs.Inventory
         public string? Gstin { get; set; }
         public string? FssaiNumber { get; set; }
     }
+
+    public class UpdateSupplierDto
+    {
+        [Required]
+        public string Name { get; set; } = string.Empty;
+        public string? ContactPerson { get; set; }
+        public string? Phone { get; set; }
+        public string? Email { get; set; }
+        public string? Address { get; set; }
+        public string? SuppliedCategories { get; set; }
+        public string? Gstin { get; set; }
+        public string? FssaiNumber { get; set; }
+        public string? Status { get; set; }
+    }
+
+    public class UpdateSupplierStatusDto
+    {
+        [Required]
+        public string Status { get; set; } = "Active";
+    }
+
+    public class SupplierDeleteResultDto
+    {
+        public bool Success { get; set; }
+        public string ActionTaken { get; set; } = "HARD_DELETED";
+        public int LinkedPOCount { get; set; }
+        public string Message { get; set; } = string.Empty;
+    }
 }
 

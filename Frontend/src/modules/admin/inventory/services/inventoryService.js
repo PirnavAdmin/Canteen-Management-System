@@ -94,6 +94,32 @@ export const inventoryService = {
   createSupplier: async (data) => {
     const response = await apiClient.post(API_ENDPOINTS.INVENTORY.SUPPLIERS, data);
     return response?.data ?? response;
+  },
+
+  updateSupplier: async (id, data) => {
+    const payload = {
+      name: data.name,
+      contactPerson: data.contactPerson || null,
+      phone: data.phone,
+      email: data.email || null,
+      address: data.address || null,
+      suppliedCategories: data.suppliedCategories || null,
+      gstin: data.gstin || null,
+      fssaiNumber: data.fssaiNumber || null,
+      status: data.status || 'Active'
+    };
+    const response = await apiClient.put(API_ENDPOINTS.INVENTORY.SUPPLIER_BY_ID(id), payload);
+    return response?.data ?? response;
+  },
+
+  deleteSupplier: async (id) => {
+    const response = await apiClient.delete(API_ENDPOINTS.INVENTORY.SUPPLIER_BY_ID(id));
+    return response?.data ?? response;
+  },
+
+  updateSupplierStatus: async (id, status) => {
+    const response = await apiClient.patch(API_ENDPOINTS.INVENTORY.SUPPLIER_STATUS(id), { status });
+    return response?.data ?? response;
   }
 };
 

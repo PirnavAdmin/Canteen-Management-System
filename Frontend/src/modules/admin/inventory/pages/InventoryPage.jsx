@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Package, BookOpen, ShoppingCart, Users, PlusCircle, ArrowDownUp } from 'lucide-react';
 import { PageHeader } from '../../../../components/common/PageHeader';
 import { Button } from '../../../../components/common/Button';
+import { ConfirmationModal } from '../../../../components/common/ConfirmationModal';
 import { Pagination } from '../../../../components/common/Pagination';
 import { useInventory } from '../hooks/useInventory';
 import { StockTable } from '../components/StockTable';
@@ -24,6 +25,7 @@ export const InventoryPage = () => {
     updatePOStatus,
     createSupplier,
     updateSupplier,
+    deleteSupplier,
     deactivateSupplier
   } = useInventory();
 
@@ -44,6 +46,7 @@ export const InventoryPage = () => {
   const [isPOModalOpen, setIsPOModalOpen] = useState(false);
   const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState(null);
+  const [supplierToDelete, setSupplierToDelete] = useState(null);
   const [actionLoadingId, setActionLoadingId] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
 
@@ -87,12 +90,27 @@ export const InventoryPage = () => {
     try {
       setModalLoading(true);
       if (editingSupplier) {
-        updateSupplier(editingSupplier.id, payload);
+        await updateSupplier(editingSupplier.id, payload);
       } else {
         await createSupplier(payload);
       }
       setIsSupplierModalOpen(false);
       setEditingSupplier(null);
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const handleDeleteSupplier = (supplier) => {
+    setSupplierToDelete(supplier);
+  };
+
+  const handleConfirmDeleteSupplier = async () => {
+    if (!supplierToDelete) return;
+    try {
+      setModalLoading(true);
+      await deleteSupplier(supplierToDelete.id);
+      setSupplierToDelete(null);
     } finally {
       setModalLoading(false);
     }
@@ -290,6 +308,7 @@ export const InventoryPage = () => {
           suppliers={suppliers}
           loading={loading}
           onEdit={handleOpenEditSupplier}
+          onDelete={handleDeleteSupplier}
           onDeactivate={(supplier) => deactivateSupplier(supplier.id)}
         />
       )}
@@ -324,6 +343,17 @@ export const InventoryPage = () => {
         loading={modalLoading}
         onSaveSupplier={handleSaveSupplier}
         onAddSupplier={handleCreateSupplier}
+      />
+
+      <ConfirmationModal
+        isOpen={Boolean(supplierToDelete)}
+        onClose={() => !modalLoading && setSupplierToDelete(null)}
+        onConfirm={handleConfirmDeleteSupplier}
+        title="Delete Supplier"
+        message={`Are you sure you want to delete "${supplierToDelete?.name || supplierToDelete?.contactPerson || 'this supplier'}"? If linked purchase orders exist, their status will be set to Inactive to preserve audit history.`}
+        confirmText="Delete"
+        variant="danger"
+        loading={modalLoading}
       />
     </div>
   );

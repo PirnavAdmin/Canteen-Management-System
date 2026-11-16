@@ -367,5 +367,115 @@ namespace CanteenManagement.API.Repositories.Implementations.Inventory
                 return supplier;
             }
         }
+
+        public async Task<Supplier?> UpdateSupplierAsync(Supplier supplier)
+        {
+            try
+            {
+                using var connection = _connectionFactory.CreateConnection();
+                var updated = await connection.QueryFirstOrDefaultAsync<Supplier>(
+                    "sp_UpdateSupplier",
+                    new
+                    {
+                        p_SupplierId = supplier.SupplierId,
+                        p_InstitutionId = supplier.InstitutionId,
+                        p_Name = supplier.Name,
+                        p_ContactPerson = supplier.ContactPerson,
+                        p_Phone = supplier.Phone,
+                        p_Email = supplier.Email,
+                        p_Address = supplier.Address,
+                        p_SuppliedCategories = supplier.SuppliedCategories,
+                        p_Gstin = supplier.Gstin,
+                        p_FssaiNumber = supplier.FssaiNumber,
+                        p_Status = supplier.Status
+                    },
+                    commandType: CommandType.StoredProcedure);
+
+                return updated ?? supplier;
+            }
+            catch
+            {
+                var existing = await _dbContext.Suppliers.FirstOrDefaultAsync(s => s.SupplierId == supplier.SupplierId && s.InstitutionId == supplier.InstitutionId);
+                if (existing == null) return null;
+
+                existing.Name = supplier.Name;
+                existing.ContactPerson = supplier.ContactPerson;
+                existing.Phone = supplier.Phone;
+                existing.Email = supplier.Email;
+                existing.Address = supplier.Address;
+                existing.SuppliedCategories = supplier.SuppliedCategories;
+                existing.Gstin = supplier.Gstin ?? existing.Gstin;
+                existing.FssaiNumber = supplier.FssaiNumber ?? existing.FssaiNumber;
+                existing.Status = supplier.Status ?? existing.Status;
+
+                _dbContext.Suppliers.Update(existing);
+                await _dbContext.SaveChangesAsync();
+                return existing;
+            }
+        }
+
+        public async Task<(bool success, string actionTaken, int linkedPoCount)> DeleteSupplierAsync(int id, int institutionId)
+        {
+            try
+            {
+                using var connection = _connectionFactory.CreateConnection();
+                var result = await connection.QueryFirstOrDefaultAsync<dynamic>(
+                    "sp_DeleteSupplier",
+                    new { p_SupplierId = id, p_InstitutionId = institutionId },
+                    commandType: CommandType.StoredProcedure);
+
+                if (result != null)
+                {
+                    var dict = (IDictionary<string, object>)result;
+                    var successVal = dict.ContainsKey("Success") ? Convert.ToInt32(dict["Success"]) == 1 : true;
+                    var action = dict.ContainsKey("ActionTaken") ? dict["ActionTaken"]?.ToString() ?? "HARD_DELETED" : "HARD_DELETED";
+                    var poCount = dict.ContainsKey("LinkedPOCount") ? Convert.ToInt32(dict["LinkedPOCount"]) : 0;
+                    return (successVal, action, poCount);
+                }
+                return (false, "NOT_FOUND", 0);
+            }
+            catch
+            {
+                var supplier = await _dbContext.Suppliers.FirstOrDefaultAsync(s => s.SupplierId == id && s.InstitutionId == institutionId);
+                if (supplier == null) return (false, "NOT_FOUND", 0);
+
+                var poCount = await _dbContext.PurchaseOrders.CountAsync(po => po.SupplierId == id && po.InstitutionId == institutionId);
+                if (poCount > 0)
+                {
+                    supplier.Status = "Inactive";
+                    _dbContext.Suppliers.Update(supplier);
+                    await _dbContext.SaveChangesAsync();
+                    return (true, "SOFT_DELETED", poCount);
+                }
+
+                _dbContext.Suppliers.Remove(supplier);
+                await _dbContext.SaveChangesAsync();
+                return (true, "HARD_DELETED", 0);
+            }
+        }
+
+        public async Task<Supplier?> ToggleSupplierStatusAsync(int id, int institutionId, string status)
+        {
+            try
+            {
+                using var connection = _connectionFactory.CreateConnection();
+                var updated = await connection.QueryFirstOrDefaultAsync<Supplier>(
+                    "sp_ToggleSupplierStatus",
+                    new { p_SupplierId = id, p_InstitutionId = institutionId, p_Status = status },
+                    commandType: CommandType.StoredProcedure);
+
+                return updated;
+            }
+            catch
+            {
+                var supplier = await _dbContext.Suppliers.FirstOrDefaultAsync(s => s.SupplierId == id && s.InstitutionId == institutionId);
+                if (supplier == null) return null;
+
+                supplier.Status = status;
+                _dbContext.Suppliers.Update(supplier);
+                await _dbContext.SaveChangesAsync();
+                return supplier;
+            }
+        }
     }
 }

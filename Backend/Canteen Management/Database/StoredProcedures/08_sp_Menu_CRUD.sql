@@ -44,8 +44,8 @@ BEGIN
         co.OutletId,
         co.Name
     FROM MenuItems m
-    INNER JOIN Categories c ON m.CategoryId = c.CategoryId
-    INNER JOIN CanteenOutlets co ON m.OutletId = co.OutletId
+    LEFT JOIN Categories c ON m.CategoryId = c.CategoryId
+    LEFT JOIN CanteenOutlets co ON m.OutletId = co.OutletId
     WHERE m.InstitutionId = p_InstitutionId
       AND (p_OutletId IS NULL OR p_OutletId <= 0 OR m.OutletId = p_OutletId)
       AND (p_CategoryId IS NULL OR p_CategoryId <= 0 OR m.CategoryId = p_CategoryId)
@@ -67,7 +67,9 @@ BEGIN
         m.MenuItemId,
         m.InstitutionId,
         m.OutletId,
+        co.Name AS OutletName,
         m.CategoryId,
+        c.Name AS CategoryName,
         m.Code,
         m.Name,
         m.Description,
@@ -87,14 +89,10 @@ BEGIN
         m.EndTime,
         m.HistoricalOrderCount,
         m.CreatedAt,
-        m.UpdatedAt,
-        c.CategoryId,
-        c.Name,
-        co.OutletId,
-        co.Name
+        m.UpdatedAt
     FROM MenuItems m
-    INNER JOIN Categories c ON m.CategoryId = c.CategoryId
-    INNER JOIN CanteenOutlets co ON m.OutletId = co.OutletId
+    LEFT JOIN Categories c ON m.CategoryId = c.CategoryId
+    LEFT JOIN CanteenOutlets co ON m.OutletId = co.OutletId
     WHERE m.MenuItemId = p_MenuItemId AND m.InstitutionId = p_InstitutionId
     LIMIT 1;
 
@@ -175,8 +173,8 @@ BEGIN
         m.CreatedAt,
         m.UpdatedAt
     FROM MenuItems m
-    INNER JOIN Categories c ON m.CategoryId = c.CategoryId
-    INNER JOIN CanteenOutlets co ON m.OutletId = co.OutletId
+    LEFT JOIN Categories c ON m.CategoryId = c.CategoryId
+    LEFT JOIN CanteenOutlets co ON m.OutletId = co.OutletId
     WHERE m.MenuItemId = LAST_INSERT_ID();
 END $$
 DELIMITER ;
@@ -258,8 +256,8 @@ BEGIN
         m.CreatedAt,
         m.UpdatedAt
     FROM MenuItems m
-    INNER JOIN Categories c ON m.CategoryId = c.CategoryId
-    INNER JOIN CanteenOutlets co ON m.OutletId = co.OutletId
+    LEFT JOIN Categories c ON m.CategoryId = c.CategoryId
+    LEFT JOIN CanteenOutlets co ON m.OutletId = co.OutletId
     WHERE m.MenuItemId = p_MenuItemId;
 END $$
 DELIMITER ;
@@ -275,5 +273,51 @@ BEGIN
     WHERE MenuItemId = p_MenuItemId AND InstitutionId = p_InstitutionId;
 
     SELECT ROW_COUNT() AS DeletedRows;
+END $$
+DELIMITER ;
+
+DROP PROCEDURE IF EXISTS sp_ClearMenuItemVariants;
+DELIMITER $$
+CREATE PROCEDURE sp_ClearMenuItemVariants(
+    IN p_MenuItemId INT
+)
+BEGIN
+    DELETE FROM MenuItemVariants WHERE MenuItemId = p_MenuItemId;
+END $$
+DELIMITER ;
+
+DROP PROCEDURE IF EXISTS sp_AddMenuItemVariant;
+DELIMITER $$
+CREATE PROCEDURE sp_AddMenuItemVariant(
+    IN p_MenuItemId INT,
+    IN p_Name VARCHAR(100),
+    IN p_Price DECIMAL(10,2)
+)
+BEGIN
+    INSERT INTO MenuItemVariants (MenuItemId, Name, Price)
+    VALUES (p_MenuItemId, p_Name, p_Price);
+END $$
+DELIMITER ;
+
+DROP PROCEDURE IF EXISTS sp_ClearMenuItemAddons;
+DELIMITER $$
+CREATE PROCEDURE sp_ClearMenuItemAddons(
+    IN p_MenuItemId INT
+)
+BEGIN
+    DELETE FROM MenuItemAddons WHERE MenuItemId = p_MenuItemId;
+END $$
+DELIMITER ;
+
+DROP PROCEDURE IF EXISTS sp_AddMenuItemAddon;
+DELIMITER $$
+CREATE PROCEDURE sp_AddMenuItemAddon(
+    IN p_MenuItemId INT,
+    IN p_Name VARCHAR(100),
+    IN p_Price DECIMAL(10,2)
+)
+BEGIN
+    INSERT INTO MenuItemAddons (MenuItemId, Name, Price)
+    VALUES (p_MenuItemId, p_Name, p_Price);
 END $$
 DELIMITER ;

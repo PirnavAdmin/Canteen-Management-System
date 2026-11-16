@@ -53,10 +53,14 @@ export const SupplierModal = ({
       setError('Vendor name and contact phone are required.');
       return;
     }
+    const payload = {
+      ...formData,
+      status: initialData?.status || 'Active'
+    };
     if (onSaveSupplier) {
-      await onSaveSupplier(formData);
+      await onSaveSupplier(payload);
     } else if (onAddSupplier) {
-      await onAddSupplier(formData);
+      await onAddSupplier(payload);
       onClose();
     }
   };

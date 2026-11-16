@@ -12,6 +12,9 @@ namespace CanteenManagement.API.Services.Interfaces.Inventory
         Task<PurchaseOrderDto> UpdatePurchaseOrderStatusAsync(int id, string status, int institutionId, string performedBy);
         Task<IEnumerable<SupplierDto>> GetSuppliersAsync(int institutionId);
         Task<SupplierDto> CreateSupplierAsync(CreateSupplierDto dto, int institutionId, string performedBy);
+        Task<SupplierDto?> UpdateSupplierAsync(int id, UpdateSupplierDto dto, int institutionId, string performedBy);
+        Task<SupplierDeleteResultDto> DeleteSupplierAsync(int id, int institutionId, string performedBy);
+        Task<SupplierDto?> UpdateSupplierStatusAsync(int id, string status, int institutionId, string performedBy);
     }
 }
 

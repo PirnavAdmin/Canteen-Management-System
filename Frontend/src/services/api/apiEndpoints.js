@@ -70,7 +70,9 @@ export const API_ENDPOINTS = {
     LEDGER: '/canteen-inventory/ledger',
     PURCHASE_ORDERS: '/canteen-inventory/purchase-orders',
     PO_UPDATE_STATUS: (id) => `/canteen-inventory/purchase-orders/${id}/status`,
-    SUPPLIERS: '/canteen-inventory/suppliers'
+    SUPPLIERS: '/canteen-inventory/suppliers',
+    SUPPLIER_BY_ID: (id) => `/canteen-inventory/suppliers/${id}`,
+    SUPPLIER_STATUS: (id) => `/canteen-inventory/suppliers/${id}/status`
   },
 
   // Feedback & Grievances

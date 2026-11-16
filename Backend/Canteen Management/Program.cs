@@ -250,6 +250,7 @@ app.UseStaticFiles(new StaticFileOptions
     OnPrepareResponse = ctx =>
     {
         ctx.Context.Response.Headers.Append("Cache-Control", "public, max-age=2592000");
+        ctx.Context.Response.Headers.Append("Access-Control-Allow-Origin", "*");
     }
 });
 

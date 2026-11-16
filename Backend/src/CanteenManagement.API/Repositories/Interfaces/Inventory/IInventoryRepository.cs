@@ -17,6 +17,9 @@ namespace CanteenManagement.API.Repositories.Interfaces.Inventory
         Task<IEnumerable<Supplier>> GetSuppliersAsync(int institutionId);
         Task<Supplier?> GetSupplierByIdAsync(int id, int institutionId);
         Task<Supplier> CreateSupplierAsync(Supplier supplier);
+        Task<Supplier?> UpdateSupplierAsync(Supplier supplier);
+        Task<(bool success, string actionTaken, int linkedPoCount)> DeleteSupplierAsync(int id, int institutionId);
+        Task<Supplier?> ToggleSupplierStatusAsync(int id, int institutionId, string status);
     }
 }
 
