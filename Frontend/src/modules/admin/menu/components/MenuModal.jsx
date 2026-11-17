@@ -181,6 +181,7 @@ export const MenuModal = ({
       if (savedPath) {
         setFormData(prev => ({ ...prev, imageUrl: savedPath }));
         setImagePreview(savedPath);
+        setImageLoadError(false);
       }
     } catch (err) {
       console.error('Image upload failed:', err);
@@ -230,6 +231,12 @@ export const MenuModal = ({
     const uploadsMatch = cleanedImageUrl.match(/\/uploads\/.*$/i);
     if (uploadsMatch) {
       cleanedImageUrl = uploadsMatch[0];
+    } else if (cleanedImageUrl && !cleanedImageUrl.startsWith('http') && !cleanedImageUrl.startsWith('data:') && !cleanedImageUrl.startsWith('blob:')) {
+      if (!cleanedImageUrl.includes('/')) {
+        cleanedImageUrl = `/uploads/menu/${cleanedImageUrl}`;
+      } else if (!cleanedImageUrl.startsWith('/uploads/')) {
+        cleanedImageUrl = `/uploads/${cleanedImageUrl.replace(/^\/+/, '')}`;
+      }
     }
 
     const finalFoodType = isCustomFoodType
