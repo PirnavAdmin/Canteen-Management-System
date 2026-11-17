@@ -22,6 +22,7 @@ import {
 import styles from '../../styles/layout.module.css';
 import { useAuth } from '../../app/providers/AuthProvider';
 import { useTheme } from '../../hooks/useTheme';
+import { useCanteens } from '../../modules/admin/outlets/hooks/useCanteens';
 import { useNavigate } from 'react-router-dom';
 import { ADMIN_NAV_CONFIG } from '../../constants/navigation';
 
@@ -46,6 +47,17 @@ export const Header = ({ onOpenSidebar }) => {
   const [moduleQuery, setModuleQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+  const { selectedCampus, setSelectedCampus, availableCampuses } = useCanteens();
+  const [isCampusDropdownOpen, setIsCampusDropdownOpen] = useState(false);
+  const [campusSearchQuery, setCampusSearchQuery] = useState('');
+
+  const filteredCampuses = useMemo(() => {
+    const list = availableCampuses || [];
+    if (!campusSearchQuery.trim()) return list;
+    const q = campusSearchQuery.toLowerCase();
+    return list.filter(c => c.toLowerCase().includes(q));
+  }, [availableCampuses, campusSearchQuery]);
 
   const displayName = user?.fullName || user?.username || 'Canteen Administrator';
   const displayRole = user?.role || role || 'Admin';
@@ -291,18 +303,137 @@ export const Header = ({ onOpenSidebar }) => {
           )}
         </button>
 
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          fontSize: '12px',
-          color: 'var(--text-secondary)',
-          backgroundColor: 'var(--bg-muted)',
-          padding: '4px 10px',
-          borderRadius: 'var(--border-radius-full)'
-        }}>
-          <MapPin size={13} style={{ color: 'var(--color-accent)' }} />
-          <span>Main Campus</span>
+        {/* Campus Selection Dropdown */}
+        <div style={{ position: 'relative' }}>
+          <button
+            type="button"
+            onClick={() => {
+              setIsCampusDropdownOpen(prev => !prev);
+              setCampusSearchQuery('');
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '12px',
+              color: 'var(--text-secondary)',
+              backgroundColor: 'var(--bg-muted)',
+              padding: '4px 10px',
+              borderRadius: 'var(--border-radius-full)',
+              border: '1px solid var(--border-color)',
+              cursor: 'pointer',
+              transition: 'all var(--transition-fast)'
+            }}
+            title="Institutional campus location"
+            aria-label="Select institutional campus"
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-muted)'; }}
+          >
+            <MapPin size={13} style={{ color: 'var(--color-accent)' }} />
+            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{selectedCampus || 'Main Campus'}</span>
+            <ChevronDown size={12} style={{ color: 'var(--text-muted)' }} />
+          </button>
+
+          {isCampusDropdownOpen && (
+            <>
+              <div
+                onClick={() => setIsCampusDropdownOpen(false)}
+                style={{ position: 'fixed', inset: 0, zIndex: 65 }}
+              />
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 6px)',
+                  left: 0,
+                  width: '230px',
+                  backgroundColor: 'var(--bg-surface)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: 'var(--border-radius-md)',
+                  boxShadow: 'var(--shadow-md)',
+                  zIndex: 70,
+                  overflow: 'hidden'
+                }}
+              >
+                {/* Search bar inside the same dropdown */}
+                <div style={{
+                  padding: '8px 10px',
+                  borderBottom: '1px solid var(--border-color-subtle)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  backgroundColor: 'var(--bg-app)'
+                }}>
+                  <Search size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                  <input
+                    type="text"
+                    value={campusSearchQuery}
+                    onChange={(e) => setCampusSearchQuery(e.target.value)}
+                    placeholder="Search campus..."
+                    autoFocus
+                    style={{
+                      width: '100%',
+                      background: 'none',
+                      border: 'none',
+                      outline: 'none',
+                      fontSize: '12px',
+                      color: 'var(--text-primary)'
+                    }}
+                  />
+                  {campusSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setCampusSearchQuery('')}
+                      style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-muted)' }}
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Campus options list */}
+                <div style={{ maxHeight: '180px', overflowY: 'auto', padding: '4px 0' }}>
+                  {filteredCampuses.length === 0 ? (
+                    <div style={{ padding: '10px 12px', fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center' }}>
+                      No campuses found
+                    </div>
+                  ) : (
+                    filteredCampuses.map((campus) => {
+                      const isSelected = campus === selectedCampus;
+                      return (
+                        <div
+                          key={campus}
+                          onClick={() => {
+                            setSelectedCampus(campus);
+                            setIsCampusDropdownOpen(false);
+                          }}
+                          style={{
+                            padding: '7px 12px',
+                            fontSize: '12px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            color: isSelected ? 'var(--color-accent)' : 'var(--text-primary)',
+                            backgroundColor: isSelected ? 'var(--color-primary-light)' : 'transparent',
+                            fontWeight: isSelected ? 600 : 400
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!isSelected) e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)';
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent';
+                          }}
+                        >
+                          <span>{campus}</span>
+                          {isSelected && <span style={{ fontSize: '11px', color: 'var(--color-accent)' }}>✓</span>}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Clickable Profile Trigger + Floating Profile Modal */}

@@ -201,7 +201,25 @@ export const resolveImageUrl = (path, fallback = '') => {
     return trimmed;
   }
 
-  // 5. General relative path
+  // 5. Bare image filename (e.g. "134ec0643b1f43c4a060c190842b1fe7.png")
+  if (!trimmed.includes('/') && !trimmed.includes('\\') && /\.(png|jpe?g|webp|gif|svg|avif)$/i.test(trimmed)) {
+    let finalUrl = `${backendOrigin}/uploads/menu/${trimmed}`;
+    if (finalUrl.includes('ngrok-free.dev') && !finalUrl.includes('ngrok-skip-browser-warning')) {
+      finalUrl += `${finalUrl.includes('?') ? '&' : '?'}ngrok-skip-browser-warning=true`;
+    }
+    return finalUrl;
+  }
+
+  // 6. Subfolder relative image path without leading uploads (e.g. "menu/xyz.png" or "outlets/xyz.png")
+  if (/^(menu|outlets)\/[^/]+\.(png|jpe?g|webp|gif|svg|avif)$/i.test(trimmed)) {
+    let finalUrl = `${backendOrigin}/uploads/${trimmed}`;
+    if (finalUrl.includes('ngrok-free.dev') && !finalUrl.includes('ngrok-skip-browser-warning')) {
+      finalUrl += `${finalUrl.includes('?') ? '&' : '?'}ngrok-skip-browser-warning=true`;
+    }
+    return finalUrl;
+  }
+
+  // 7. General relative path
   const cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
   let finalUrl = `${backendOrigin}${cleanPath}`;
   if (finalUrl.includes('ngrok-free.dev') && !finalUrl.includes('ngrok-skip-browser-warning')) {

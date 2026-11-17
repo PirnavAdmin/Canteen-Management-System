@@ -52,7 +52,13 @@ export const MenuListPage = () => {
         if (!matchesName && !matchesCode && !matchesDesc) return false;
       }
       if (selectedCategory !== 'ALL' && item.category !== selectedCategory) return false;
-      if (selectedFoodType !== 'ALL' && item.foodType !== selectedFoodType) return false;
+      if (selectedFoodType !== 'ALL') {
+        if (selectedFoodType === 'Others') {
+          if (['Veg', 'Non-veg', 'Egg'].includes(item.foodType)) return false;
+        } else if (item.foodType !== selectedFoodType) {
+          return false;
+        }
+      }
       if (selectedOutlet !== 'ALL' && String(item.outletId ?? item.canteenId ?? '') !== String(selectedOutlet)) return false;
       if (selectedStatus !== 'ALL' && item.status !== selectedStatus) return false;
       return true;

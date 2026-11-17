@@ -7,7 +7,7 @@ import { formatCurrency, resolveImageUrl } from '../../../../utils/formatters';
 export const MenuItemDetailsModal = ({ isOpen, onClose, item }) => {
   if (!isOpen || !item) return null;
 
-  const typeColor = item.foodType === 'Veg' ? '#059669' : item.foodType === 'Non-veg' ? '#dc2626' : '#d97706';
+  const typeColor = item.foodType === 'Veg' ? '#059669' : item.foodType === 'Non-veg' ? '#dc2626' : item.foodType === 'Egg' ? '#d97706' : '#7c3aed';
 
   return (
     <div

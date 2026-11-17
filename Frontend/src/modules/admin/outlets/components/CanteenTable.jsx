@@ -20,7 +20,7 @@ export const CanteenTable = ({
       render: (val, row) => (
         <div style={{ display: 'flex', flexDirection: 'column', maxWidth: '150px', overflow: 'hidden' }}>
           <span
-            onClick={() => navigate(`/canteen/${row.id}`)}
+            onClick={() => navigate(`/admin/outlets/${row.id}`)}
             title={val}
             style={{
               fontSize: '12.5px',
@@ -187,7 +187,7 @@ export const CanteenTable = ({
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
             <button
               type="button"
-              onClick={() => navigate(`/canteen/${row.id}`)}
+              onClick={() => navigate(`/admin/outlets/${row.id}`)}
               style={{
                 background: 'none',
                 border: '1px solid var(--border-color)',
@@ -207,7 +207,7 @@ export const CanteenTable = ({
 
             <button
               type="button"
-              onClick={() => navigate(`/canteen/${row.id}/edit`)}
+              onClick={() => navigate(`/admin/outlets/${row.id}/edit`)}
               style={{
                 background: 'none',
                 border: '1px solid var(--border-color)',

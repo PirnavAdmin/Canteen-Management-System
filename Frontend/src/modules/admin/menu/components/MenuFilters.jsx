@@ -26,8 +26,10 @@ export const MenuFilters = ({
       categoryService.getAll().catch(() => [])
     ]).then(([outletsData, categoriesData]) => {
       if (isMounted) {
-        if (Array.isArray(outletsData)) setOutlets(outletsData);
-        if (Array.isArray(categoriesData)) setCategories(categoriesData);
+        const parsedOutlets = Array.isArray(outletsData) ? outletsData : (outletsData?.data || []);
+        if (Array.isArray(parsedOutlets)) setOutlets(parsedOutlets);
+        const parsedCategories = Array.isArray(categoriesData) ? categoriesData : (categoriesData?.data || []);
+        if (Array.isArray(parsedCategories)) setCategories(parsedCategories);
       }
     });
     return () => { isMounted = false; };
@@ -119,6 +121,7 @@ export const MenuFilters = ({
         <option value="Veg">Pure Veg</option>
         <option value="Non-veg">Non-Veg</option>
         <option value="Egg">Egg</option>
+        <option value="Others">Others</option>
       </select>
 
       {/* Outlet */}

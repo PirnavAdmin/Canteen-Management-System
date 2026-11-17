@@ -10,7 +10,12 @@ export const reportService = {
   getReportData: async (reportType = 'sales_summary', filters = {}) => {
     const isItemWise = reportType === 'item_wise' || reportType === 'items';
     const endpoint = isItemWise ? API_ENDPOINTS.REPORTS.ITEMS : API_ENDPOINTS.REPORTS.SALES;
-    const response = await apiClient.get(endpoint, { ...filters, reportType });
+    const params = {
+      ...filters,
+      reportType,
+      outletId: filters.outlet && filters.outlet !== 'ALL' ? Number(filters.outlet) : undefined
+    };
+    const response = await apiClient.get(endpoint, params);
     return response?.data ?? response;
   },
 

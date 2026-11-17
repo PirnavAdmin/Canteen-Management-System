@@ -9,7 +9,12 @@ import { apiClient, API_ENDPOINTS } from '../../../../services/api';
 export const categoryService = {
   getAll: async () => {
     const response = await apiClient.get(API_ENDPOINTS.CATEGORIES.BASE);
-    return response?.data ?? response;
+    if (Array.isArray(response)) return response;
+    if (Array.isArray(response?.data)) return response.data;
+    if (Array.isArray(response?.categories)) return response.categories;
+    if (Array.isArray(response?.data?.data)) return response.data.data;
+    if (Array.isArray(response?.items)) return response.items;
+    return response?.data ?? response ?? [];
   },
 
   getById: async (id) => {

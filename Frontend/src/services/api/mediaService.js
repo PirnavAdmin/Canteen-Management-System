@@ -16,10 +16,15 @@ export const mediaService = {
    */
   uploadImage: async (file, folder = 'menu') => {
     const formData = new FormData();
-    formData.append('file', file);
+    const fileName = file.name || `image_${Date.now()}.png`;
+    formData.append('file', file, fileName);
     formData.append('folder', folder);
 
-    const response = await apiClient.post(API_ENDPOINTS.MEDIA.UPLOAD, formData);
+    const response = await apiClient.post(API_ENDPOINTS.MEDIA.UPLOAD, formData, {
+      headers: {
+        'Content-Type': undefined
+      }
+    });
 
     return response?.data ?? response;
   }

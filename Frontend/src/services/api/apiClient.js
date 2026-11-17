@@ -23,6 +23,22 @@ export const axiosInstance = axios.create({
 // Request Interceptor: Attach JWT Token & Institution context
 axiosInstance.interceptors.request.use(
   (config) => {
+    // If request payload is FormData, remove Content-Type so browser sets multipart/form-data boundary
+    const isFormData =
+      (typeof FormData !== 'undefined' && config.data instanceof FormData) ||
+      (config.data && Object.prototype.toString.call(config.data) === '[object FormData]');
+
+    if (isFormData) {
+      if (config.headers) {
+        if (typeof config.headers.delete === 'function') {
+          config.headers.delete('Content-Type');
+          config.headers.delete('content-type');
+        }
+        delete config.headers['Content-Type'];
+        delete config.headers['content-type'];
+      }
+    }
+
     const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -68,8 +84,30 @@ axiosInstance.interceptors.response.use(
 // High-level API methods
 export const apiClient = {
   get: (url, params = null, config = {}) => axiosInstance.get(url, { params, ...config }),
-  post: (url, data = null, config = {}) => axiosInstance.post(url, data, config),
-  put: (url, data = null, config = {}) => axiosInstance.put(url, data, config),
+  post: (url, data = null, config = {}) => {
+    const isFormData =
+      (typeof FormData !== 'undefined' && data instanceof FormData) ||
+      (data && Object.prototype.toString.call(data) === '[object FormData]');
+    const mergedConfig = { ...config };
+    if (isFormData && mergedConfig.headers) {
+      mergedConfig.headers = { ...mergedConfig.headers };
+      delete mergedConfig.headers['Content-Type'];
+      delete mergedConfig.headers['content-type'];
+    }
+    return axiosInstance.post(url, data, mergedConfig);
+  },
+  put: (url, data = null, config = {}) => {
+    const isFormData =
+      (typeof FormData !== 'undefined' && data instanceof FormData) ||
+      (data && Object.prototype.toString.call(data) === '[object FormData]');
+    const mergedConfig = { ...config };
+    if (isFormData && mergedConfig.headers) {
+      mergedConfig.headers = { ...mergedConfig.headers };
+      delete mergedConfig.headers['Content-Type'];
+      delete mergedConfig.headers['content-type'];
+    }
+    return axiosInstance.put(url, data, mergedConfig);
+  },
   patch: (url, data = null, config = {}) => axiosInstance.patch(url, data, config),
   delete: (url, config = {}) => axiosInstance.delete(url, config),
   instance: axiosInstance

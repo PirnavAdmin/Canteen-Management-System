@@ -1,5 +1,5 @@
 import React from 'react';
-import { Eye, CheckCircle, ChefHat, BellRing, PackageCheck, ArrowRight, Loader2 } from 'lucide-react';
+import { Eye, CheckCircle, ChefHat, BellRing, CheckCheck, ArrowRight, Loader2 } from 'lucide-react';
 import { DataTable } from '../../../../components/tables/DataTable';
 import { StatusBadge } from '../../../../components/common/StatusBadge';
 import { formatCurrency } from '../../../../utils/formatters';
@@ -14,7 +14,7 @@ const getStepIcon = (nextStatus) => {
     case ORDER_STATUS.READY_FOR_PICKUP:
       return BellRing;
     case ORDER_STATUS.COMPLETED:
-      return PackageCheck;
+      return CheckCheck;
     default:
       return ArrowRight;
   }

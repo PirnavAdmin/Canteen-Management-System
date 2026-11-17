@@ -21,12 +21,14 @@ export const MenuModal = ({
   const [imagePreview, setImagePreview] = useState('');
   const [photoSourceMode, setPhotoSourceMode] = useState('upload'); // 'upload' | 'url'
   const [imageLoadError, setImageLoadError] = useState(false);
+  const [isCustomFoodType, setIsCustomFoodType] = useState(false);
+  const [customFoodTypeValue, setCustomFoodTypeValue] = useState('');
 
   const [formData, setFormData] = useState({
     name: '',
     code: '',
     description: '',
-    category: 'Main Course',
+    category: '',
     categoryId: 1,
     outletId: 1,
     foodType: FOOD_TYPES.VEG,
@@ -53,28 +55,52 @@ export const MenuModal = ({
       categoryService.getAll().catch(() => [])
     ]).then(([outletsData, categoriesData]) => {
       if (isMounted) {
-        if (Array.isArray(outletsData) && outletsData.length > 0) {
-          setOutlets(outletsData);
+        const parsedOutlets = Array.isArray(outletsData)
+          ? outletsData
+          : (Array.isArray(outletsData?.data) ? outletsData.data : []);
+        if (parsedOutlets.length > 0) {
+          setOutlets(parsedOutlets);
         }
-        if (Array.isArray(categoriesData) && categoriesData.length > 0) {
-          setCategories(categoriesData);
+
+        const parsedCategories = Array.isArray(categoriesData)
+          ? categoriesData
+          : (Array.isArray(categoriesData?.data)
+              ? categoriesData.data
+              : (Array.isArray(categoriesData?.categories) ? categoriesData.categories : []));
+        if (Array.isArray(parsedCategories) && parsedCategories.length > 0) {
+          setCategories(parsedCategories);
+          setFormData(prev => {
+            if (!initialData && !prev.category) {
+              return {
+                ...prev,
+                category: parsedCategories[0].name,
+                categoryId: parsedCategories[0].id || parsedCategories[0].categoryId || 1
+              };
+            }
+            return prev;
+          });
         }
       }
     });
     return () => { isMounted = false; };
-  }, []);
+  }, [initialData]);
 
   useEffect(() => {
     if (initialData) {
       const currentImg = initialData.imageUrl || '';
+      const initType = initialData.foodType || FOOD_TYPES.VEG;
+      const isStd = [FOOD_TYPES.VEG, FOOD_TYPES.NON_VEG, FOOD_TYPES.EGG].includes(initType);
+      setIsCustomFoodType(!isStd && Boolean(initType));
+      setCustomFoodTypeValue(!isStd && Boolean(initType) ? initType : '');
+
       setFormData({
         name: initialData.name || '',
         code: initialData.code || '',
         description: initialData.description || '',
-        category: initialData.category || 'Main Course',
+        category: initialData.category || '',
         categoryId: Number(initialData.categoryId) || 1,
         outletId: Number(initialData.outletId) || 1,
-        foodType: initialData.foodType || FOOD_TYPES.VEG,
+        foodType: initType,
         price: initialData.price || '',
         dailyCapacity: initialData.dailyCapacity || '',
         servingSize: initialData.servingSize || '',
@@ -96,13 +122,15 @@ export const MenuModal = ({
         setPhotoSourceMode('upload');
       }
     } else {
+      setIsCustomFoodType(false);
+      setCustomFoodTypeValue('');
       setFormData({
         name: '',
         code: '',
         description: '',
-        category: 'Main Course',
-        categoryId: 1,
-        outletId: 1,
+        category: categories[0]?.name || '',
+        categoryId: categories[0]?.id || categories[0]?.categoryId || 1,
+        outletId: outlets[0]?.outletId || outlets[0]?.id || 1,
         foodType: FOOD_TYPES.VEG,
         price: '',
         dailyCapacity: '',
@@ -122,7 +150,7 @@ export const MenuModal = ({
       setPhotoSourceMode('upload');
     }
     setErrors({});
-  }, [initialData, isOpen]);
+  }, [initialData, isOpen, categories, outlets]);
 
   if (!isOpen) return null;
 
@@ -153,6 +181,7 @@ export const MenuModal = ({
       if (savedPath) {
         setFormData(prev => ({ ...prev, imageUrl: savedPath }));
         setImagePreview(savedPath);
+        setImageLoadError(false);
       }
     } catch (err) {
       console.error('Image upload failed:', err);
@@ -183,6 +212,9 @@ export const MenuModal = ({
     if (!formData.price || Number(formData.price) <= 0) errs.price = 'Price must be a positive amount.';
     if (!formData.dailyCapacity || Number(formData.dailyCapacity) <= 0) errs.dailyCapacity = 'Daily capacity must be greater than zero.';
     if (!formData.description.trim()) errs.description = 'Description is required before publishing.';
+    if (isCustomFoodType && !customFoodTypeValue.trim()) {
+      errs.foodType = 'Please specify custom food type.';
+    }
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -191,7 +223,7 @@ export const MenuModal = ({
     e.preventDefault();
     if (!validate()) return;
 
-    const numericOutletId = Number(formData.outletId) || (outlets[0]?.outletId ?? 1);
+    const numericOutletId = Number(formData.outletId) || (outlets[0]?.outletId ?? outlets[0]?.id ?? 1);
     const matchedCategory = categories.find(c => c.name === formData.category || c.id === formData.categoryId);
     const numericCategoryId = Number(formData.categoryId) || (matchedCategory?.id || matchedCategory?.categoryId || 1);
 
@@ -199,10 +231,21 @@ export const MenuModal = ({
     const uploadsMatch = cleanedImageUrl.match(/\/uploads\/.*$/i);
     if (uploadsMatch) {
       cleanedImageUrl = uploadsMatch[0];
+    } else if (cleanedImageUrl && !cleanedImageUrl.startsWith('http') && !cleanedImageUrl.startsWith('data:') && !cleanedImageUrl.startsWith('blob:')) {
+      if (!cleanedImageUrl.includes('/')) {
+        cleanedImageUrl = `/uploads/menu/${cleanedImageUrl}`;
+      } else if (!cleanedImageUrl.startsWith('/uploads/')) {
+        cleanedImageUrl = `/uploads/${cleanedImageUrl.replace(/^\/+/, '')}`;
+      }
     }
+
+    const finalFoodType = isCustomFoodType
+      ? (customFoodTypeValue.trim() || 'Others')
+      : formData.foodType;
 
     onSubmit({
       ...formData,
+      foodType: finalFoodType,
       imageUrl: cleanedImageUrl,
       outletId: numericOutletId,
       categoryId: numericCategoryId,
@@ -377,8 +420,20 @@ export const MenuModal = ({
                 Food Type *
               </label>
               <select
-                value={formData.foodType}
-                onChange={(e) => setFormData({ ...formData, foodType: e.target.value })}
+                value={isCustomFoodType ? 'Others' : formData.foodType}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === 'Others') {
+                    setIsCustomFoodType(true);
+                    setFormData(prev => ({ ...prev, foodType: customFoodTypeValue || 'Others' }));
+                  } else {
+                    setIsCustomFoodType(false);
+                    setFormData(prev => ({ ...prev, foodType: val }));
+                  }
+                  if (errors.foodType) {
+                    setErrors(prev => ({ ...prev, foodType: null }));
+                  }
+                }}
                 style={{
                   width: '100%',
                   height: '36px',
@@ -386,14 +441,47 @@ export const MenuModal = ({
                   fontSize: '13px',
                   backgroundColor: 'var(--bg-surface)',
                   color: 'var(--text-primary)',
-                  border: '1px solid var(--border-color)',
+                  border: `1px solid ${errors.foodType ? 'var(--color-danger)' : 'var(--border-color)'}`,
                   borderRadius: 'var(--border-radius-md)'
                 }}
               >
                 <option value={FOOD_TYPES.VEG}>Pure Veg (Green)</option>
                 <option value={FOOD_TYPES.NON_VEG}>Non-veg (Red)</option>
                 <option value={FOOD_TYPES.EGG}>Egg (Amber)</option>
+                <option value="Others">Others</option>
               </select>
+
+              {isCustomFoodType && (
+                <input
+                  type="text"
+                  value={customFoodTypeValue}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setCustomFoodTypeValue(val);
+                    setFormData(prev => ({ ...prev, foodType: val }));
+                    if (errors.foodType) {
+                      setErrors(prev => ({ ...prev, foodType: null }));
+                    }
+                  }}
+                  placeholder="Enter custom food type..."
+                  style={{
+                    width: '100%',
+                    height: '36px',
+                    marginTop: '6px',
+                    padding: '0 10px',
+                    fontSize: '13px',
+                    backgroundColor: 'var(--bg-surface)',
+                    color: 'var(--text-primary)',
+                    border: `1px solid ${errors.foodType ? 'var(--color-danger)' : 'var(--border-color)'}`,
+                    borderRadius: 'var(--border-radius-md)'
+                  }}
+                />
+              )}
+              {errors.foodType && (
+                <span style={{ fontSize: '11px', color: 'var(--color-danger)', marginTop: '2px', display: 'block' }}>
+                  {errors.foodType}
+                </span>
+              )}
             </div>
           </div>
 
@@ -432,13 +520,7 @@ export const MenuModal = ({
                     </option>
                   ))
                 ) : (
-                  <>
-                    <option value="Main Course">Main Course</option>
-                    <option value="Meals & Thalis">Meals & Thalis</option>
-                    <option value="Snacks & Quick Bites">Snacks & Quick Bites</option>
-                    <option value="Beverages">Beverages</option>
-                    <option value="Desserts">Desserts</option>
-                  </>
+                  <option value="" disabled>No categories available</option>
                 )}
               </select>
             </div>
