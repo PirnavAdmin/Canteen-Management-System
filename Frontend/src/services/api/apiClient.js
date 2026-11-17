@@ -20,22 +20,22 @@ export const axiosInstance = axios.create({
   }
 });
 
-// Request Interceptor: Attach JWT Token & Institution context
+// Request Interceptor: Attach JWT Token & Institution context + Handle FormData
 axiosInstance.interceptors.request.use(
   (config) => {
-    // If request payload is FormData, remove Content-Type so browser sets multipart/form-data boundary
     const isFormData =
       (typeof FormData !== 'undefined' && config.data instanceof FormData) ||
       (config.data && Object.prototype.toString.call(config.data) === '[object FormData]');
 
-    if (isFormData) {
-      if (config.headers) {
-        if (typeof config.headers.delete === 'function') {
-          config.headers.delete('Content-Type');
-          config.headers.delete('content-type');
-        }
-        delete config.headers['Content-Type'];
-        delete config.headers['content-type'];
+    if (isFormData && config.headers) {
+      // In Axios 1.7+, setting multipart/form-data explicitly prevents the global application/json
+      // default from transforming the FormData into JSON, and allows the browser/adapter to attach boundaries.
+      if (typeof config.headers.setContentType === 'function') {
+        config.headers.setContentType('multipart/form-data');
+      } else if (typeof config.headers.set === 'function') {
+        config.headers.set('Content-Type', 'multipart/form-data');
+      } else {
+        config.headers['Content-Type'] = 'multipart/form-data';
       }
     }
 
@@ -88,11 +88,9 @@ export const apiClient = {
     const isFormData =
       (typeof FormData !== 'undefined' && data instanceof FormData) ||
       (data && Object.prototype.toString.call(data) === '[object FormData]');
-    const mergedConfig = { ...config };
-    if (isFormData && mergedConfig.headers) {
-      mergedConfig.headers = { ...mergedConfig.headers };
-      delete mergedConfig.headers['Content-Type'];
-      delete mergedConfig.headers['content-type'];
+    const mergedConfig = { ...config, headers: { ...(config && config.headers) } };
+    if (isFormData) {
+      mergedConfig.headers['Content-Type'] = 'multipart/form-data';
     }
     return axiosInstance.post(url, data, mergedConfig);
   },
@@ -100,11 +98,9 @@ export const apiClient = {
     const isFormData =
       (typeof FormData !== 'undefined' && data instanceof FormData) ||
       (data && Object.prototype.toString.call(data) === '[object FormData]');
-    const mergedConfig = { ...config };
-    if (isFormData && mergedConfig.headers) {
-      mergedConfig.headers = { ...mergedConfig.headers };
-      delete mergedConfig.headers['Content-Type'];
-      delete mergedConfig.headers['content-type'];
+    const mergedConfig = { ...config, headers: { ...(config && config.headers) } };
+    if (isFormData) {
+      mergedConfig.headers['Content-Type'] = 'multipart/form-data';
     }
     return axiosInstance.put(url, data, mergedConfig);
   },

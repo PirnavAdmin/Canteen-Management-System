@@ -37,23 +37,24 @@ export const ReportPrintPreviewModal = ({
 
     try {
       setIsGeneratingPDF(true);
-      const html2pdfModule = await import('html2pdf.js');
-      const html2pdf = html2pdfModule.default || html2pdfModule;
 
       const safeReportName = (reportConfig?.label || 'Report').replace(/[^a-zA-Z0-9_-]/g, '_');
       const safeCampus = (campus || 'Main_Campus').replace(/[^a-zA-Z0-9_-]/g, '_');
       const dateStr = new Date().toISOString().slice(0, 10);
       const filename = `CMS_${safeReportName}_${safeCampus}_${dateStr}.pdf`;
 
-      const opt = {
-        margin: [8, 8, 8, 8],
-        filename: filename,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, logging: false },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-      };
-
-      await html2pdf().set(opt).from(element).save();
+      if (typeof window !== 'undefined' && window.html2pdf) {
+        const opt = {
+          margin: [8, 8, 8, 8],
+          filename: filename,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true, logging: false },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        await window.html2pdf().set(opt).from(element).save();
+      } else {
+        window.print();
+      }
     } catch (err) {
       console.error('Direct PDF export error, falling back to window.print():', err);
       window.print();

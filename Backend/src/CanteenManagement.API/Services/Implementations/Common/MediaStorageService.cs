@@ -8,9 +8,9 @@ public class MediaStorageService : IMediaStorageService
     private readonly ILogger<MediaStorageService> _logger;
     private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
-        ".jpg", ".jpeg", ".png", ".webp"
+        ".jpg", ".jpeg", ".png", ".webp", ".jfif", ".avif", ".svg"
     };
-    private const long MaxFileSizeInBytes = 5 * 1024 * 1024; // 5 MB
+    private const long MaxFileSizeInBytes = 10 * 1024 * 1024; // 10 MB
 
     public MediaStorageService(IWebHostEnvironment environment, ILogger<MediaStorageService> logger)
     {
@@ -31,7 +31,20 @@ public class MediaStorageService : IMediaStorageService
         }
 
         var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-        if (string.IsNullOrEmpty(extension) || !AllowedExtensions.Contains(extension))
+        if (string.IsNullOrEmpty(extension))
+        {
+            extension = file.ContentType?.ToLowerInvariant() switch
+            {
+                "image/jpeg" or "image/jpg" or "image/pjpeg" => ".jpg",
+                "image/png" => ".png",
+                "image/webp" => ".webp",
+                "image/avif" => ".avif",
+                "image/svg+xml" => ".svg",
+                _ => ".jpg"
+            };
+        }
+
+        if (!AllowedExtensions.Contains(extension))
         {
             throw new ArgumentException($"Unsupported file format '{extension}'. Allowed formats: {string.Join(", ", AllowedExtensions)}");
         }
@@ -58,6 +71,23 @@ public class MediaStorageService : IMediaStorageService
         }
 
         _logger.LogInformation("Saved media file {FileName} to {PhysicalPath}", uniqueFileName, physicalPath);
+
+        // Auto-mirror to sister backend project uploads folder so both solutions stay 100% in sync
+        try
+        {
+            var altPath1 = Path.GetFullPath(Path.Combine(_environment.ContentRootPath, "..", "..", "Canteen Management", "uploads", safeSubFolder));
+            var altPath2 = Path.GetFullPath(Path.Combine(_environment.ContentRootPath, "..", "src", "CanteenManagement.API", "uploads", safeSubFolder));
+            var targetAlt = Directory.Exists(Path.GetDirectoryName(altPath1)!) ? altPath1 : (Directory.Exists(Path.GetDirectoryName(altPath2)!) ? altPath2 : null);
+            if (targetAlt != null && !string.Equals(targetAlt, uploadsRoot, StringComparison.OrdinalIgnoreCase))
+            {
+                if (!Directory.Exists(targetAlt)) Directory.CreateDirectory(targetAlt);
+                File.Copy(physicalPath, Path.Combine(targetAlt, uniqueFileName), true);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning("Sister project mirror skipped: {Message}", ex.Message);
+        }
 
         // Return relative web path with forward slashes
         return $"/uploads/{safeSubFolder}/{uniqueFileName}";

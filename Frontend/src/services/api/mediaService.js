@@ -18,11 +18,12 @@ export const mediaService = {
     const formData = new FormData();
     const fileName = file.name || `image_${Date.now()}.png`;
     formData.append('file', file, fileName);
+    formData.append('image', file, fileName); // Dual-key for 100% backend binder compatibility
     formData.append('folder', folder);
 
     const response = await apiClient.post(API_ENDPOINTS.MEDIA.UPLOAD, formData, {
       headers: {
-        'Content-Type': undefined
+        'Content-Type': 'multipart/form-data'
       }
     });
 

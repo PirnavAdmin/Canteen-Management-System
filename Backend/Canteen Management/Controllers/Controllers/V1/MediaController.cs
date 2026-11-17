@@ -23,20 +23,30 @@ namespace CanteenManagement.API.Controllers.V1
         [RequestSizeLimit(10 * 1024 * 1024)]
         public async Task<IActionResult> Upload([FromForm] IFormFile? file, [FromForm] string folder = "menu")
         {
-            if (file == null || file.Length == 0)
+            var uploadedFile = file;
+            if (uploadedFile == null && Request.HasFormContentType && Request.Form.Files.Count > 0)
+            {
+                uploadedFile = Request.Form.Files["file"]
+                            ?? Request.Form.Files["image"]
+                            ?? Request.Form.Files["photo"]
+                            ?? Request.Form.Files[0];
+            }
+
+            if (uploadedFile == null || uploadedFile.Length == 0)
             {
                 return BadRequest(ApiResponse<string>.ErrorResponse("No file was uploaded. Please provide an image file under the 'file' field."));
             }
 
             try
             {
-                var relativePath = await _mediaStorageService.SaveImageAsync(file, folder);
+                var targetFolder = string.IsNullOrWhiteSpace(folder) ? (Request.Query["folder"].ToString() ?? "menu") : folder;
+                var relativePath = await _mediaStorageService.SaveImageAsync(uploadedFile, targetFolder);
                 var result = new
                 {
                     fileUrl = relativePath,
                     fileName = Path.GetFileName(relativePath),
-                    fileSizeBytes = file.Length,
-                    contentType = file.ContentType
+                    fileSizeBytes = uploadedFile.Length,
+                    contentType = uploadedFile.ContentType
                 };
 
                 return Ok(ApiResponse<object>.SuccessResponse(result, "Image uploaded successfully."));
