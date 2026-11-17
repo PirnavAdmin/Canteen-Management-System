@@ -96,6 +96,7 @@ CREATE TABLE IF NOT EXISTS MenuItems (
     Price DECIMAL(10,2) NOT NULL,
     DailyCapacity INT NOT NULL DEFAULT 100,
     RemainingCapacity INT NOT NULL DEFAULT 100,
+    LastResetDate DATE NULL,
     Availability VARCHAR(20) NOT NULL DEFAULT 'Available',
     Status VARCHAR(20) NOT NULL DEFAULT 'Active',
     PublicationStatus VARCHAR(20) NOT NULL DEFAULT 'Published',

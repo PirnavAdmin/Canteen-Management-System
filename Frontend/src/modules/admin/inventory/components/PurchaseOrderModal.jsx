@@ -2,9 +2,15 @@ import React, { useState } from 'react';
 import { X, Plus, Trash2 } from 'lucide-react';
 import { Button } from '../../../../components/common/Button';
 
-export const PurchaseOrderModal = ({ isOpen, onClose, suppliers = [], loading = false, onCreatePO }) => {
+export const PurchaseOrderModal = ({ isOpen, onClose, suppliers = [], outlets = [], defaultOutletId = 1, loading = false, onCreatePO }) => {
+  const [outletId, setOutletId] = useState(defaultOutletId || (outlets[0]?.outletId || 1));
   const [supplierId, setSupplierId] = useState(suppliers[0]?.id || 'sup-01');
   const [expectedDelivery, setExpectedDelivery] = useState('');
+
+  React.useEffect(() => {
+    if (defaultOutletId) setOutletId(defaultOutletId);
+    if (suppliers.length > 0 && !supplierId) setSupplierId(suppliers[0].id);
+  }, [defaultOutletId, isOpen, suppliers]);
   const [items, setItems] = useState([
     { ingredientName: '', qty: '', unit: 'kg', unitPrice: '' }
   ]);
@@ -49,6 +55,7 @@ export const PurchaseOrderModal = ({ isOpen, onClose, suppliers = [], loading = 
     const totalAmount = processedItems.reduce((acc, curr) => acc + curr.total, 0);
 
     await onCreatePO({
+      outletId: Number(outletId) || 1,
       supplierId,
       supplierName: selectedSup.name,
       expectedDelivery,

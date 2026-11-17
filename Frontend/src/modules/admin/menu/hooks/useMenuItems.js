@@ -91,6 +91,18 @@ export const useMenuItems = () => {
     }
   }, [success, warning, toastError]);
 
+  const resetDailyCapacity = useCallback(async (force = true) => {
+    try {
+      const count = await menuService.resetDailyCapacity(force);
+      await loadMenuItems();
+      success('Daily Capacity Reset', `All menu items reset to full daily capacity (${count} items).`);
+      return count;
+    } catch (err) {
+      toastError('Reset Failed', err.message);
+      throw err;
+    }
+  }, [loadMenuItems, success, toastError]);
+
   return {
     menuItems,
     loading,
@@ -100,6 +112,7 @@ export const useMenuItems = () => {
     toggleStatus,
     togglePublish,
     deleteItem,
+    resetDailyCapacity,
     refreshMenu: loadMenuItems
   };
 };

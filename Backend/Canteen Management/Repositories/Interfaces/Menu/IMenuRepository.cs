@@ -12,6 +12,9 @@ namespace CanteenManagement.API.Repositories.Interfaces.Menu
         Task<MenuItem> UpdateAsync(MenuItem item);
         Task<bool> DeleteAsync(int id, int institutionId);
         Task<int> GetHistoricalOrderCountAsync(int menuItemId);
+        Task<bool> DeductCapacityAsync(int menuItemId, int quantity);
+        Task<bool> RestoreCapacityAsync(int menuItemId, int quantity);
+        Task<int> ResetDailyCapacityAsync(int institutionId, bool force = false);
     }
 }
 

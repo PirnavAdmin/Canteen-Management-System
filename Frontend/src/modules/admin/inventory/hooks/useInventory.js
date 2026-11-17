@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { inventoryService } from '../services/inventoryService';
 import { useToast } from '../../../../app/providers/ToastProvider';
 
-export const useInventory = () => {
+export const useInventory = (selectedOutlet = 'ALL') => {
   const [items, setItems] = useState([]);
   const [ledger, setLedger] = useState([]);
   const [purchaseOrders, setPurchaseOrders] = useState([]);
@@ -15,10 +15,11 @@ export const useInventory = () => {
     try {
       setLoading(true);
       setError(null);
+      const outletParams = selectedOutlet && selectedOutlet !== 'ALL' && Number(selectedOutlet) > 0 ? { outletId: Number(selectedOutlet) } : {};
       const [itms, ledg, pos, sups] = await Promise.all([
-        inventoryService.getItems(),
-        inventoryService.getLedger(),
-        inventoryService.getPurchaseOrders(),
+        inventoryService.getItems(outletParams),
+        inventoryService.getLedger(outletParams),
+        inventoryService.getPurchaseOrders(outletParams),
         inventoryService.getSuppliers()
       ]);
       setItems(itms);
@@ -32,7 +33,7 @@ export const useInventory = () => {
     } finally {
       setLoading(false);
     }
-  }, [toastError]);
+  }, [selectedOutlet, toastError]);
 
   useEffect(() => {
     loadAll();
@@ -70,9 +71,10 @@ export const useInventory = () => {
 
       // Step 5 -> Step 6: When marked Received, auto-reload stock and ledger so tabs reflect inward immediately!
       if (status === 'Received') {
+        const outletParams = selectedOutlet && selectedOutlet !== 'ALL' && Number(selectedOutlet) > 0 ? { outletId: Number(selectedOutlet) } : {};
         const [updatedItems, updatedLedger] = await Promise.all([
-          inventoryService.getItems(),
-          inventoryService.getLedger()
+          inventoryService.getItems(outletParams),
+          inventoryService.getLedger(outletParams)
         ]);
         setItems(updatedItems);
         setLedger(updatedLedger);

@@ -157,6 +157,9 @@ builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<ISettingsRepository, SettingsRepository>();
 builder.Services.AddScoped<ISettingsService, SettingsService>();
 
+// Hosted Background Services
+builder.Services.AddHostedService<CanteenManagement.API.Services.Background.DailyMenuCapacityResetWorker>();
+
 // 5. Add Controllers & JSON Options
 builder.Services.AddControllers()
     .AddJsonOptions(options =>

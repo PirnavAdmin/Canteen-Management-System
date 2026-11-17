@@ -16,6 +16,7 @@ namespace CanteenManagement.API.DTOs.Menu
         public decimal Price { get; set; }
         public int DailyCapacity { get; set; }
         public int RemainingCapacity { get; set; }
+        public DateTime? LastResetDate { get; set; }
         public string Availability { get; set; } = "Available";
         public string Status { get; set; } = "Active";
         public string PublicationStatus { get; set; } = "Published";

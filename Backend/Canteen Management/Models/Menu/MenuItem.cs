@@ -43,6 +43,9 @@ namespace CanteenManagement.API.Models.Menu
 
         public int RemainingCapacity { get; set; } = 100;
 
+        [Column(TypeName = "date")]
+        public DateTime? LastResetDate { get; set; }
+
         [Required]
         [MaxLength(20)]
         public string Availability { get; set; } = "Available"; // Available, Unavailable, SoldOut

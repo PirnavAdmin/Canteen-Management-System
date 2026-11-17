@@ -67,6 +67,16 @@ namespace CanteenManagement.API.Services.Implementations.Orders
                     throw new KeyNotFoundException($"Menu item {itemDto.MenuItemId} not found.");
                 }
 
+                if (menuItem.Availability == "SoldOut" || menuItem.RemainingCapacity <= 0)
+                {
+                    throw new InvalidOperationException($"Cannot order '{menuItem.Name}'. It is currently Sold Out.");
+                }
+
+                if (menuItem.RemainingCapacity < itemDto.Quantity)
+                {
+                    throw new InvalidOperationException($"Cannot order {itemDto.Quantity} portions of '{menuItem.Name}'. Only {menuItem.RemainingCapacity} remaining for today.");
+                }
+
                 decimal unitPrice = menuItem.Price;
                 if (!string.IsNullOrWhiteSpace(itemDto.VariantName))
                 {
@@ -88,13 +98,8 @@ namespace CanteenManagement.API.Services.Implementations.Orders
                     TotalPrice = itemTotal
                 });
 
-                // Deduct menu remaining capacity
-                if (menuItem.RemainingCapacity >= itemDto.Quantity)
-                {
-                    menuItem.RemainingCapacity -= itemDto.Quantity;
-                }
-                menuItem.HistoricalOrderCount++;
-                await _menuRepository.UpdateAsync(menuItem);
+                // Deduct menu remaining capacity atomically via Stored Procedure
+                await _menuRepository.DeductCapacityAsync(menuItem.MenuItemId, itemDto.Quantity);
             }
 
             decimal taxAmount = Math.Round(subtotal * 0.05m, 2); // 5% GST
@@ -197,6 +202,15 @@ namespace CanteenManagement.API.Services.Implementations.Orders
 
             var updated = await _repository.UpdateAsync(order);
 
+            // Restore menu remaining capacity if transitioned to Cancelled
+            if (dto.Status == "Cancelled" && order.Items != null)
+            {
+                foreach (var item in order.Items)
+                {
+                    await _menuRepository.RestoreCapacityAsync(item.MenuItemId, item.Quantity);
+                }
+            }
+
             await _auditService.LogActionAsync(
                 institutionId,
                 null,
@@ -236,6 +250,15 @@ namespace CanteenManagement.API.Services.Implementations.Orders
             });
 
             var updated = await _repository.UpdateAsync(order);
+
+            // Restore menu remaining capacity for cancelled items atomically via Stored Procedure
+            if (order.Items != null)
+            {
+                foreach (var item in order.Items)
+                {
+                    await _menuRepository.RestoreCapacityAsync(item.MenuItemId, item.Quantity);
+                }
+            }
 
             await _auditService.LogActionAsync(
                 institutionId,

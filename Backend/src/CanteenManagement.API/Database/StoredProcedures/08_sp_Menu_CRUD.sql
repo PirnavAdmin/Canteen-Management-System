@@ -14,6 +14,15 @@ CREATE PROCEDURE sp_GetAllMenuItems(
     IN p_SearchTerm VARCHAR(100)
 )
 BEGIN
+    -- Auto-reset capacity for items if a new day has arrived
+    UPDATE MenuItems
+    SET RemainingCapacity = DailyCapacity,
+        Availability = CASE WHEN Availability = 'SoldOut' THEN 'Available' ELSE Availability END,
+        LastResetDate = CURRENT_DATE(),
+        UpdatedAt = UTC_TIMESTAMP()
+    WHERE (p_InstitutionId IS NULL OR p_InstitutionId = 0 OR InstitutionId = p_InstitutionId)
+      AND (LastResetDate IS NULL OR LastResetDate < CURRENT_DATE());
+
     SELECT 
         m.MenuItemId,
         m.InstitutionId,
@@ -26,6 +35,7 @@ BEGIN
         m.Price,
         m.DailyCapacity,
         m.RemainingCapacity,
+        m.LastResetDate,
         m.Availability,
         m.Status,
         m.PublicationStatus,
@@ -63,6 +73,15 @@ CREATE PROCEDURE sp_GetMenuItemById(
     IN p_InstitutionId INT
 )
 BEGIN
+    -- Auto-reset capacity if date rolled over
+    UPDATE MenuItems
+    SET RemainingCapacity = DailyCapacity,
+        Availability = CASE WHEN Availability = 'SoldOut' THEN 'Available' ELSE Availability END,
+        LastResetDate = CURRENT_DATE(),
+        UpdatedAt = UTC_TIMESTAMP()
+    WHERE MenuItemId = p_MenuItemId AND InstitutionId = p_InstitutionId
+      AND (LastResetDate IS NULL OR LastResetDate < CURRENT_DATE());
+
     SELECT 
         m.MenuItemId,
         m.InstitutionId,
@@ -77,6 +96,7 @@ BEGIN
         m.Price,
         m.DailyCapacity,
         m.RemainingCapacity,
+        m.LastResetDate,
         m.Availability,
         m.Status,
         m.PublicationStatus,
@@ -319,5 +339,80 @@ CREATE PROCEDURE sp_AddMenuItemAddon(
 BEGIN
     INSERT INTO MenuItemAddons (MenuItemId, Name, Price)
     VALUES (p_MenuItemId, p_Name, p_Price);
+END $$
+DELIMITER ;
+
+DROP PROCEDURE IF EXISTS sp_ResetDailyMenuCapacity;
+DELIMITER $$
+CREATE PROCEDURE sp_ResetDailyMenuCapacity(
+    IN p_InstitutionId INT,
+    IN p_Force BOOLEAN
+)
+BEGIN
+    UPDATE MenuItems
+    SET RemainingCapacity = DailyCapacity,
+        Availability = CASE WHEN Availability = 'SoldOut' THEN 'Available' ELSE Availability END,
+        LastResetDate = CURRENT_DATE(),
+        UpdatedAt = UTC_TIMESTAMP()
+    WHERE (p_InstitutionId IS NULL OR p_InstitutionId = 0 OR InstitutionId = p_InstitutionId)
+      AND (p_Force = TRUE OR LastResetDate IS NULL OR LastResetDate < CURRENT_DATE());
+
+    SELECT ROW_COUNT() AS ResetCount;
+END $$
+DELIMITER ;
+
+DROP PROCEDURE IF EXISTS sp_DeductMenuItemCapacity;
+DELIMITER $$
+CREATE PROCEDURE sp_DeductMenuItemCapacity(
+    IN p_MenuItemId INT,
+    IN p_Quantity INT
+)
+BEGIN
+    -- Auto-reset first if date rolled over
+    UPDATE MenuItems
+    SET RemainingCapacity = DailyCapacity,
+        Availability = CASE WHEN Availability = 'SoldOut' THEN 'Available' ELSE Availability END,
+        LastResetDate = CURRENT_DATE(),
+        UpdatedAt = UTC_TIMESTAMP()
+    WHERE MenuItemId = p_MenuItemId
+      AND (LastResetDate IS NULL OR LastResetDate < CURRENT_DATE());
+
+    -- Deduct capacity atomically
+    UPDATE MenuItems
+    SET RemainingCapacity = GREATEST(0, RemainingCapacity - p_Quantity),
+        HistoricalOrderCount = HistoricalOrderCount + p_Quantity,
+        Availability = CASE 
+            WHEN (RemainingCapacity - p_Quantity) <= 0 THEN 'SoldOut' 
+            ELSE Availability 
+        END,
+        UpdatedAt = UTC_TIMESTAMP()
+    WHERE MenuItemId = p_MenuItemId;
+
+    SELECT MenuItemId, DailyCapacity, RemainingCapacity, Availability, HistoricalOrderCount
+    FROM MenuItems
+    WHERE MenuItemId = p_MenuItemId;
+END $$
+DELIMITER ;
+
+DROP PROCEDURE IF EXISTS sp_RestoreMenuItemCapacity;
+DELIMITER $$
+CREATE PROCEDURE sp_RestoreMenuItemCapacity(
+    IN p_MenuItemId INT,
+    IN p_Quantity INT
+)
+BEGIN
+    UPDATE MenuItems
+    SET RemainingCapacity = LEAST(DailyCapacity, RemainingCapacity + p_Quantity),
+        HistoricalOrderCount = GREATEST(0, HistoricalOrderCount - p_Quantity),
+        Availability = CASE 
+            WHEN Availability = 'SoldOut' AND (RemainingCapacity + p_Quantity) > 0 THEN 'Available' 
+            ELSE Availability 
+        END,
+        UpdatedAt = UTC_TIMESTAMP()
+    WHERE MenuItemId = p_MenuItemId;
+
+    SELECT MenuItemId, DailyCapacity, RemainingCapacity, Availability, HistoricalOrderCount
+    FROM MenuItems
+    WHERE MenuItemId = p_MenuItemId;
 END $$
 DELIMITER ;

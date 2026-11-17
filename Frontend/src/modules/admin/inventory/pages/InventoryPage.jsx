@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Package, BookOpen, ShoppingCart, Users, PlusCircle, ArrowDownUp } from 'lucide-react';
+import { Package, BookOpen, ShoppingCart, Users, PlusCircle, ArrowDownUp, Store } from 'lucide-react';
 import { PageHeader } from '../../../../components/common/PageHeader';
 import { Button } from '../../../../components/common/Button';
 import { ConfirmationModal } from '../../../../components/common/ConfirmationModal';
@@ -12,8 +12,23 @@ import { PurchaseOrdersTable } from '../components/PurchaseOrdersTable';
 import { PurchaseOrderModal } from '../components/PurchaseOrderModal';
 import { SuppliersTable } from '../components/SuppliersTable';
 import { SupplierModal } from '../components/SupplierModal';
+import { canteenService } from '../../outlets/services/canteenService';
 
 export const InventoryPage = () => {
+  // Outlet filter state
+  const [selectedOutlet, setSelectedOutlet] = useState('ALL');
+  const [outlets, setOutlets] = useState([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    canteenService.getAll()
+      .then(data => {
+        if (isMounted && Array.isArray(data)) setOutlets(data);
+      })
+      .catch(err => console.error('Failed to load outlets for inventory:', err));
+    return () => { isMounted = false; };
+  }, []);
+
   const {
     items,
     ledger,
@@ -27,7 +42,7 @@ export const InventoryPage = () => {
     updateSupplier,
     deleteSupplier,
     deactivateSupplier
-  } = useInventory();
+  } = useInventory(selectedOutlet);
 
   // Tab state: 'items' | 'ledger' | 'pos' | 'suppliers'
   const [activeTab, setActiveTab] = useState('items');
@@ -167,6 +182,63 @@ export const InventoryPage = () => {
           </div>
         }
       />
+
+      {/* Dining Outlet Selector Toolbar */}
+      <div style={{
+        backgroundColor: 'var(--bg-surface)',
+        borderRadius: 'var(--border-radius-lg)',
+        border: '1px solid var(--border-color)',
+        padding: '10px 16px',
+        marginBottom: '16px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '12px',
+        boxShadow: 'var(--shadow-xs)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Store size={18} style={{ color: 'var(--color-primary)' }} />
+          <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
+            Dining Outlet Filter:
+          </span>
+          <select
+            value={selectedOutlet}
+            onChange={(e) => {
+              setSelectedOutlet(e.target.value);
+              setCurrentPage(1);
+            }}
+            style={{
+              height: '36px',
+              padding: '0 12px',
+              fontSize: '13px',
+              fontWeight: 500,
+              border: '1px solid var(--border-color)',
+              borderRadius: 'var(--border-radius-md)',
+              backgroundColor: 'var(--bg-app)',
+              color: 'var(--text-primary)',
+              minWidth: '220px',
+              cursor: 'pointer',
+              outline: 'none'
+            }}
+          >
+            <option value="ALL">All Campus Outlets (Consolidated)</option>
+            {outlets.map(out => (
+              <option key={out.outletId || out.id} value={out.outletId || out.id}>
+                {out.name} {out.location ? `(${out.location})` : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+          {selectedOutlet === 'ALL' ? (
+            <span>Showing consolidated inventory across <strong>all {outlets.length || 'campus'} outlets</strong></span>
+          ) : (
+            <span>Filtered for <strong>{outlets.find(o => String(o.outletId || o.id) === String(selectedOutlet))?.name || 'Selected Outlet'}</strong></span>
+          )}
+        </div>
+      </div>
 
       {/* Tabs navigation */}
       <div style={{
@@ -327,6 +399,8 @@ export const InventoryPage = () => {
         isOpen={isPOModalOpen}
         onClose={() => !modalLoading && setIsPOModalOpen(false)}
         suppliers={suppliers}
+        outlets={outlets}
+        defaultOutletId={selectedOutlet !== 'ALL' ? Number(selectedOutlet) : (outlets[0]?.outletId || outlets[0]?.id || 1)}
         loading={modalLoading}
         onCreatePO={handleCreatePO}
       />

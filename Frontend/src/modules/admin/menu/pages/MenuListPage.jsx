@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, RotateCcw } from 'lucide-react';
 import { PageHeader } from '../../../../components/common/PageHeader';
 import { Button } from '../../../../components/common/Button';
 import { Pagination } from '../../../../components/common/Pagination';
@@ -18,7 +18,8 @@ export const MenuListPage = () => {
     updateMenuItem,
     toggleStatus,
     togglePublish,
-    deleteItem
+    deleteItem,
+    resetDailyCapacity
   } = useMenuItems();
 
   // Filters state
@@ -126,13 +127,23 @@ export const MenuListPage = () => {
         title="Menu Item Management"
         description="Configure institutional meal offerings, dietary classifications, preparation schedules, daily capacities, and publication states."
         actions={
-          <Button
-            variant="primary"
-            icon={PlusCircle}
-            onClick={handleOpenCreate}
-          >
-            Add Menu Item
-          </Button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Button
+              variant="secondary"
+              icon={RotateCcw}
+              onClick={() => resetDailyCapacity(true)}
+              title="Reset all menu items to their full daily capacity"
+            >
+              Reset Daily Capacity
+            </Button>
+            <Button
+              variant="primary"
+              icon={PlusCircle}
+              onClick={handleOpenCreate}
+            >
+              Add Menu Item
+            </Button>
+          </div>
         }
       />
 

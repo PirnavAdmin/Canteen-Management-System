@@ -320,5 +320,96 @@ namespace CanteenManagement.API.Repositories.Implementations.Menu
                 return 0;
             }
         }
+
+        public async Task<bool> DeductCapacityAsync(int menuItemId, int quantity)
+        {
+            try
+            {
+                using var connection = _connectionFactory.CreateConnection();
+                var result = await connection.QueryFirstOrDefaultAsync(
+                    "sp_DeductMenuItemCapacity",
+                    new { p_MenuItemId = menuItemId, p_Quantity = quantity },
+                    commandType: CommandType.StoredProcedure);
+                return result != null;
+            }
+            catch
+            {
+                var item = await _dbContext.MenuItems.FindAsync(menuItemId);
+                if (item == null) return false;
+
+                if (item.LastResetDate == null || item.LastResetDate < DateTime.UtcNow.Date)
+                {
+                    item.RemainingCapacity = item.DailyCapacity;
+                    if (item.Availability == "SoldOut") item.Availability = "Available";
+                    item.LastResetDate = DateTime.UtcNow.Date;
+                }
+
+                item.RemainingCapacity = Math.Max(0, item.RemainingCapacity - quantity);
+                item.HistoricalOrderCount += quantity;
+                if (item.RemainingCapacity <= 0) item.Availability = "SoldOut";
+                item.UpdatedAt = DateTime.UtcNow;
+
+                await _dbContext.SaveChangesAsync();
+                return true;
+            }
+        }
+
+        public async Task<bool> RestoreCapacityAsync(int menuItemId, int quantity)
+        {
+            try
+            {
+                using var connection = _connectionFactory.CreateConnection();
+                var result = await connection.QueryFirstOrDefaultAsync(
+                    "sp_RestoreMenuItemCapacity",
+                    new { p_MenuItemId = menuItemId, p_Quantity = quantity },
+                    commandType: CommandType.StoredProcedure);
+                return result != null;
+            }
+            catch
+            {
+                var item = await _dbContext.MenuItems.FindAsync(menuItemId);
+                if (item == null) return false;
+
+                item.RemainingCapacity = Math.Min(item.DailyCapacity, item.RemainingCapacity + quantity);
+                item.HistoricalOrderCount = Math.Max(0, item.HistoricalOrderCount - quantity);
+                if (item.Availability == "SoldOut" && item.RemainingCapacity > 0) item.Availability = "Available";
+                item.UpdatedAt = DateTime.UtcNow;
+
+                await _dbContext.SaveChangesAsync();
+                return true;
+            }
+        }
+
+        public async Task<int> ResetDailyCapacityAsync(int institutionId, bool force = false)
+        {
+            try
+            {
+                using var connection = _connectionFactory.CreateConnection();
+                return await connection.ExecuteScalarAsync<int>(
+                    "sp_ResetDailyMenuCapacity",
+                    new { p_InstitutionId = institutionId, p_Force = force },
+                    commandType: CommandType.StoredProcedure);
+            }
+            catch
+            {
+                var query = _dbContext.MenuItems.Where(m => institutionId <= 0 || m.InstitutionId == institutionId);
+                if (!force)
+                {
+                    var today = DateTime.UtcNow.Date;
+                    query = query.Where(m => m.LastResetDate == null || m.LastResetDate < today);
+                }
+
+                var items = await query.ToListAsync();
+                foreach (var item in items)
+                {
+                    item.RemainingCapacity = item.DailyCapacity;
+                    if (item.Availability == "SoldOut") item.Availability = "Available";
+                    item.LastResetDate = DateTime.UtcNow.Date;
+                    item.UpdatedAt = DateTime.UtcNow;
+                }
+
+                return await _dbContext.SaveChangesAsync();
+            }
+        }
     }
 }

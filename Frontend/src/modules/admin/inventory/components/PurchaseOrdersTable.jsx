@@ -32,22 +32,27 @@ export const PurchaseOrdersTable = ({
     },
     {
       key: 'supplierName',
-      header: 'Supplier',
-      render: (val) => (
-        <strong
-          title={val}
-          style={{
-            fontSize: '12.5px',
-            color: 'var(--text-primary)',
-            display: 'block',
-            maxWidth: '150px',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis'
-          }}
-        >
-          {val}
-        </strong>
+      header: 'Supplier & Outlet',
+      render: (val, row) => (
+        <div>
+          <strong
+            title={val}
+            style={{
+              fontSize: '12.5px',
+              color: 'var(--text-primary)',
+              display: 'block',
+              maxWidth: '160px',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            }}
+          >
+            {val}
+          </strong>
+          <span style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginTop: '2px' }}>
+            {row.outletName || (row.outletId === 1 ? 'Main Canteen' : `Outlet #${row.outletId || 1}`)}
+          </span>
+        </div>
       )
     },
     {

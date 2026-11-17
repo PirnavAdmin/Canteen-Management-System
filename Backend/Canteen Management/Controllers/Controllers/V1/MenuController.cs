@@ -147,6 +147,16 @@ namespace CanteenManagement.API.Controllers.V1
             return Ok(ApiResponse<bool>.SuccessResponse(true, "Menu item deleted successfully."));
         }
 
+        [HttpPost("reset-capacity")]
+        [Authorize(Policy = "RequireAdmin")]
+        public async Task<IActionResult> ResetDailyCapacity([FromQuery] bool force = false)
+        {
+            var institutionId = User.ResolveInstitutionId();
+            var userName = User.ResolveUserName();
+            var count = await _menuService.ResetDailyCapacityAsync(institutionId, userName, force);
+            return Ok(ApiResponse<int>.SuccessResponse(count, $"Daily capacity reset successfully. {count} items restored to full daily capacity."));
+        }
+
         [HttpPost("upload-image")]
         [RequestSizeLimit(10 * 1024 * 1024)]
         public async Task<IActionResult> UploadImage([FromForm] IFormFile? file)

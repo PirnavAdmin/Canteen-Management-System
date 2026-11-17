@@ -40,6 +40,11 @@ export const menuService = {
   deleteItem: async (id) => {
     const response = await apiClient.delete(API_ENDPOINTS.MENU.BY_ID(id));
     return response?.data ?? response;
+  },
+
+  resetDailyCapacity: async (force = false) => {
+    const response = await apiClient.post(`${API_ENDPOINTS.MENU.BASE}/reset-capacity?force=${force}`);
+    return response?.data ?? response;
   }
 };
 

@@ -11,6 +11,7 @@ namespace CanteenManagement.API.Services.Interfaces.Menu
         Task<MenuItemDto> ToggleStatusAsync(int id, int institutionId, string performedBy);
         Task<MenuItemDto> TogglePublishAsync(int id, int institutionId, string performedBy);
         Task<(bool success, bool blockedByPolicy, string? message)> DeleteAsync(int id, int institutionId, string performedBy);
+        Task<int> ResetDailyCapacityAsync(int institutionId, string performedBy, bool force = false);
     }
 }
 

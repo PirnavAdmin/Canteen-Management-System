@@ -282,6 +282,21 @@ namespace CanteenManagement.API.Services.Implementations.Menu
             return (deleted, false, null);
         }
 
+        public async Task<int> ResetDailyCapacityAsync(int institutionId, string performedBy, bool force = false)
+        {
+            var resetCount = await _repository.ResetDailyCapacityAsync(institutionId, force);
+            await _auditService.LogActionAsync(
+                institutionId,
+                null,
+                performedBy,
+                "RESET_DAILY_CAPACITY",
+                "MenuItem",
+                "ALL",
+                $"Daily menu item capacity reset executed (Force={force}). {resetCount} items restored to full daily capacity."
+            );
+            return resetCount;
+        }
+
         private static MenuItemDto MapToDto(MenuItem m) => new()
         {
             Id = m.MenuItemId,
@@ -296,6 +311,7 @@ namespace CanteenManagement.API.Services.Implementations.Menu
             Price = m.Price,
             DailyCapacity = m.DailyCapacity,
             RemainingCapacity = m.RemainingCapacity,
+            LastResetDate = m.LastResetDate,
             Availability = m.Availability,
             Status = m.Status,
             PublicationStatus = m.PublicationStatus,
