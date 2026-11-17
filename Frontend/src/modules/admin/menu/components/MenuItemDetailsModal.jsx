@@ -1,3 +1,4 @@
+import { SafeImage } from '../../../../components/common/SafeImage';
 import React from 'react';
 import { X, Utensils, MapPin, Clock, Flame, Users } from 'lucide-react';
 import { Button } from '../../../../components/common/Button';

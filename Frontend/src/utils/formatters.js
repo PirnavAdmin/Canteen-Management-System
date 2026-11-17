@@ -126,32 +126,30 @@ export const appendNgrokBypass = (url) => {
 };
 
 export const getActiveBackendOrigin = () => {
-  const rawBase = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE_URL);
-  let origin = (rawBase || '').replace(/\/api(\/v\d+)?\/?$/, '').replace(/\/+$/, '');
-
   if (typeof window !== 'undefined' && window.location) {
     const host = window.location.hostname;
-    const isClientOnLan = /^192\.168\./.test(host) || /^10\./.test(host);
-    const isClientOnNgrok = /ngrok/i.test(host);
-    const isConfigLocal = !origin || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(origin);
-
-    if (isClientOnNgrok && isConfigLocal) {
-      // Remote developer on ngrok: route through same host origin (via Vite proxy)
-      return window.location.origin;
+    // 1. If running on localhost or 127.0.0.1, always use local relative URL or localhost:5000.
+    // This allows Vite's /uploads proxy to serve files directly, avoiding ngrok's ERR_NGROK_6024 completely!
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return '';
     }
 
-    if (isClientOnLan && isConfigLocal) {
-      try {
-        const urlObj = new URL(origin || `http://${host}:5000`);
-        urlObj.hostname = host;
-        origin = urlObj.origin;
-      } catch {
-        origin = `http://${host}:5000`;
-      }
+    // 2. If running on local area network (mobile testing on Wi-Fi)
+    const isClientOnLan = /^192\.168\./.test(host) || /^10\./.test(host);
+    if (isClientOnLan) {
+      return `http://${host}:5000`;
+    }
+
+    // 3. If accessing via an ngrok domain directly in browser
+    const isClientOnNgrok = /ngrok/i.test(host);
+    if (isClientOnNgrok) {
+      return window.location.origin;
     }
   }
 
-  return origin || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5000');
+  const rawBase = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE_URL);
+  let origin = (rawBase || '').replace(/\/api(\/v\d+)?\/?$/, '').replace(/\/+$/, '');
+  return origin || 'http://localhost:5000';
 };
 
 export const resolveImageUrl = (path, fallback = '') => {
@@ -187,8 +185,10 @@ export const resolveImageUrl = (path, fallback = '') => {
   const uploadsIdx = cleanUploadPath.indexOf('/uploads/');
   if (uploadsIdx !== -1) {
     const relativePath = cleanUploadPath.slice(uploadsIdx);
-    let finalUrl = `${backendOrigin}${relativePath}`;
-    finalUrl = appendNgrokBypass(finalUrl);
+    let finalUrl = backendOrigin ? `${backendOrigin}${relativePath}` : relativePath;
+    if (backendOrigin) {
+      finalUrl = appendNgrokBypass(finalUrl);
+    }
     return finalUrl;
   }
 

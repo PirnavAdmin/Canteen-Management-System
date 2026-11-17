@@ -1,3 +1,4 @@
+import { SafeImage } from '../../../../components/common/SafeImage';
 import React, { useState } from 'react';
 import { Eye, Edit, Power, Globe, GlobeLock, Trash2, Utensils, MoreVertical } from 'lucide-react';
 import { DataTable } from '../../../../components/tables/DataTable';

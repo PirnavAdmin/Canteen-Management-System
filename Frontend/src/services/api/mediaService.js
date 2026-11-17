@@ -21,15 +21,11 @@ export const mediaService = {
     formData.append('image', file, fileName); // Dual-key for 100% backend binder compatibility
     formData.append('folder', folder);
 
-    const response = await apiClient.post(API_ENDPOINTS.MEDIA.UPLOAD, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    });
+    // Let the browser/Axios auto-inject 'multipart/form-data; boundary=...'
+    const response = await apiClient.post(API_ENDPOINTS.MEDIA.UPLOAD, formData);
 
     return response?.data ?? response;
   }
 };
 
 export default mediaService;
-

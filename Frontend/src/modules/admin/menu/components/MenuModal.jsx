@@ -1,3 +1,4 @@
+import { SafeImage } from '../../../../components/common/SafeImage';
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Camera, Upload, Sparkles, Loader2, CheckCircle2, Globe, AlertCircle } from 'lucide-react';
 import { Button } from '../../../../components/common/Button';
