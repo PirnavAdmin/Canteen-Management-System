@@ -133,7 +133,14 @@ export const getActiveBackendOrigin = () => {
     const host = window.location.hostname;
     const isClientOnLan = /^192\.168\./.test(host) || /^10\./.test(host);
     const isClientOnNgrok = /ngrok/i.test(host);
+    const isLocalhost = host === 'localhost' || host === '127.0.0.1';
     const isConfigLocal = !origin || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(origin);
+
+    // If accessing from localhost/127.0.0.1, route media requests through window.location.origin
+    // so Vite's dev proxy forwards them to backend with the ngrok-skip-browser-warning header attached
+    if (isLocalhost) {
+      return window.location.origin;
+    }
 
     if (isClientOnNgrok && isConfigLocal) {
       // Remote developer on ngrok: route through same host origin (via Vite proxy)
@@ -205,7 +212,6 @@ export const resolveImageUrl = (path, fallback = '') => {
     }
 
     return appendNgrokBypass(trimmed);
-    return trimmed;
   }
 
   // 5. Bare image filename (e.g. "134ec0643b1f43c4a060c190842b1fe7.png")
