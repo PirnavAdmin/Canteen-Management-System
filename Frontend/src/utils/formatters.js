@@ -194,8 +194,10 @@ export const resolveImageUrl = (path, fallback = '') => {
   const uploadsIdx = cleanUploadPath.indexOf('/uploads/');
   if (uploadsIdx !== -1) {
     const relativePath = cleanUploadPath.slice(uploadsIdx);
-    let finalUrl = `${backendOrigin}${relativePath}`;
-    finalUrl = appendNgrokBypass(finalUrl);
+    let finalUrl = backendOrigin ? `${backendOrigin}${relativePath}` : relativePath;
+    if (backendOrigin) {
+      finalUrl = appendNgrokBypass(finalUrl);
+    }
     return finalUrl;
   }
 

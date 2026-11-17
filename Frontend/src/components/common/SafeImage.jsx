@@ -1,125 +1,166 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { resolveImageUrl } from '../../utils/formatters';
+import React, { useState, useEffect } from 'react';
+
+// In-memory cache for resolved object URLs to prevent redundant network fetches
+const blobCache = new Map();
 
 /**
- * SafeImage Component
- * Reliably loads images from local blobs, same-origin Vite proxy, external CDNs,
- * and remote ngrok backends with automatic fetch fallback and bypass headers.
+ * Custom hook to safely resolve image URLs.
+ * Automatically handles:
+ * - Direct blob/data URLs
+ * - External CDN/Unsplash URLs
+ * - Localhost and relative /uploads URLs
+ * - Ngrok-tunnelled URLs (fetches with header to bypass ERR_NGROK_6024 interstitial warning)
+ */
+export const useSafeImageUrl = (src) => {
+  const [resolvedSrc, setResolvedSrc] = useState(() => {
+    if (!src) return '';
+    if (src.startsWith('blob:') || src.startsWith('data:')) return src;
+    if (blobCache.has(src)) return blobCache.get(src);
+    // If not ngrok, safe to use directly
+    if (!/ngrok/i.test(src)) return src;
+    return '';
+  });
+  const [loading, setLoading] = useState(() => {
+    if (!src) return false;
+    if (src.startsWith('blob:') || src.startsWith('data:')) return false;
+    if (blobCache.has(src)) return false;
+    return /ngrok/i.test(src);
+  });
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    if (!src) {
+      setResolvedSrc('');
+      setLoading(false);
+      setError(false);
+      return;
+    }
+
+    // Direct memory or base64
+    if (src.startsWith('blob:') || src.startsWith('data:')) {
+      setResolvedSrc(src);
+      setLoading(false);
+      setError(false);
+      return;
+    }
+
+    // Check memory cache
+    if (blobCache.has(src)) {
+      setResolvedSrc(blobCache.get(src));
+      setLoading(false);
+      setError(false);
+      return;
+    }
+
+    // If non-ngrok URL, use directly without fetch overhead
+    if (!/ngrok/i.test(src)) {
+      setResolvedSrc(src);
+      setLoading(false);
+      setError(false);
+      return;
+    }
+
+    // For ngrok URLs: browser <img> tags cannot pass custom headers,
+    // which triggers ngrok's ERR_NGROK_6024 warning page instead of binary image bytes.
+    // We fetch with the header, convert to a Blob URL, and cache it.
+    let isCancelled = false;
+    setLoading(true);
+    setError(false);
+
+    fetch(src, {
+      method: 'GET',
+      headers: {
+        'ngrok-skip-browser-warning': 'true'
+      }
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`Failed to load image via ngrok: ${response.status}`);
+        }
+        const blob = await response.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        blobCache.set(src, objectUrl);
+        if (!isCancelled) {
+          setResolvedSrc(objectUrl);
+          setLoading(false);
+          setError(false);
+        }
+      })
+      .catch((err) => {
+        if (!isCancelled) {
+          console.warn('SafeImage ngrok bypass fetch fallback:', err);
+          // Fallback to direct URL so browser default error handling can take over
+          setResolvedSrc(src);
+          setLoading(false);
+          setError(true);
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [src]);
+
+  return { resolvedSrc, loading, error };
+};
+
+/**
+ * Universal SafeImage component
+ * Drop-in replacement for standard <img> tags.
+ * Supports fallback UI, graceful error states, and automatic ngrok bypass.
  */
 export const SafeImage = ({
   src,
-  alt = 'Image',
-  className = '',
+  alt = '',
   style = {},
+  className = '',
   fallback = null,
-  onError,
-  onLoad,
-  ...props
+  onError = null,
+  onClick = null,
+  ...rest
 }) => {
-  const [resolvedSrc, setResolvedSrc] = useState('');
-  const [hasError, setHasError] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const blobUrlRef = useRef(null);
-
-  // Clean up any generated blob object URLs to prevent memory leaks
-  const cleanUpBlob = () => {
-    if (blobUrlRef.current) {
-      URL.revokeObjectURL(blobUrlRef.current);
-      blobUrlRef.current = null;
-    }
-  };
+  const { resolvedSrc, loading, error } = useSafeImageUrl(src);
+  const [hasRenderError, setHasRenderError] = useState(false);
 
   useEffect(() => {
-    cleanUpBlob();
-    setHasError(false);
-    setIsLoading(true);
-
-    if (!src) {
-      setResolvedSrc('');
-      setIsLoading(false);
-      return;
-    }
-
-    // 1. Direct blob or data URLs require no resolution or fetch fallback
-    if (typeof src === 'string' && (src.startsWith('blob:') || src.startsWith('data:'))) {
-      setResolvedSrc(src);
-      setIsLoading(false);
-      return;
-    }
-
-    const initialResolved = resolveImageUrl(src);
-    setResolvedSrc(initialResolved);
+    setHasRenderError(false);
   }, [src]);
 
-  useEffect(() => {
-    return () => {
-      cleanUpBlob();
-    };
-  }, []);
-
-  const handleNativeError = async () => {
-    // If already tried fallback or no src, trigger final error
-    if (hasError || !resolvedSrc || resolvedSrc.startsWith('blob:') || resolvedSrc.startsWith('data:')) {
-      setHasError(true);
-      setIsLoading(false);
-      if (onError) onError();
-      return;
-    }
-
-    try {
-      // Attempt background fetch with bypass header for ngrok / remote proxying
-      const headers = { 'ngrok-skip-browser-warning': 'true' };
-      const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-
-      const response = await fetch(resolvedSrc, {
-        method: 'GET',
-        headers
-      });
-
-      if (!response.ok) {
-        throw new Error(`Fetch failed with status ${response.status}`);
-      }
-
-      const contentType = response.headers.get('content-type');
-      if (contentType && !contentType.startsWith('image/')) {
-        throw new Error(`Expected image content type, received: ${contentType}`);
-      }
-
-      const blob = await response.blob();
-      cleanUpBlob();
-      const objectUrl = URL.createObjectURL(blob);
-      blobUrlRef.current = objectUrl;
-      setResolvedSrc(objectUrl);
-      setHasError(false);
-    } catch {
-      setHasError(true);
-      setIsLoading(false);
-      if (onError) onError();
+  const handleImgError = (e) => {
+    setHasRenderError(true);
+    if (typeof onError === 'function') {
+      onError(e);
     }
   };
 
-  const handleNativeLoad = (e) => {
-    setIsLoading(false);
-    setHasError(false);
-    if (onLoad) onLoad(e);
-  };
+  if (!src || hasRenderError || (error && !resolvedSrc)) {
+    return fallback || null;
+  }
 
-  if (!resolvedSrc || hasError) {
-    return fallback;
+  if (loading && !resolvedSrc) {
+    return (
+      <div
+        style={{
+          width: '100%',
+          height: '100%',
+          backgroundColor: 'var(--bg-muted, rgba(255,255,255,0.05))',
+          animation: 'pulse 1.5s infinite',
+          ...style
+        }}
+        className={className}
+      />
+    );
   }
 
   return (
     <img
       src={resolvedSrc}
       alt={alt}
-      className={className}
       style={style}
-      onError={handleNativeError}
-      onLoad={handleNativeLoad}
-      {...props}
+      className={className}
+      onError={handleImgError}
+      onClick={onClick}
+      {...rest}
     />
   );
 };
