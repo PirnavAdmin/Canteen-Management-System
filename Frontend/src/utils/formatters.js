@@ -117,19 +117,32 @@ export const formatDateTime = (dateString) => {
   }
 };
 
+export const appendNgrokBypass = (url) => {
+  if (!url || typeof url !== 'string') return url;
+  if (/ngrok/i.test(url) && !url.includes('ngrok-skip-browser-warning')) {
+    return `${url}${url.includes('?') ? '&' : '?'}ngrok-skip-browser-warning=true`;
+  }
+  return url;
+};
+
 export const getActiveBackendOrigin = () => {
   const rawBase = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE_URL);
-  let origin = rawBase.replace(/\/api(\/v\d+)?\/?$/, '').replace(/\/+$/, '');
+  let origin = (rawBase || '').replace(/\/api(\/v\d+)?\/?$/, '').replace(/\/+$/, '');
 
-  // If the base URL is local (localhost/127.0.0.1) but client is accessing from a LAN IP (e.g. mobile 192.168.x.x)
   if (typeof window !== 'undefined' && window.location) {
     const host = window.location.hostname;
     const isClientOnLan = /^192\.168\./.test(host) || /^10\./.test(host);
-    const isConfigLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(origin);
+    const isClientOnNgrok = /ngrok/i.test(host);
+    const isConfigLocal = !origin || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(origin);
+
+    if (isClientOnNgrok && isConfigLocal) {
+      // Remote developer on ngrok: route through same host origin (via Vite proxy)
+      return window.location.origin;
+    }
 
     if (isClientOnLan && isConfigLocal) {
       try {
-        const urlObj = new URL(origin);
+        const urlObj = new URL(origin || `http://${host}:5000`);
         urlObj.hostname = host;
         origin = urlObj.origin;
       } catch {
@@ -138,7 +151,7 @@ export const getActiveBackendOrigin = () => {
     }
   }
 
-  return origin;
+  return origin || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5000');
 };
 
 export const resolveImageUrl = (path, fallback = '') => {
@@ -175,9 +188,7 @@ export const resolveImageUrl = (path, fallback = '') => {
   if (uploadsIdx !== -1) {
     const relativePath = cleanUploadPath.slice(uploadsIdx);
     let finalUrl = `${backendOrigin}${relativePath}`;
-    if (finalUrl.includes('ngrok-free.dev') && !finalUrl.includes('ngrok-skip-browser-warning')) {
-      finalUrl += `${finalUrl.includes('?') ? '&' : '?'}ngrok-skip-browser-warning=true`;
-    }
+    finalUrl = appendNgrokBypass(finalUrl);
     return finalUrl;
   }
 
@@ -188,42 +199,32 @@ export const resolveImageUrl = (path, fallback = '') => {
       if (backendOrigin && !/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(backendOrigin)) {
         const pathPart = trimmed.replace(/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i, '');
         let remapped = `${backendOrigin}${pathPart.startsWith('/') ? pathPart : `/${pathPart}`}`;
-        if (remapped.includes('ngrok-free.dev') && !remapped.includes('ngrok-skip-browser-warning')) {
-          remapped += `${remapped.includes('?') ? '&' : '?'}ngrok-skip-browser-warning=true`;
-        }
+        remapped = appendNgrokBypass(remapped);
         return remapped;
       }
     }
 
-    if (trimmed.includes('ngrok-free.dev') && !trimmed.includes('ngrok-skip-browser-warning')) {
-      return `${trimmed}${trimmed.includes('?') ? '&' : '?'}ngrok-skip-browser-warning=true`;
-    }
+    return appendNgrokBypass(trimmed);
     return trimmed;
   }
 
   // 5. Bare image filename (e.g. "134ec0643b1f43c4a060c190842b1fe7.png")
   if (!trimmed.includes('/') && !trimmed.includes('\\') && /\.(png|jpe?g|webp|gif|svg|avif)$/i.test(trimmed)) {
     let finalUrl = `${backendOrigin}/uploads/menu/${trimmed}`;
-    if (finalUrl.includes('ngrok-free.dev') && !finalUrl.includes('ngrok-skip-browser-warning')) {
-      finalUrl += `${finalUrl.includes('?') ? '&' : '?'}ngrok-skip-browser-warning=true`;
-    }
+    finalUrl = appendNgrokBypass(finalUrl);
     return finalUrl;
   }
 
   // 6. Subfolder relative image path without leading uploads (e.g. "menu/xyz.png" or "outlets/xyz.png")
   if (/^(menu|outlets)\/[^/]+\.(png|jpe?g|webp|gif|svg|avif)$/i.test(trimmed)) {
     let finalUrl = `${backendOrigin}/uploads/${trimmed}`;
-    if (finalUrl.includes('ngrok-free.dev') && !finalUrl.includes('ngrok-skip-browser-warning')) {
-      finalUrl += `${finalUrl.includes('?') ? '&' : '?'}ngrok-skip-browser-warning=true`;
-    }
+    finalUrl = appendNgrokBypass(finalUrl);
     return finalUrl;
   }
 
   // 7. General relative path
   const cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
   let finalUrl = `${backendOrigin}${cleanPath}`;
-  if (finalUrl.includes('ngrok-free.dev') && !finalUrl.includes('ngrok-skip-browser-warning')) {
-    finalUrl += `${finalUrl.includes('?') ? '&' : '?'}ngrok-skip-browser-warning=true`;
-  }
+  finalUrl = appendNgrokBypass(finalUrl);
   return finalUrl;
 };

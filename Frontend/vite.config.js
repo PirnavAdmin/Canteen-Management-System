@@ -10,6 +10,22 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     server: {
       proxy: {
+        '/api': {
+          target: 'http://localhost:5000',
+          changeOrigin: true,
+          secure: false,
+          headers: {
+            'ngrok-skip-browser-warning': 'true'
+          }
+        },
+        '/uploads': {
+          target: 'http://localhost:5000',
+          changeOrigin: true,
+          secure: false,
+          headers: {
+            'ngrok-skip-browser-warning': 'true'
+          }
+        },
         '/proxy-api': {
           target: apiTarget,
           changeOrigin: true,

@@ -7,8 +7,24 @@
 import axios from 'axios';
 import { ENV } from '../../config/env';
 
-const rawBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
-const BASE_URL = rawBase.includes('/api/v') ? rawBase : `${rawBase.replace(/\/+$/, '')}/api/v1`;
+const resolveBaseUrl = () => {
+  const envBase = import.meta.env.VITE_API_BASE_URL;
+  if (typeof window !== 'undefined' && window.location) {
+    const host = window.location.hostname;
+    const isNgrok = /ngrok/i.test(host);
+    const isLocalConfig = !envBase || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(envBase);
+
+    // If accessing through an ngrok domain and config is local, use current origin (proxied via Vite)
+    if (isNgrok && isLocalConfig) {
+      return `${window.location.origin}/api/v1`;
+    }
+  }
+
+  const rawBase = envBase || 'http://localhost:5000/api/v1';
+  return rawBase.includes('/api/v') ? rawBase : `${rawBase.replace(/\/+$/, '')}/api/v1`;
+};
+
+const BASE_URL = resolveBaseUrl();
 
 export const axiosInstance = axios.create({
   baseURL: BASE_URL,
