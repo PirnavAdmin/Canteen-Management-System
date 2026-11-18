@@ -32,8 +32,8 @@ namespace CanteenManagement.API.Data
                         };
                         using var testConn = new MySqlConnection(builder.ConnectionString);
                         await testConn.OpenAsync();
-                        logger.LogInformation("Database connection successful with: Server={Server}, Port={Port}, User={User}",
-                            builder.Server, builder.Port, builder.UserID);
+                        logger.LogInformation("Database connection verified: Server={Server}, Database={Database}",
+                            builder.Server, builder.Database);
                         WorkingConnectionString = builder.ConnectionString;
                         activeCs = builder.ConnectionString;
                         break;
@@ -50,22 +50,20 @@ namespace CanteenManagement.API.Data
                     return;
                 }
 
-                using var connection = new MySqlConnection(activeCs);
-                await connection.OpenAsync();
-
-                var dbDir = ResolveDatabaseDirectory();
-                logger.LogInformation("Resolved Database scripts root directory: {Path}", dbDir);
-
-                // 1. Deploy Tables from Database/Schema/01_Tables.sql (Zero inline SQL in C#)
-                await DeployTablesFromSchemaFileAsync(connection, dbDir, logger);
-
-                // 2. Deploy Seed Data from Database/Seeds/01_SeedData.sql (Zero inline SQL in C#)
-                await DeploySeedsFromFileAsync(connection, dbDir, logger);
-
-                // 3. Deploy All 35 Stored Procedures from Database/StoredProcedures/*.sql
-                await DeployStoredProceduresFromFilesAsync(connection, dbDir, logger);
-
-                logger.LogInformation("Database schema, stored procedures, and seed data verified successfully on {ActiveCs}.", activeCs);
+                // Cloud database on Hostinger is already deployed and verified.
+                // We only run full schema & stored procedure migrations if explicitly requested via INIT_DATABASE=true.
+                var shouldDeploy = string.Equals(Environment.GetEnvironmentVariable("INIT_DATABASE"), "true", StringComparison.OrdinalIgnoreCase);
+                if (shouldDeploy)
+                {
+                    using var connection = new MySqlConnection(activeCs);
+                    await connection.OpenAsync();
+                    var dbDir = ResolveDatabaseDirectory();
+                    logger.LogInformation("Running database deployment from {Path}...", dbDir);
+                    await DeployTablesFromSchemaFileAsync(connection, dbDir, logger);
+                    await DeploySeedsFromFileAsync(connection, dbDir, logger);
+                    await DeployStoredProceduresFromFilesAsync(connection, dbDir, logger);
+                    logger.LogInformation("Database deployment completed successfully.");
+                }
             }
             catch (Exception ex)
             {

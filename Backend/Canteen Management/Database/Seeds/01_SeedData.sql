@@ -67,22 +67,6 @@ INSERT INTO MenuItems (MenuItemId, InstitutionId, OutletId, CategoryId, Code, Na
 SELECT 5, 1, 1, 5, 'FMC-05', 'South Indian Filter Coffee', 'Freshly brewed aromatic chicory blend with frothy whole milk.', 'Veg', 20.00, 300, 210, 'Available', 'Active', 'Published', '1 Cup (150ml)', '90 kcal', '["Dairy / Milk"]', '["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]', '07:30', '21:00', 1240
 WHERE NOT EXISTS (SELECT 1 FROM MenuItems WHERE MenuItemId = 5);
 
--- 5. Default Time Slots
-INSERT INTO Slots (SlotId, InstitutionId, OutletId, Session, Date, StartTime, EndTime, MaxCapacity, BookedOrders, Status)
-SELECT 1, 1, 1, 'Breakfast', CURRENT_DATE, '08:00 AM', '09:00 AM', 60, 24, 'Open'
-WHERE NOT EXISTS (SELECT 1 FROM Slots WHERE SlotId = 1);
-
-INSERT INTO Slots (SlotId, InstitutionId, OutletId, Session, Date, StartTime, EndTime, MaxCapacity, BookedOrders, Status)
-SELECT 2, 1, 1, 'Lunch', CURRENT_DATE, '12:30 PM', '01:30 PM', 100, 85, 'Fast Filling'
-WHERE NOT EXISTS (SELECT 1 FROM Slots WHERE SlotId = 2);
-
-INSERT INTO Slots (SlotId, InstitutionId, OutletId, Session, Date, StartTime, EndTime, MaxCapacity, BookedOrders, Status)
-SELECT 3, 1, 1, 'Lunch', CURRENT_DATE, '01:30 PM', '02:30 PM', 80, 32, 'Open'
-WHERE NOT EXISTS (SELECT 1 FROM Slots WHERE SlotId = 3);
-
-INSERT INTO Slots (SlotId, InstitutionId, OutletId, Session, Date, StartTime, EndTime, MaxCapacity, BookedOrders, Status)
-SELECT 4, 1, 1, 'Evening Snacks', CURRENT_DATE, '04:30 PM', '05:30 PM', 50, 15, 'Open'
-WHERE NOT EXISTS (SELECT 1 FROM Slots WHERE SlotId = 4);
 
 -- 6. Baseline Inventory Items
 INSERT INTO InventoryItems (ItemId, InstitutionId, OutletId, IngredientName, Category, AvailableQuantity, Unit, ReorderLevel, CostPerUnit, Status)
