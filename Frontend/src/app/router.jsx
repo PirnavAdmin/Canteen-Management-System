@@ -12,7 +12,6 @@ const RegisterPage = lazy(() => import('../modules/auth/pages/RegisterPage'));
 const DashboardPage = lazy(() => import('../modules/admin/dashboard/pages/DashboardPage'));
 const MenuListPage = lazy(() => import('../modules/admin/menu/pages/MenuListPage'));
 const OrderListPage = lazy(() => import('../modules/admin/orders/pages/OrderListPage'));
-const SlotListPage = lazy(() => import('../modules/admin/slots/pages/SlotListPage'));
 const InventoryPage = lazy(() => import('../modules/admin/inventory/pages/InventoryPage'));
 const ReportsPage = lazy(() => import('../modules/admin/reports/pages/ReportsPage'));
 const FeedbackPage = lazy(() => import('../modules/admin/feedback/pages/FeedbackPage'));
@@ -82,10 +81,6 @@ export const router = createBrowserRouter([
           {
             path: 'orders',
             element: <LazyRoute><OrderListPage /></LazyRoute>
-          },
-          {
-            path: 'slots',
-            element: <LazyRoute><SlotListPage /></LazyRoute>
           },
           {
             path: 'inventory',

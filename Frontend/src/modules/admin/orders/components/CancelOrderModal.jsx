@@ -83,7 +83,7 @@ export const CancelOrderModal = ({ isOpen, onClose, order, loading = false, onCo
             <option value="Ingredient stock depleted in kitchen">Ingredient stock depleted in kitchen</option>
             <option value="Kitchen equipment technical breakdown">Kitchen equipment technical breakdown</option>
             <option value="Customer requested cancellation before prep">Customer requested cancellation before prep</option>
-            <option value="Severe preparation delay past pickup slot">Severe preparation delay past pickup slot</option>
+            <option value="Severe preparation delay">Severe preparation delay</option>
             <option value="Duplicate order mistakenly placed">Duplicate order mistakenly placed</option>
           </select>
 

@@ -2,7 +2,6 @@ using CanteenManagement.API.DTOs.Orders;
 using CanteenManagement.API.Models.Orders;
 using CanteenManagement.API.Repositories.Interfaces.Menu;
 using CanteenManagement.API.Repositories.Interfaces.Orders;
-using CanteenManagement.API.Repositories.Interfaces.Slots;
 using CanteenManagement.API.Services.Interfaces.Common;
 using CanteenManagement.API.Services.Interfaces.Orders;
 
@@ -12,8 +11,7 @@ namespace CanteenManagement.API.Services.Implementations.Orders
     {
         private readonly IOrderRepository _repository;
         private readonly IMenuRepository _menuRepository;
-        private readonly ISlotRepository _slotRepository;
-        private readonly IAuditLoggingService _auditService;
+                private readonly IAuditLoggingService _auditService;
 
         private static readonly Dictionary<string, string[]> PermittedNextStates = new()
         {
@@ -29,12 +27,10 @@ namespace CanteenManagement.API.Services.Implementations.Orders
         public OrderService(
             IOrderRepository repository,
             IMenuRepository menuRepository,
-            ISlotRepository slotRepository,
             IAuditLoggingService auditService)
         {
             _repository = repository;
             _menuRepository = menuRepository;
-            _slotRepository = slotRepository;
             _auditService = auditService;
         }
 
@@ -105,23 +101,13 @@ namespace CanteenManagement.API.Services.Implementations.Orders
             decimal taxAmount = Math.Round(subtotal * 0.05m, 2); // 5% GST
             decimal totalAmount = subtotal + taxAmount;
 
-            // Increment slot count if specified
-            if (dto.SlotId.HasValue)
-            {
-                var slot = await _slotRepository.GetByIdAsync(dto.SlotId.Value, institutionId);
-                if (slot != null)
-                {
-                    slot.BookedOrders++;
-                    await _slotRepository.UpdateAsync(slot);
-                }
-            }
+            
 
             var order = new Order
             {
                 OrderId = orderId,
                 InstitutionId = institutionId,
                 OutletId = dto.OutletId,
-                SlotId = dto.SlotId,
                 Token = token,
                 CustomerName = dto.CustomerName.Trim(),
                 CustomerRole = dto.CustomerRole,
@@ -350,13 +336,6 @@ namespace CanteenManagement.API.Services.Implementations.Orders
                 Subtotal = o.Subtotal,
                 TaxAmount = o.TaxAmount,
                 TotalAmount = o.TotalAmount,
-                Slot = o.Slot != null ? new SlotSummaryDto
-                {
-                    Id = o.Slot.SlotId,
-                    Session = o.Slot.Session,
-                    TimeWindow = $"{o.Slot.StartTime} - {o.Slot.EndTime}",
-                    Date = o.Slot.Date.ToString("yyyy-MM-dd")
-                } : null,
                 OrderDate = o.OrderDate,
                 Status = o.Status,
                 CancellationReason = o.CancellationReason,

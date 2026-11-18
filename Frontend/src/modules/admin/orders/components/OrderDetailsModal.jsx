@@ -70,7 +70,7 @@ export const OrderDetailsModal = ({
               </h2>
             </div>
             <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>
-              Outlet: {order.outletName} • Pickup Slot: {order.slot?.timeWindow} ({order.slot?.session})
+              Outlet: {order.outletName}
             </p>
           </div>
 

@@ -2,7 +2,6 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using CanteenManagement.API.Models.Auth;
 using CanteenManagement.API.Models.Outlets;
-using CanteenManagement.API.Models.Slots;
 
 namespace CanteenManagement.API.Models.Orders
 {
@@ -20,8 +19,6 @@ namespace CanteenManagement.API.Models.Orders
         public int OutletId { get; set; }
 
         public int? UserId { get; set; }
-
-        public int? SlotId { get; set; }
 
         [Required]
         [MaxLength(20)]
@@ -72,9 +69,6 @@ namespace CanteenManagement.API.Models.Orders
 
         [ForeignKey("UserId")]
         public virtual User? User { get; set; }
-
-        [ForeignKey("SlotId")]
-        public virtual Slot? Slot { get; set; }
 
         public virtual ICollection<OrderItem> Items { get; set; } = new List<OrderItem>();
         public virtual ICollection<OrderTimeline> Timeline { get; set; } = new List<OrderTimeline>();

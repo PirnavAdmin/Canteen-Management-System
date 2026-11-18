@@ -35,14 +35,6 @@ export const API_ENDPOINTS = {
     TOGGLE_PUBLISH: (id) => `/canteen-menu/${id}/publish`
   },
 
-  // Time Slots
-  SLOTS: {
-    BASE: '/canteen-slots',
-    BY_ID: (id) => `/canteen-slots/${id}`,
-    UPDATE_CAPACITY: (id) => `/canteen-slots/${id}/capacity`,
-    TOGGLE_STATUS: (id) => `/canteen-slots/${id}/status`
-  },
-
   // Orders
   ORDERS: {
     BASE: '/canteen-orders',

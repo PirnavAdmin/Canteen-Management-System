@@ -112,7 +112,7 @@ export const LiveOrderQueue = ({ orders = [] }) => {
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <Clock size={11} />
-                    <span>{ord.slot || ord.elapsedTime || 'Live'}</span>
+                    <span>{ord.elapsedTime || ord.orderTime || 'Live'}</span>
                   </div>
                 </div>
 

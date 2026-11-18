@@ -2,7 +2,6 @@ using System.Data;
 using CanteenManagement.API.Data;
 using CanteenManagement.API.Models.Orders;
 using CanteenManagement.API.Models.Outlets;
-using CanteenManagement.API.Models.Slots;
 using CanteenManagement.API.Repositories.Interfaces.Orders;
 using Dapper;
 using Microsoft.EntityFrameworkCore;
@@ -25,14 +24,8 @@ namespace CanteenManagement.API.Repositories.Implementations.Orders
             try
             {
                 using var connection = _connectionFactory.CreateConnection();
-                var orders = await connection.QueryAsync<Order, CanteenOutlet, Slot, Order>(
+                using var multi = await connection.QueryMultipleAsync(
                     "sp_GetAllOrders",
-                    (order, outlet, slot) =>
-                    {
-                        order.Outlet = outlet;
-                        order.Slot = slot;
-                        return order;
-                    },
                     new
                     {
                         p_InstitutionId = institutionId,
@@ -40,8 +33,26 @@ namespace CanteenManagement.API.Repositories.Implementations.Orders
                         p_Status = status,
                         p_SearchTerm = searchTerm
                     },
-                    splitOn: "OutletId,SlotId",
                     commandType: CommandType.StoredProcedure);
+
+                var orders = multi.Read<Order, CanteenOutlet, Order>(
+                    (order, outlet) =>
+                    {
+                        order.Outlet = outlet;
+                        return order;
+                    },
+                    splitOn: "OutletId").ToList();
+
+                var items = (await multi.ReadAsync<OrderItem>()).ToList();
+                var itemsByOrder = items.GroupBy(i => i.OrderId).ToDictionary(g => g.Key, g => g.ToList());
+
+                foreach (var o in orders)
+                {
+                    if (itemsByOrder.TryGetValue(o.OrderId, out var orderItems))
+                    {
+                        o.Items = orderItems;
+                    }
+                }
 
                 return orders;
             }
@@ -49,7 +60,6 @@ namespace CanteenManagement.API.Repositories.Implementations.Orders
             {
                 var query = _dbContext.Orders
                     .Include(o => o.Outlet)
-                    .Include(o => o.Slot)
                     .Include(o => o.Items)
                     .Include(o => o.Timeline)
                     .Include(o => o.Payments)
@@ -96,10 +106,7 @@ namespace CanteenManagement.API.Repositories.Implementations.Orders
 
                     var outlet = await _dbContext.CanteenOutlets.FindAsync(order.OutletId);
                     order.Outlet = outlet;
-                    if (order.SlotId.HasValue)
-                    {
-                        order.Slot = await _dbContext.Slots.FindAsync(order.SlotId.Value);
-                    }
+                    
                 }
 
                 return order;
@@ -108,8 +115,7 @@ namespace CanteenManagement.API.Repositories.Implementations.Orders
             {
                 return await _dbContext.Orders
                     .Include(o => o.Outlet)
-                    .Include(o => o.Slot)
-                    .Include(o => o.Items)
+                                        .Include(o => o.Items)
                     .Include(o => o.Timeline)
                     .Include(o => o.Payments)
                     .FirstOrDefaultAsync(o => o.OrderId == id && o.InstitutionId == institutionId);

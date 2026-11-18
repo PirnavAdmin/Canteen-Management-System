@@ -26,7 +26,7 @@ export const OrderRulesTab = ({ initialData = {}, onSave }) => {
     }}>
       <div>
         <h3 style={{ fontSize: '16px', fontWeight: 700, margin: '0 0 4px 0', color: 'var(--text-primary)' }}>
-          Order Lifecycle & Slot Timing Governance
+          Order Lifecycle & Timing Governance
         </h3>
         <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
           Enforce automated cancellation timers, pickup holding thresholds, and student booking quota guardrails.
@@ -68,7 +68,7 @@ export const OrderRulesTab = ({ initialData = {}, onSave }) => {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
         <div>
           <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
-            Student Cancellation Cut-off (Minutes before slot) *
+            Student Cancellation Cut-off (Minutes before prep) *
           </label>
           <input
             type="number"
@@ -83,7 +83,7 @@ export const OrderRulesTab = ({ initialData = {}, onSave }) => {
 
         <div>
           <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
-            Advance Slot Booking Cut-off (Minutes prior) *
+            Advance Order Cut-off (Minutes prior) *
           </label>
           <input
             type="number"
@@ -93,7 +93,7 @@ export const OrderRulesTab = ({ initialData = {}, onSave }) => {
             onChange={(e) => setFormData({ ...formData, orderCutoffMinutes: Number(e.target.value) })}
             style={{ width: '100%', height: '36px', padding: '0 10px', fontSize: '13px', border: '1px solid var(--border-color)', borderRadius: 'var(--border-radius-md)' }}
           />
-          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Orders for any slot close this many minutes before slot start</span>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Orders close this many minutes before kitchen preparation window</span>
         </div>
       </div>
 

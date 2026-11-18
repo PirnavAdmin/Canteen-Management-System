@@ -13,7 +13,6 @@ namespace CanteenManagement.API.DTOs.Orders
         public decimal Subtotal { get; set; }
         public decimal TaxAmount { get; set; }
         public decimal TotalAmount { get; set; }
-        public SlotSummaryDto? Slot { get; set; }
         public DateTime OrderDate { get; set; }
         public string Status { get; set; } = "Placed";
         public string? CancellationReason { get; set; }
@@ -43,14 +42,6 @@ namespace CanteenManagement.API.DTOs.Orders
         public decimal Total { get; set; }
     }
 
-    public class SlotSummaryDto
-    {
-        public int Id { get; set; }
-        public string Session { get; set; } = string.Empty;
-        public string TimeWindow { get; set; } = string.Empty;
-        public string Date { get; set; } = string.Empty;
-    }
-
     public class PaymentSummaryDto
     {
         public string Method { get; set; } = "UPI";
@@ -70,8 +61,6 @@ namespace CanteenManagement.API.DTOs.Orders
     {
         [Required]
         public int OutletId { get; set; }
-
-        public int? SlotId { get; set; }
 
         [Required]
         public string CustomerName { get; set; } = string.Empty;
@@ -116,4 +105,3 @@ namespace CanteenManagement.API.DTOs.Orders
         public string Reason { get; set; } = string.Empty;
     }
 }
-

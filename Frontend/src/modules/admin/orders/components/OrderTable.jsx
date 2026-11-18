@@ -112,7 +112,7 @@ export const OrderTable = ({
       key: 'items',
       header: 'Items',
       render: (items) => {
-        const itemStr = items.map(i => `${i.name} (x${i.quantity})`).join(', ');
+        const itemStr = (Array.isArray(items) ? items : []).map(i => `${i.name} (x${i.quantity})`).join(', ');
         return (
           <div
             title={itemStr}
@@ -129,16 +129,6 @@ export const OrderTable = ({
           </div>
         );
       }
-    },
-    {
-      key: 'slot',
-      header: 'Pickup Slot',
-      render: (val) => (
-        <div style={{ fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-          <div style={{ fontWeight: 500 }}>{val.timeWindow}</div>
-          <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{val.session}</div>
-        </div>
-      )
     },
     {
       key: 'totalAmount',

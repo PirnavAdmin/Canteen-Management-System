@@ -47,7 +47,6 @@ namespace CanteenManagement.API.DTOs.Dashboard
         public int ItemCount { get; set; }
         public decimal Total { get; set; }
         public decimal TotalAmount { get; set; }
-        public string Slot { get; set; } = "General";
         public string Status { get; set; } = "Preparing";
         public string ElapsedTime { get; set; } = "5m";
         public string OrderTime { get; set; } = string.Empty;

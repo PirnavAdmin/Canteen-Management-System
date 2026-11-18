@@ -12,7 +12,6 @@ using CanteenManagement.API.Repositories.Implementations.Orders;
 using CanteenManagement.API.Repositories.Implementations.Outlets;
 using CanteenManagement.API.Repositories.Implementations.Reports;
 using CanteenManagement.API.Repositories.Implementations.Settings;
-using CanteenManagement.API.Repositories.Implementations.Slots;
 using CanteenManagement.API.Repositories.Interfaces.Auth;
 using CanteenManagement.API.Repositories.Interfaces.Categories;
 using CanteenManagement.API.Repositories.Interfaces.Dashboard;
@@ -23,7 +22,6 @@ using CanteenManagement.API.Repositories.Interfaces.Orders;
 using CanteenManagement.API.Repositories.Interfaces.Outlets;
 using CanteenManagement.API.Repositories.Interfaces.Reports;
 using CanteenManagement.API.Repositories.Interfaces.Settings;
-using CanteenManagement.API.Repositories.Interfaces.Slots;
 using CanteenManagement.API.Services.Implementations.Auth;
 using CanteenManagement.API.Services.Implementations.Categories;
 using CanteenManagement.API.Services.Implementations.Common;
@@ -35,7 +33,6 @@ using CanteenManagement.API.Services.Implementations.Orders;
 using CanteenManagement.API.Services.Implementations.Outlets;
 using CanteenManagement.API.Services.Implementations.Reports;
 using CanteenManagement.API.Services.Implementations.Settings;
-using CanteenManagement.API.Services.Implementations.Slots;
 using CanteenManagement.API.Services.Interfaces.Auth;
 using CanteenManagement.API.Services.Interfaces.Categories;
 using CanteenManagement.API.Services.Interfaces.Common;
@@ -47,7 +44,6 @@ using CanteenManagement.API.Services.Interfaces.Orders;
 using CanteenManagement.API.Services.Interfaces.Outlets;
 using CanteenManagement.API.Services.Interfaces.Reports;
 using CanteenManagement.API.Services.Interfaces.Settings;
-using CanteenManagement.API.Services.Interfaces.Slots;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -129,9 +125,6 @@ builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IMenuRepository, MenuRepository>();
 builder.Services.AddScoped<IMenuService, MenuService>();
 
-// Slots
-builder.Services.AddScoped<ISlotRepository, SlotRepository>();
-builder.Services.AddScoped<ISlotService, SlotService>();
 
 // Orders
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();

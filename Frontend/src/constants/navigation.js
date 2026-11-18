@@ -38,14 +38,6 @@ export const ADMIN_NAV_CONFIG = [
         description: 'Live order tracking, status progression, cancellations & refunds'
       },
       {
-        id: 'slots',
-        label: 'Slot Management',
-        path: '/admin/slots',
-        icon: 'Clock',
-        permission: PERMISSIONS.SLOTS_VIEW,
-        description: 'Meal sessions, slot quotas, capacity throttling & cut-off rules'
-      },
-      {
         id: 'inventory',
         label: 'Inventory Management',
         path: '/admin/inventory',
