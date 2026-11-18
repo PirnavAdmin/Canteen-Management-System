@@ -7,7 +7,7 @@
 DROP PROCEDURE IF EXISTS sp_GetReportItemWise;
 DELIMITER $$
 CREATE PROCEDURE sp_GetReportItemWise(
-    IN p_InstitutionId INT,
+    IN p_CampusId INT,
     IN p_OutletId INT
 )
 BEGIN
@@ -22,7 +22,7 @@ BEGIN
     INNER JOIN Orders o ON oi.OrderId = o.OrderId
     INNER JOIN MenuItems mi ON oi.MenuItemId = mi.MenuItemId
     INNER JOIN Categories cat ON mi.CategoryId = cat.CategoryId
-    WHERE o.InstitutionId = p_InstitutionId 
+    WHERE o.CampusId = p_CampusId 
       AND o.Status != 'Cancelled'
       AND (p_OutletId IS NULL OR p_OutletId <= 0 OR o.OutletId = p_OutletId)
     GROUP BY mi.Code, mi.Name, cat.Name, mi.Price
@@ -34,7 +34,7 @@ DELIMITER ;
 DROP PROCEDURE IF EXISTS sp_GetReportSalesSummary;
 DELIMITER $$
 CREATE PROCEDURE sp_GetReportSalesSummary(
-    IN p_InstitutionId INT,
+    IN p_CampusId INT,
     IN p_OutletId INT
 )
 BEGIN
@@ -47,7 +47,7 @@ BEGIN
         COALESCE(SUM(o.TotalAmount), 0) AS netSales
     FROM Orders o
     INNER JOIN CanteenOutlets co ON o.OutletId = co.OutletId
-    WHERE o.InstitutionId = p_InstitutionId 
+    WHERE o.CampusId = p_CampusId 
       AND o.Status != 'Cancelled'
       AND (p_OutletId IS NULL OR p_OutletId <= 0 OR o.OutletId = p_OutletId)
     GROUP BY DATE_FORMAT(o.OrderDate, '%Y-%m-%d'), co.Name

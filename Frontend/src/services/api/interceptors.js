@@ -12,7 +12,8 @@ export const requestInterceptor = (config = {}) => {
     headers.set('Content-Type', 'application/json');
   }
   headers.set('Accept', 'application/json');
-  headers.set('X-Institution-Id', ENV.institutionId);
+  headers.set('X-Campus-Id', ENV.campusId || ENV.institutionId || '1');
+    headers.set('X-Institution-Id', ENV.campusId || ENV.institutionId || '1');
 
   // Attach session token if available
   try {

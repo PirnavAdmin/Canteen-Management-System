@@ -13,7 +13,7 @@ namespace CanteenManagement.API.Models.Orders
         public string OrderId { get; set; } = string.Empty; // e.g. ORD-2026-8910
 
         [Required]
-        public int InstitutionId { get; set; } = 1;
+        public int CampusId { get; set; } = 1;
 
         [Required]
         public int OutletId { get; set; }

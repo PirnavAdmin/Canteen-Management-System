@@ -307,7 +307,7 @@ export const CanteenDetailsPage = () => {
         fontSize: '12px',
         color: 'var(--text-muted)'
       }}>
-        <span>Institution Master: <strong>{canteen.institutionId || 'INST-APEX-01'}</strong></span>
+        <span>Institution Master: <strong>{canteen.campusId || canteen.institutionId || 'INST-APEX-01'}</strong></span>
         <span>Record Created: <strong>{formatDate(canteen.createdAt)}</strong></span>
         <span>Last Modified: <strong>{formatDate(canteen.updatedAt)}</strong></span>
       </div>

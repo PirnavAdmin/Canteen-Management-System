@@ -17,19 +17,19 @@ namespace CanteenManagement.API.Services.Implementations.Feedback
             _auditService = auditService;
         }
 
-        public async Task<IEnumerable<FeedbackDto>> GetAllAsync(int institutionId, int? outletId = null, string? status = null, int? rating = null)
+        public async Task<IEnumerable<FeedbackDto>> GetAllAsync(int campusId, int? outletId = null, string? status = null, int? rating = null)
         {
-            var tickets = await _repository.GetAllAsync(institutionId, outletId, status, rating);
+            var tickets = await _repository.GetAllAsync(campusId, outletId, status, rating);
             return tickets.Select(MapToDto).ToList();
         }
 
-        public async Task<FeedbackDto?> GetByIdAsync(string id, int institutionId)
+        public async Task<FeedbackDto?> GetByIdAsync(string id, int campusId)
         {
-            var ticket = await _repository.GetByIdAsync(id, institutionId);
+            var ticket = await _repository.GetByIdAsync(id, campusId);
             return ticket == null ? null : MapToDto(ticket);
         }
 
-        public async Task<FeedbackDto> CreateAsync(CreateFeedbackDto dto, int institutionId, string performedBy)
+        public async Task<FeedbackDto> CreateAsync(CreateFeedbackDto dto, int campusId, string performedBy)
         {
             var ticketId = $"FB-{DateTime.UtcNow.Year}-{Random.Shared.Next(100, 999)}";
             var now = DateTime.UtcNow;
@@ -37,7 +37,7 @@ namespace CanteenManagement.API.Services.Implementations.Feedback
             var ticket = new FeedbackTicket
             {
                 TicketId = ticketId,
-                InstitutionId = institutionId,
+                CampusId = campusId,
                 OutletId = dto.OutletId,
                 CustomerName = dto.CustomerName.Trim(),
                 CustomerRole = dto.CustomerRole,
@@ -64,7 +64,7 @@ namespace CanteenManagement.API.Services.Implementations.Feedback
             var created = await _repository.CreateAsync(ticket);
 
             await _auditService.LogActionAsync(
-                institutionId,
+                campusId,
                 null,
                 performedBy,
                 "CREATE_FEEDBACK",
@@ -76,9 +76,9 @@ namespace CanteenManagement.API.Services.Implementations.Feedback
             return MapToDto(created);
         }
 
-        public async Task<FeedbackDto> ResolveTicketAsync(string id, ResolveFeedbackDto dto, int institutionId, string performedBy)
+        public async Task<FeedbackDto> ResolveTicketAsync(string id, ResolveFeedbackDto dto, int campusId, string performedBy)
         {
-            var ticket = await _repository.GetByIdAsync(id, institutionId);
+            var ticket = await _repository.GetByIdAsync(id, campusId);
             if (ticket == null)
             {
                 throw new KeyNotFoundException($"Feedback ticket with ID {id} was not found.");
@@ -101,7 +101,7 @@ namespace CanteenManagement.API.Services.Implementations.Feedback
             var updated = await _repository.UpdateAsync(ticket);
 
             await _auditService.LogActionAsync(
-                institutionId,
+                campusId,
                 null,
                 performedBy,
                 "RESOLVE_FEEDBACK",

@@ -14,11 +14,11 @@ namespace CanteenManagement.API.Repositories.Implementations.Auth
             _context = context;
         }
 
-        public async Task<User?> GetByUsernameOrEmailAsync(string usernameOrEmail, int institutionId)
+        public async Task<User?> GetByUsernameOrEmailAsync(string usernameOrEmail, int campusId)
         {
             var lowerQuery = usernameOrEmail.Trim().ToLower();
             return await _context.Users
-                .FirstOrDefaultAsync(u => u.InstitutionId == institutionId &&
+                .FirstOrDefaultAsync(u => u.CampusId == campusId &&
                                          (u.Username.ToLower() == lowerQuery || u.Email.ToLower() == lowerQuery));
         }
 
@@ -27,18 +27,18 @@ namespace CanteenManagement.API.Repositories.Implementations.Auth
             return await _context.Users.FindAsync(userId);
         }
 
-        public async Task<bool> ExistsByUsernameAsync(string username, int institutionId)
+        public async Task<bool> ExistsByUsernameAsync(string username, int campusId)
         {
             var lower = username.Trim().ToLower();
             return await _context.Users
-                .AnyAsync(u => u.InstitutionId == institutionId && u.Username.ToLower() == lower);
+                .AnyAsync(u => u.CampusId == campusId && u.Username.ToLower() == lower);
         }
 
-        public async Task<bool> ExistsByEmailAsync(string email, int institutionId)
+        public async Task<bool> ExistsByEmailAsync(string email, int campusId)
         {
             var lower = email.Trim().ToLower();
             return await _context.Users
-                .AnyAsync(u => u.InstitutionId == institutionId && u.Email.ToLower() == lower);
+                .AnyAsync(u => u.CampusId == campusId && u.Email.ToLower() == lower);
         }
 
         public async Task<User> CreateAsync(User user)

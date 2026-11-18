@@ -10,7 +10,7 @@ namespace CanteenManagement.API.Models.Common
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public long AuditLogId { get; set; }
 
-        public int InstitutionId { get; set; } = 1;
+        public int CampusId { get; set; } = 1;
 
         public int? UserId { get; set; }
 

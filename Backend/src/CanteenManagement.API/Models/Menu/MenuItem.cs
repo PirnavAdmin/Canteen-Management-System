@@ -13,7 +13,7 @@ namespace CanteenManagement.API.Models.Menu
         public int MenuItemId { get; set; }
 
         [Required]
-        public int InstitutionId { get; set; } = 1;
+        public int CampusId { get; set; } = 1;
 
         [Required]
         public int OutletId { get; set; }

@@ -48,7 +48,7 @@ const createLocalSessionProfile = (usernameOrEmail) => {
       email: 'staff@cms.edu',
       role: 'Staff',
       roleCode: ROLES.CANTEEN_STAFF,
-      institutionId: 1
+      campusId: 1, institutionId: 1
     };
   }
 
@@ -61,7 +61,7 @@ const createLocalSessionProfile = (usernameOrEmail) => {
       email: 'aarav@cms.edu',
       role: 'Student',
       roleCode: ROLES.STUDENT,
-      institutionId: 1
+      campusId: 1, institutionId: 1
     };
   }
 
@@ -73,7 +73,7 @@ const createLocalSessionProfile = (usernameOrEmail) => {
     email: identifier.includes('@') ? (usernameOrEmail || '').trim() : 'admin@cms.edu',
     role: 'Admin',
     roleCode: ROLES.INSTITUTION_ADMIN,
-    institutionId: 1
+    campusId: 1, institutionId: 1
   };
 };
 
@@ -145,7 +145,8 @@ export const AuthProvider = ({ children }) => {
   const persistSession = useCallback((jwtToken, userProfile) => {
     localStorage.setItem('token', jwtToken);
     localStorage.setItem('auth_user', JSON.stringify(userProfile));
-    localStorage.setItem('institution_id', String(userProfile.institutionId || 1));
+    localStorage.setItem('campus_id', String(userProfile.campusId || userProfile.institutionId || 1));
+        localStorage.setItem('institution_id', String(userProfile.campusId || userProfile.institutionId || 1));
     setToken(jwtToken);
     setUser(userProfile);
     return { token: jwtToken, user: userProfile };
@@ -204,7 +205,7 @@ export const AuthProvider = ({ children }) => {
           phoneNumber: registrationData.phoneNumber || null,
           role,
           roleCode,
-          institutionId: registrationData.institutionId || 1
+          campusId: registrationData.campusId || registrationData.institutionId || 1, institutionId: registrationData.campusId || registrationData.institutionId || 1
         };
 
         const existing = getLocalUsers();
@@ -219,6 +220,7 @@ export const AuthProvider = ({ children }) => {
   const logout = useCallback(() => {
     localStorage.removeItem('token');
     localStorage.removeItem('auth_user');
+    localStorage.removeItem('campus_id');
     localStorage.removeItem('institution_id');
     setToken(null);
     setUser(null);

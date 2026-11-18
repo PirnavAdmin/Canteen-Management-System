@@ -24,8 +24,8 @@ namespace CanteenManagement.API.Controllers.V1
         [HttpGet("items")]
         public async Task<IActionResult> GetItems([FromQuery] int? outletId)
         {
-            var institutionId = User.ResolveInstitutionId();
-            var items = await _inventoryService.GetItemsAsync(institutionId, outletId);
+            var campusId = User.ResolveCampusId();
+            var items = await _inventoryService.GetItemsAsync(campusId, outletId);
             return Ok(ApiResponse<IEnumerable<InventoryItemDto>>.SuccessResponse(items));
         }
 
@@ -40,9 +40,9 @@ namespace CanteenManagement.API.Controllers.V1
 
             try
             {
-                var institutionId = User.ResolveInstitutionId();
+                var campusId = User.ResolveCampusId();
                 var userName = User.ResolveUserName();
-                var result = await _inventoryService.RecordMovementAsync(dto, institutionId, userName);
+                var result = await _inventoryService.RecordMovementAsync(dto, campusId, userName);
                 return Ok(ApiResponse<StockMovementLedgerDto>.SuccessResponse(result, "Stock movement recorded successfully."));
             }
             catch (KeyNotFoundException ex)
@@ -58,16 +58,16 @@ namespace CanteenManagement.API.Controllers.V1
         [HttpGet("ledger")]
         public async Task<IActionResult> GetLedger([FromQuery] int? outletId)
         {
-            var institutionId = User.ResolveInstitutionId();
-            var ledger = await _inventoryService.GetLedgerAsync(institutionId, outletId);
+            var campusId = User.ResolveCampusId();
+            var ledger = await _inventoryService.GetLedgerAsync(campusId, outletId);
             return Ok(ApiResponse<IEnumerable<StockMovementLedgerDto>>.SuccessResponse(ledger));
         }
 
         [HttpGet("purchase-orders")]
         public async Task<IActionResult> GetPurchaseOrders([FromQuery] int? outletId)
         {
-            var institutionId = User.ResolveInstitutionId();
-            var pos = await _inventoryService.GetPurchaseOrdersAsync(institutionId, outletId);
+            var campusId = User.ResolveCampusId();
+            var pos = await _inventoryService.GetPurchaseOrdersAsync(campusId, outletId);
             return Ok(ApiResponse<IEnumerable<PurchaseOrderDto>>.SuccessResponse(pos));
         }
 
@@ -81,9 +81,9 @@ namespace CanteenManagement.API.Controllers.V1
                 return BadRequest(ApiResponse<string>.ErrorResponse("Validation failed.", errors));
             }
 
-            var institutionId = User.ResolveInstitutionId();
+            var campusId = User.ResolveCampusId();
             var userName = User.ResolveUserName();
-            var created = await _inventoryService.CreatePurchaseOrderAsync(dto, institutionId, userName);
+            var created = await _inventoryService.CreatePurchaseOrderAsync(dto, campusId, userName);
             return Ok(ApiResponse<PurchaseOrderDto>.SuccessResponse(created, $"Purchase order {created.PoNumber} created."));
         }
 
@@ -93,9 +93,9 @@ namespace CanteenManagement.API.Controllers.V1
         {
             try
             {
-                var institutionId = User.ResolveInstitutionId();
+                var campusId = User.ResolveCampusId();
                 var userName = User.ResolveUserName();
-                var updated = await _inventoryService.UpdatePurchaseOrderStatusAsync(id, request.Status, institutionId, userName);
+                var updated = await _inventoryService.UpdatePurchaseOrderStatusAsync(id, request.Status, campusId, userName);
                 return Ok(ApiResponse<PurchaseOrderDto>.SuccessResponse(updated, $"PO status updated to {updated.Status}."));
             }
             catch (KeyNotFoundException ex)
@@ -107,8 +107,8 @@ namespace CanteenManagement.API.Controllers.V1
         [HttpGet("suppliers")]
         public async Task<IActionResult> GetSuppliers()
         {
-            var institutionId = User.ResolveInstitutionId();
-            var suppliers = await _inventoryService.GetSuppliersAsync(institutionId);
+            var campusId = User.ResolveCampusId();
+            var suppliers = await _inventoryService.GetSuppliersAsync(campusId);
             return Ok(ApiResponse<IEnumerable<SupplierDto>>.SuccessResponse(suppliers));
         }
 
@@ -122,9 +122,9 @@ namespace CanteenManagement.API.Controllers.V1
                 return BadRequest(ApiResponse<string>.ErrorResponse("Validation failed.", errors));
             }
 
-            var institutionId = User.ResolveInstitutionId();
+            var campusId = User.ResolveCampusId();
             var userName = User.ResolveUserName();
-            var created = await _inventoryService.CreateSupplierAsync(dto, institutionId, userName);
+            var created = await _inventoryService.CreateSupplierAsync(dto, campusId, userName);
             return Ok(ApiResponse<SupplierDto>.SuccessResponse(created, $"Supplier '{created.Name}' created."));
         }
 
@@ -138,9 +138,9 @@ namespace CanteenManagement.API.Controllers.V1
                 return BadRequest(ApiResponse<string>.ErrorResponse("Validation failed.", errors));
             }
 
-            var institutionId = User.ResolveInstitutionId();
+            var campusId = User.ResolveCampusId();
             var userName = User.ResolveUserName();
-            var updated = await _inventoryService.UpdateSupplierAsync(id, dto, institutionId, userName);
+            var updated = await _inventoryService.UpdateSupplierAsync(id, dto, campusId, userName);
             if (updated == null)
             {
                 return NotFound(ApiResponse<string>.ErrorResponse($"Supplier with ID {id} was not found."));
@@ -153,9 +153,9 @@ namespace CanteenManagement.API.Controllers.V1
         [Authorize(Policy = "RequireAdmin")]
         public async Task<IActionResult> DeleteSupplier(int id)
         {
-            var institutionId = User.ResolveInstitutionId();
+            var campusId = User.ResolveCampusId();
             var userName = User.ResolveUserName();
-            var result = await _inventoryService.DeleteSupplierAsync(id, institutionId, userName);
+            var result = await _inventoryService.DeleteSupplierAsync(id, campusId, userName);
             if (!result.Success && result.ActionTaken == "NOT_FOUND")
             {
                 return NotFound(ApiResponse<string>.ErrorResponse(result.Message));
@@ -168,9 +168,9 @@ namespace CanteenManagement.API.Controllers.V1
         [Authorize(Policy = "RequireAdmin")]
         public async Task<IActionResult> UpdateSupplierStatus(int id, [FromBody] UpdateSupplierStatusDto dto)
         {
-            var institutionId = User.ResolveInstitutionId();
+            var campusId = User.ResolveCampusId();
             var userName = User.ResolveUserName();
-            var updated = await _inventoryService.UpdateSupplierStatusAsync(id, dto.Status, institutionId, userName);
+            var updated = await _inventoryService.UpdateSupplierStatusAsync(id, dto.Status, campusId, userName);
             if (updated == null)
             {
                 return NotFound(ApiResponse<string>.ErrorResponse($"Supplier with ID {id} was not found."));

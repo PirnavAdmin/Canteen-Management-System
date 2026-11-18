@@ -34,19 +34,19 @@ namespace CanteenManagement.API.Services.Implementations.Orders
             _auditService = auditService;
         }
 
-        public async Task<IEnumerable<OrderDto>> GetAllAsync(int institutionId, int? outletId = null, string? status = null, string? searchTerm = null)
+        public async Task<IEnumerable<OrderDto>> GetAllAsync(int campusId, int? outletId = null, string? status = null, string? searchTerm = null)
         {
-            var orders = await _repository.GetAllAsync(institutionId, outletId, status, searchTerm);
+            var orders = await _repository.GetAllAsync(campusId, outletId, status, searchTerm);
             return orders.Select(MapToDto).ToList();
         }
 
-        public async Task<OrderDto?> GetByIdAsync(string id, int institutionId)
+        public async Task<OrderDto?> GetByIdAsync(string id, int campusId)
         {
-            var order = await _repository.GetByIdAsync(id, institutionId);
+            var order = await _repository.GetByIdAsync(id, campusId);
             return order == null ? null : MapToDto(order);
         }
 
-        public async Task<OrderDto> CreateAsync(CreateOrderDto dto, int institutionId, string performedBy)
+        public async Task<OrderDto> CreateAsync(CreateOrderDto dto, int campusId, string performedBy)
         {
             var now = DateTime.UtcNow;
             var orderId = $"ORD-{now:yyyy}-{Random.Shared.Next(1000, 9999)}";
@@ -57,7 +57,7 @@ namespace CanteenManagement.API.Services.Implementations.Orders
 
             foreach (var itemDto in dto.Items)
             {
-                var menuItem = await _menuRepository.GetByIdAsync(itemDto.MenuItemId, institutionId);
+                var menuItem = await _menuRepository.GetByIdAsync(itemDto.MenuItemId, campusId);
                 if (menuItem == null)
                 {
                     throw new KeyNotFoundException($"Menu item {itemDto.MenuItemId} not found.");
@@ -106,7 +106,7 @@ namespace CanteenManagement.API.Services.Implementations.Orders
             var order = new Order
             {
                 OrderId = orderId,
-                InstitutionId = institutionId,
+                CampusId = campusId,
                 OutletId = dto.OutletId,
                 Token = token,
                 CustomerName = dto.CustomerName.Trim(),
@@ -148,7 +148,7 @@ namespace CanteenManagement.API.Services.Implementations.Orders
             var created = await _repository.CreateAsync(order);
 
             await _auditService.LogActionAsync(
-                institutionId,
+                campusId,
                 null,
                 performedBy,
                 "CREATE_ORDER",
@@ -157,13 +157,13 @@ namespace CanteenManagement.API.Services.Implementations.Orders
                 $"Order {created.OrderId} placed with token {created.Token}. Total: {created.TotalAmount}."
             );
 
-            var loaded = await _repository.GetByIdAsync(created.OrderId, institutionId);
+            var loaded = await _repository.GetByIdAsync(created.OrderId, campusId);
             return MapToDto(loaded ?? created);
         }
 
-        public async Task<OrderDto> UpdateStatusAsync(string id, UpdateOrderStatusDto dto, int institutionId, string performedBy)
+        public async Task<OrderDto> UpdateStatusAsync(string id, UpdateOrderStatusDto dto, int campusId, string performedBy)
         {
-            var order = await _repository.GetByIdAsync(id, institutionId);
+            var order = await _repository.GetByIdAsync(id, campusId);
             if (order == null)
             {
                 throw new KeyNotFoundException($"Order with ID {id} was not found.");
@@ -198,7 +198,7 @@ namespace CanteenManagement.API.Services.Implementations.Orders
             }
 
             await _auditService.LogActionAsync(
-                institutionId,
+                campusId,
                 null,
                 performedBy,
                 "UPDATE_ORDER_STATUS",
@@ -210,9 +210,9 @@ namespace CanteenManagement.API.Services.Implementations.Orders
             return MapToDto(updated);
         }
 
-        public async Task<OrderDto> CancelOrderAsync(string id, CancelOrderDto dto, int institutionId, string performedBy)
+        public async Task<OrderDto> CancelOrderAsync(string id, CancelOrderDto dto, int campusId, string performedBy)
         {
-            var order = await _repository.GetByIdAsync(id, institutionId);
+            var order = await _repository.GetByIdAsync(id, campusId);
             if (order == null)
             {
                 throw new KeyNotFoundException($"Order with ID {id} was not found.");
@@ -247,7 +247,7 @@ namespace CanteenManagement.API.Services.Implementations.Orders
             }
 
             await _auditService.LogActionAsync(
-                institutionId,
+                campusId,
                 null,
                 performedBy,
                 "CANCEL_ORDER",
@@ -259,9 +259,9 @@ namespace CanteenManagement.API.Services.Implementations.Orders
             return MapToDto(updated);
         }
 
-        public async Task<OrderDto> ProcessRefundAsync(string id, int institutionId, string performedBy)
+        public async Task<OrderDto> ProcessRefundAsync(string id, int campusId, string performedBy)
         {
-            var order = await _repository.GetByIdAsync(id, institutionId);
+            var order = await _repository.GetByIdAsync(id, campusId);
             if (order == null)
             {
                 throw new KeyNotFoundException($"Order with ID {id} was not found.");
@@ -292,7 +292,7 @@ namespace CanteenManagement.API.Services.Implementations.Orders
             var updated = await _repository.UpdateAsync(order);
 
             await _auditService.LogActionAsync(
-                institutionId,
+                campusId,
                 null,
                 performedBy,
                 "REFUND_ORDER",

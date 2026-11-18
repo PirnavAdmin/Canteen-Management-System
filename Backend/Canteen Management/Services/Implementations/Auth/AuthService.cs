@@ -26,14 +26,14 @@ namespace CanteenManagement.API.Services.Implementations.Auth
             _logger = logger;
         }
 
-        public async Task<ApiResponse<AuthResponseDto>> LoginAsync(LoginRequestDto dto, int institutionId, string? ipAddress = null)
+        public async Task<ApiResponse<AuthResponseDto>> LoginAsync(LoginRequestDto dto, int campusId, string? ipAddress = null)
         {
             if (string.IsNullOrWhiteSpace(dto.UsernameOrEmail) || string.IsNullOrWhiteSpace(dto.Password))
             {
                 return ApiResponse<AuthResponseDto>.Fail("Username/Email and Password are required.", statusCode: 400);
             }
 
-            var user = await _repository.GetByUsernameOrEmailAsync(dto.UsernameOrEmail, institutionId);
+            var user = await _repository.GetByUsernameOrEmailAsync(dto.UsernameOrEmail, campusId);
             if (user == null || !PasswordHasher.VerifyPassword(dto.Password, user.PasswordHash))
             {
                 return ApiResponse<AuthResponseDto>.Fail("Invalid credentials.", statusCode: 401);
@@ -54,7 +54,7 @@ namespace CanteenManagement.API.Services.Implementations.Auth
                 details: $"User '{user.Username}' logged in with role '{user.Role}'.",
                 userId: user.UserId,
                 userName: user.Username,
-                institutionId: user.InstitutionId,
+                campusId: user.CampusId,
                 ipAddress: ipAddress);
 
             var response = new AuthResponseDto
@@ -69,19 +69,19 @@ namespace CanteenManagement.API.Services.Implementations.Auth
 
         public async Task<ApiResponse<AuthResponseDto>> RegisterAsync(RegisterRequestDto dto, string? ipAddress = null)
         {
-            if (await _repository.ExistsByUsernameAsync(dto.Username, dto.InstitutionId))
+            if (await _repository.ExistsByUsernameAsync(dto.Username, dto.CampusId))
             {
                 return ApiResponse<AuthResponseDto>.Fail($"Username '{dto.Username}' is already taken.", statusCode: 400);
             }
 
-            if (await _repository.ExistsByEmailAsync(dto.Email, dto.InstitutionId))
+            if (await _repository.ExistsByEmailAsync(dto.Email, dto.CampusId))
             {
                 return ApiResponse<AuthResponseDto>.Fail($"Email '{dto.Email}' is already registered.", statusCode: 400);
             }
 
             var user = new User
             {
-                InstitutionId = dto.InstitutionId,
+                CampusId = dto.CampusId,
                 Username = dto.Username.Trim(),
                 Email = dto.Email.Trim().ToLower(),
                 PasswordHash = PasswordHasher.HashPassword(dto.Password),
@@ -103,7 +103,7 @@ namespace CanteenManagement.API.Services.Implementations.Auth
                 details: $"New user '{createdUser.Username}' registered with role '{createdUser.Role}'.",
                 userId: createdUser.UserId,
                 userName: createdUser.Username,
-                institutionId: createdUser.InstitutionId,
+                campusId: createdUser.CampusId,
                 ipAddress: ipAddress);
 
             var response = new AuthResponseDto
@@ -132,7 +132,7 @@ namespace CanteenManagement.API.Services.Implementations.Auth
             return new UserDto
             {
                 UserId = user.UserId,
-                InstitutionId = user.InstitutionId,
+                CampusId = user.CampusId,
                 Username = user.Username,
                 Email = user.Email,
                 FullName = user.FullName,

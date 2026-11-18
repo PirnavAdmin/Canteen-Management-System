@@ -7,7 +7,7 @@ export const CATEGORY_STATUS_OPTIONS = [
 export const INITIAL_CATEGORIES = [
   {
     id: 'cat-1',
-    institutionId: 'INST-APEX-01',
+    campusId: 1, institutionId: 1,
     name: 'Breakfast & Morning Specials',
     displayOrder: 1,
     status: 'Active',
@@ -19,7 +19,7 @@ export const INITIAL_CATEGORIES = [
   },
   {
     id: 'cat-2',
-    institutionId: 'INST-APEX-01',
+    campusId: 1, institutionId: 1,
     name: 'South Indian Tiffin & Dosas',
     displayOrder: 2,
     status: 'Active',
@@ -31,7 +31,7 @@ export const INITIAL_CATEGORIES = [
   },
   {
     id: 'cat-3',
-    institutionId: 'INST-APEX-01',
+    campusId: 1, institutionId: 1,
     name: 'Executive Lunch & Thali Meals',
     displayOrder: 3,
     status: 'Active',
@@ -43,7 +43,7 @@ export const INITIAL_CATEGORIES = [
   },
   {
     id: 'cat-4',
-    institutionId: 'INST-APEX-01',
+    campusId: 1, institutionId: 1,
     name: 'Quick Snacks & Chaat',
     displayOrder: 4,
     status: 'Active',
@@ -55,7 +55,7 @@ export const INITIAL_CATEGORIES = [
   },
   {
     id: 'cat-5',
-    institutionId: 'INST-APEX-01',
+    campusId: 1, institutionId: 1,
     name: 'Hot & Cold Beverages',
     displayOrder: 5,
     status: 'Active',
@@ -67,7 +67,7 @@ export const INITIAL_CATEGORIES = [
   },
   {
     id: 'cat-6',
-    institutionId: 'INST-APEX-01',
+    campusId: 1, institutionId: 1,
     name: 'Bakery, Desserts & Confectionery',
     displayOrder: 6,
     status: 'Active',
@@ -79,7 +79,7 @@ export const INITIAL_CATEGORIES = [
   },
   {
     id: 'cat-7',
-    institutionId: 'INST-APEX-01',
+    campusId: 1, institutionId: 1,
     name: 'Healthy Salad Bowls & Sprouts',
     displayOrder: 7,
     status: 'Inactive',

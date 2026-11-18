@@ -22,7 +22,7 @@ DELIMITER ;
 DROP PROCEDURE IF EXISTS sp_GetBatchCategoryDependencyCounts;
 DELIMITER $$
 CREATE PROCEDURE sp_GetBatchCategoryDependencyCounts(
-    IN p_InstitutionId INT
+    IN p_CampusId INT
 )
 BEGIN
     SELECT 
@@ -32,7 +32,7 @@ BEGIN
     FROM Categories c
     LEFT JOIN MenuItems mi ON mi.CategoryId = c.CategoryId
     LEFT JOIN OrderItems oi ON oi.MenuItemId = mi.MenuItemId
-    WHERE c.InstitutionId = p_InstitutionId
+    WHERE c.CampusId = p_CampusId
     GROUP BY c.CategoryId;
 END $$
 DELIMITER ;

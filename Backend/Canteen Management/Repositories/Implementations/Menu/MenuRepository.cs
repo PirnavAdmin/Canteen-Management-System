@@ -21,7 +21,7 @@ namespace CanteenManagement.API.Repositories.Implementations.Menu
             _connectionFactory = connectionFactory;
         }
 
-        public async Task<IEnumerable<MenuItem>> GetAllAsync(int institutionId, MenuItemFilterDto? filter = null)
+        public async Task<IEnumerable<MenuItem>> GetAllAsync(int campusId, MenuItemFilterDto? filter = null)
         {
             try
             {
@@ -36,7 +36,7 @@ namespace CanteenManagement.API.Repositories.Implementations.Menu
                     },
                     new
                     {
-                        p_InstitutionId = institutionId,
+                        p_CampusId = campusId,
                         p_OutletId = filter?.OutletId ?? 0,
                         p_CategoryId = filter?.CategoryId ?? 0,
                         p_FoodType = filter?.FoodType,
@@ -55,7 +55,7 @@ namespace CanteenManagement.API.Repositories.Implementations.Menu
                     .Include(m => m.Outlet)
                     .Include(m => m.Variants)
                     .Include(m => m.AddOns)
-                    .Where(m => m.InstitutionId == institutionId);
+                    .Where(m => m.CampusId == campusId);
 
                 if (filter != null)
                 {
@@ -86,14 +86,14 @@ namespace CanteenManagement.API.Repositories.Implementations.Menu
             }
         }
 
-        public async Task<MenuItem?> GetByIdAsync(int id, int institutionId)
+        public async Task<MenuItem?> GetByIdAsync(int id, int campusId)
         {
             try
             {
                 using var connection = _connectionFactory.CreateConnection();
                 using var multi = await connection.QueryMultipleAsync(
                     "sp_GetMenuItemById",
-                    new { p_MenuItemId = id, p_InstitutionId = institutionId },
+                    new { p_MenuItemId = id, p_CampusId = campusId },
                     commandType: CommandType.StoredProcedure);
 
                 var menuItem = await multi.ReadFirstOrDefaultAsync<MenuItem>();
@@ -121,14 +121,14 @@ namespace CanteenManagement.API.Repositories.Implementations.Menu
                     .Include(m => m.Outlet)
                     .Include(m => m.Variants)
                     .Include(m => m.AddOns)
-                    .FirstOrDefaultAsync(m => m.MenuItemId == id && m.InstitutionId == institutionId);
+                    .FirstOrDefaultAsync(m => m.MenuItemId == id && m.CampusId == campusId);
             }
         }
 
-        public async Task<bool> ExistsByCodeAsync(string code, int institutionId, int? excludeId = null)
+        public async Task<bool> ExistsByCodeAsync(string code, int campusId, int? excludeId = null)
         {
             var query = _dbContext.MenuItems
-                .Where(m => m.InstitutionId == institutionId && m.Code.ToLower() == code.Trim().ToLower());
+                .Where(m => m.CampusId == campusId && m.Code.ToLower() == code.Trim().ToLower());
 
             if (excludeId.HasValue)
             {
@@ -147,7 +147,7 @@ namespace CanteenManagement.API.Repositories.Implementations.Menu
                     "sp_CreateMenuItem",
                     new
                     {
-                        p_InstitutionId = item.InstitutionId,
+                        p_CampusId = item.CampusId,
                         p_OutletId = item.OutletId,
                         p_CategoryId = item.CategoryId,
                         p_Code = item.Code,
@@ -216,7 +216,7 @@ namespace CanteenManagement.API.Repositories.Implementations.Menu
                     new
                     {
                         p_MenuItemId = item.MenuItemId,
-                        p_InstitutionId = item.InstitutionId,
+                        p_CampusId = item.CampusId,
                         p_OutletId = item.OutletId,
                         p_CategoryId = item.CategoryId,
                         p_Code = item.Code,
@@ -282,21 +282,21 @@ namespace CanteenManagement.API.Repositories.Implementations.Menu
             }
         }
 
-        public async Task<bool> DeleteAsync(int id, int institutionId)
+        public async Task<bool> DeleteAsync(int id, int campusId)
         {
             try
             {
                 using var connection = _connectionFactory.CreateConnection();
                 var rows = await connection.ExecuteScalarAsync<int>(
                     "sp_DeleteMenuItem",
-                    new { p_MenuItemId = id, p_InstitutionId = institutionId },
+                    new { p_MenuItemId = id, p_CampusId = campusId },
                     commandType: CommandType.StoredProcedure);
 
                 return rows > 0;
             }
             catch
             {
-                var item = await _dbContext.MenuItems.FirstOrDefaultAsync(m => m.MenuItemId == id && m.InstitutionId == institutionId);
+                var item = await _dbContext.MenuItems.FirstOrDefaultAsync(m => m.MenuItemId == id && m.CampusId == campusId);
                 if (item == null) return false;
 
                 _dbContext.MenuItems.Remove(item);
@@ -380,19 +380,19 @@ namespace CanteenManagement.API.Repositories.Implementations.Menu
             }
         }
 
-        public async Task<int> ResetDailyCapacityAsync(int institutionId, bool force = false)
+        public async Task<int> ResetDailyCapacityAsync(int campusId, bool force = false)
         {
             try
             {
                 using var connection = _connectionFactory.CreateConnection();
                 return await connection.ExecuteScalarAsync<int>(
                     "sp_ResetDailyMenuCapacity",
-                    new { p_InstitutionId = institutionId, p_Force = force },
+                    new { p_CampusId = campusId, p_Force = force },
                     commandType: CommandType.StoredProcedure);
             }
             catch
             {
-                var query = _dbContext.MenuItems.Where(m => institutionId <= 0 || m.InstitutionId == institutionId);
+                var query = _dbContext.MenuItems.Where(m => campusId <= 0 || m.CampusId == campusId);
                 if (!force)
                 {
                     var today = DateTime.UtcNow.Date;

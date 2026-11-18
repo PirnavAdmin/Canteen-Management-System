@@ -3,7 +3,7 @@ namespace CanteenManagement.API.DTOs.Outlets
     public class CanteenOutletDto
     {
         public int OutletId { get; set; }
-        public int InstitutionId { get; set; }
+        public int CampusId { get; set; }
         public string Code { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
         public string? Location { get; set; }

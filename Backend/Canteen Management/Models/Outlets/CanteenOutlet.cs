@@ -11,7 +11,7 @@ namespace CanteenManagement.API.Models.Outlets
         public int OutletId { get; set; }
 
         [Required]
-        public int InstitutionId { get; set; } = 1;
+        public int CampusId { get; set; } = 1;
 
         [Required]
         [MaxLength(20)]

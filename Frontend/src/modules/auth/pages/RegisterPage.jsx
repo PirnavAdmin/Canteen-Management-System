@@ -35,7 +35,7 @@ export const RegisterPage = () => {
       setLoading(true);
       setError('');
       await register({
-        institutionId: 1,
+        campusId: 1, institutionId: 1,
         username: formData.username.trim(),
         email: formData.email.trim(),
         password: formData.password,

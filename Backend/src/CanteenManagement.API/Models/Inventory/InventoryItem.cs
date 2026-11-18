@@ -12,7 +12,7 @@ namespace CanteenManagement.API.Models.Inventory
         public int ItemId { get; set; }
 
         [Required]
-        public int InstitutionId { get; set; } = 1;
+        public int CampusId { get; set; } = 1;
 
         [Required]
         public int OutletId { get; set; }
@@ -105,7 +105,7 @@ namespace CanteenManagement.API.Models.Inventory
         public int SupplierId { get; set; }
 
         [Required]
-        public int InstitutionId { get; set; } = 1;
+        public int CampusId { get; set; } = 1;
 
         [Required]
         [MaxLength(100)]
@@ -147,7 +147,7 @@ namespace CanteenManagement.API.Models.Inventory
         public int PurchaseOrderId { get; set; }
 
         [Required]
-        public int InstitutionId { get; set; } = 1;
+        public int CampusId { get; set; } = 1;
 
         [Required]
         public int OutletId { get; set; }

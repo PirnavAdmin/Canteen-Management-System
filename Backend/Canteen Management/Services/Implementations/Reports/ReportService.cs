@@ -13,9 +13,9 @@ namespace CanteenManagement.API.Services.Implementations.Reports
             _repository = repository;
         }
 
-        public async Task<ReportResultDto> GetReportDataAsync(int institutionId, ReportFilterDto filter)
+        public async Task<ReportResultDto> GetReportDataAsync(int campusId, ReportFilterDto filter)
         {
-            return await _repository.GetReportDataAsync(institutionId, filter);
+            return await _repository.GetReportDataAsync(campusId, filter);
         }
     }
 }

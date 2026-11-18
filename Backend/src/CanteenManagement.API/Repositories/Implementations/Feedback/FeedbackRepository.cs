@@ -14,12 +14,12 @@ namespace CanteenManagement.API.Repositories.Implementations.Feedback
             _dbContext = dbContext;
         }
 
-        public async Task<IEnumerable<FeedbackTicket>> GetAllAsync(int institutionId, int? outletId = null, string? status = null, int? rating = null)
+        public async Task<IEnumerable<FeedbackTicket>> GetAllAsync(int campusId, int? outletId = null, string? status = null, int? rating = null)
         {
             var query = _dbContext.FeedbackTickets
                 .Include(f => f.Outlet)
                 .Include(f => f.History)
-                .Where(f => f.InstitutionId == institutionId);
+                .Where(f => f.CampusId == campusId);
 
             if (outletId.HasValue && outletId.Value > 0)
             {
@@ -39,12 +39,12 @@ namespace CanteenManagement.API.Repositories.Implementations.Feedback
             return await query.OrderByDescending(f => f.CreatedAt).AsNoTracking().ToListAsync();
         }
 
-        public async Task<FeedbackTicket?> GetByIdAsync(string id, int institutionId)
+        public async Task<FeedbackTicket?> GetByIdAsync(string id, int campusId)
         {
             return await _dbContext.FeedbackTickets
                 .Include(f => f.Outlet)
                 .Include(f => f.History)
-                .FirstOrDefaultAsync(f => f.TicketId == id && f.InstitutionId == institutionId);
+                .FirstOrDefaultAsync(f => f.TicketId == id && f.CampusId == campusId);
         }
 
         public async Task<FeedbackTicket> CreateAsync(FeedbackTicket ticket)

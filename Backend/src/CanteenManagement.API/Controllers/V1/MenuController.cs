@@ -25,16 +25,16 @@ namespace CanteenManagement.API.Controllers.V1
         [HttpGet]
         public async Task<IActionResult> GetAll([FromQuery] MenuItemFilterDto filter)
         {
-            var institutionId = User.ResolveInstitutionId();
-            var items = await _menuService.GetAllAsync(institutionId, filter);
+            var campusId = User.ResolveCampusId();
+            var items = await _menuService.GetAllAsync(campusId, filter);
             return Ok(ApiResponse<IEnumerable<MenuItemDto>>.SuccessResponse(items));
         }
 
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
         {
-            var institutionId = User.ResolveInstitutionId();
-            var item = await _menuService.GetByIdAsync(id, institutionId);
+            var campusId = User.ResolveCampusId();
+            var item = await _menuService.GetByIdAsync(id, campusId);
             if (item == null)
             {
                 return NotFound(ApiResponse<string>.ErrorResponse($"Menu item with ID {id} was not found."));
@@ -54,9 +54,9 @@ namespace CanteenManagement.API.Controllers.V1
 
             try
             {
-                var institutionId = User.ResolveInstitutionId();
+                var campusId = User.ResolveCampusId();
                 var userName = User.ResolveUserName();
-                var created = await _menuService.CreateAsync(dto, institutionId, userName);
+                var created = await _menuService.CreateAsync(dto, campusId, userName);
                 return CreatedAtAction(nameof(GetById), new { id = created.Id }, ApiResponse<MenuItemDto>.SuccessResponse(created, "Menu item created successfully."));
             }
             catch (InvalidOperationException ex)
@@ -77,9 +77,9 @@ namespace CanteenManagement.API.Controllers.V1
 
             try
             {
-                var institutionId = User.ResolveInstitutionId();
+                var campusId = User.ResolveCampusId();
                 var userName = User.ResolveUserName();
-                var updated = await _menuService.UpdateAsync(id, dto, institutionId, userName);
+                var updated = await _menuService.UpdateAsync(id, dto, campusId, userName);
                 return Ok(ApiResponse<MenuItemDto>.SuccessResponse(updated, "Menu item updated successfully."));
             }
             catch (KeyNotFoundException ex)
@@ -98,9 +98,9 @@ namespace CanteenManagement.API.Controllers.V1
         {
             try
             {
-                var institutionId = User.ResolveInstitutionId();
+                var campusId = User.ResolveCampusId();
                 var userName = User.ResolveUserName();
-                var toggled = await _menuService.ToggleStatusAsync(id, institutionId, userName);
+                var toggled = await _menuService.ToggleStatusAsync(id, campusId, userName);
                 return Ok(ApiResponse<MenuItemDto>.SuccessResponse(toggled, $"Menu item status changed to {toggled.Status}."));
             }
             catch (KeyNotFoundException ex)
@@ -115,9 +115,9 @@ namespace CanteenManagement.API.Controllers.V1
         {
             try
             {
-                var institutionId = User.ResolveInstitutionId();
+                var campusId = User.ResolveCampusId();
                 var userName = User.ResolveUserName();
-                var toggled = await _menuService.TogglePublishAsync(id, institutionId, userName);
+                var toggled = await _menuService.TogglePublishAsync(id, campusId, userName);
                 return Ok(ApiResponse<MenuItemDto>.SuccessResponse(toggled, $"Menu item publication status changed to {toggled.PublicationStatus}."));
             }
             catch (KeyNotFoundException ex)
@@ -130,9 +130,9 @@ namespace CanteenManagement.API.Controllers.V1
         [Authorize(Policy = "RequireAdmin")]
         public async Task<IActionResult> Delete(int id)
         {
-            var institutionId = User.ResolveInstitutionId();
+            var campusId = User.ResolveCampusId();
             var userName = User.ResolveUserName();
-            var (success, blockedByPolicy, message) = await _menuService.DeleteAsync(id, institutionId, userName);
+            var (success, blockedByPolicy, message) = await _menuService.DeleteAsync(id, campusId, userName);
 
             if (blockedByPolicy)
             {
@@ -151,9 +151,9 @@ namespace CanteenManagement.API.Controllers.V1
         [Authorize(Policy = "RequireAdmin")]
         public async Task<IActionResult> ResetDailyCapacity([FromQuery] bool force = false)
         {
-            var institutionId = User.ResolveInstitutionId();
+            var campusId = User.ResolveCampusId();
             var userName = User.ResolveUserName();
-            var count = await _menuService.ResetDailyCapacityAsync(institutionId, userName, force);
+            var count = await _menuService.ResetDailyCapacityAsync(campusId, userName, force);
             return Ok(ApiResponse<int>.SuccessResponse(count, $"Daily capacity reset successfully. {count} items restored to full daily capacity."));
         }
 

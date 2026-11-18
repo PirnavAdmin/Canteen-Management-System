@@ -32,8 +32,8 @@ namespace CanteenManagement.API.Controllers.V1
         [ProducesResponseType(typeof(ApiResponse<IEnumerable<CanteenOutletDto>>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetAll([FromQuery] string? status = null, [FromQuery] string? search = null)
         {
-            var institutionId = User.ResolveInstitutionId();
-            var response = await _service.GetAllAsync(institutionId, status, search);
+            var campusId = User.ResolveCampusId();
+            var response = await _service.GetAllAsync(campusId, status, search);
             return Ok(response);
         }
 
@@ -44,8 +44,8 @@ namespace CanteenManagement.API.Controllers.V1
         [ProducesResponseType(typeof(ApiResponse<CanteenOutletStatsDto>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetStats()
         {
-            var institutionId = User.ResolveInstitutionId();
-            var response = await _service.GetStatsAsync(institutionId);
+            var campusId = User.ResolveCampusId();
+            var response = await _service.GetStatsAsync(campusId);
             return Ok(response);
         }
 
@@ -57,8 +57,8 @@ namespace CanteenManagement.API.Controllers.V1
         [ProducesResponseType(typeof(ApiResponse<CanteenOutletDto>), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetById([FromRoute] int id)
         {
-            var institutionId = User.ResolveInstitutionId();
-            var response = await _service.GetByIdAsync(id, institutionId);
+            var campusId = User.ResolveCampusId();
+            var response = await _service.GetByIdAsync(id, campusId);
             if (!response.Success)
             {
                 return StatusCode(response.StatusCode, response);
@@ -82,11 +82,11 @@ namespace CanteenManagement.API.Controllers.V1
                 return BadRequest(ApiResponse<CanteenOutletDto>.Fail("Validation failed.", errors));
             }
 
-            var institutionId = User.ResolveInstitutionId();
+            var campusId = User.ResolveCampusId();
             var userId = User.ResolveUserId();
             var userName = User.ResolveUserName();
 
-            var response = await _service.CreateAsync(institutionId, dto, userId, userName);
+            var response = await _service.CreateAsync(campusId, dto, userId, userName);
             if (!response.Success)
             {
                 return StatusCode(response.StatusCode, response);
@@ -111,11 +111,11 @@ namespace CanteenManagement.API.Controllers.V1
                 return BadRequest(ApiResponse<CanteenOutletDto>.Fail("Validation failed.", errors));
             }
 
-            var institutionId = User.ResolveInstitutionId();
+            var campusId = User.ResolveCampusId();
             var userId = User.ResolveUserId();
             var userName = User.ResolveUserName();
 
-            var response = await _service.UpdateAsync(id, institutionId, dto, userId, userName);
+            var response = await _service.UpdateAsync(id, campusId, dto, userId, userName);
             if (!response.Success)
             {
                 return StatusCode(response.StatusCode, response);
@@ -134,11 +134,11 @@ namespace CanteenManagement.API.Controllers.V1
         [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> ToggleStatus([FromRoute] int id, [FromBody] ToggleOutletStatusDto dto)
         {
-            var institutionId = User.ResolveInstitutionId();
+            var campusId = User.ResolveCampusId();
             var userId = User.ResolveUserId();
             var userName = User.ResolveUserName();
 
-            var response = await _service.ToggleStatusAsync(id, institutionId, dto.Status, userId, userName);
+            var response = await _service.ToggleStatusAsync(id, campusId, dto.Status, userId, userName);
             if (!response.Success)
             {
                 return StatusCode(response.StatusCode, response);
@@ -156,11 +156,11 @@ namespace CanteenManagement.API.Controllers.V1
         [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> Delete([FromRoute] int id)
         {
-            var institutionId = User.ResolveInstitutionId();
+            var campusId = User.ResolveCampusId();
             var userId = User.ResolveUserId();
             var userName = User.ResolveUserName();
 
-            var response = await _service.DeleteAsync(id, institutionId, userId, userName);
+            var response = await _service.DeleteAsync(id, campusId, userId, userName);
             if (!response.Success)
             {
                 return StatusCode(response.StatusCode, response);
@@ -177,8 +177,8 @@ namespace CanteenManagement.API.Controllers.V1
         [ProducesResponseType(typeof(ApiResponse<CanteenOutletSettingDto>), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetSettings([FromRoute] int id)
         {
-            var institutionId = User.ResolveInstitutionId();
-            var response = await _service.GetSettingsAsync(id, institutionId);
+            var campusId = User.ResolveCampusId();
+            var response = await _service.GetSettingsAsync(id, campusId);
             if (!response.Success)
             {
                 return StatusCode(response.StatusCode, response);
@@ -203,11 +203,11 @@ namespace CanteenManagement.API.Controllers.V1
                 return BadRequest(ApiResponse<CanteenOutletSettingDto>.Fail("Validation failed.", errors));
             }
 
-            var institutionId = User.ResolveInstitutionId();
+            var campusId = User.ResolveCampusId();
             var userId = User.ResolveUserId();
             var userName = User.ResolveUserName();
 
-            var response = await _service.UpdateSettingsAsync(id, institutionId, dto, userId, userName);
+            var response = await _service.UpdateSettingsAsync(id, campusId, dto, userId, userName);
             if (!response.Success)
             {
                 return StatusCode(response.StatusCode, response);

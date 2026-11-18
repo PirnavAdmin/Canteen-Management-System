@@ -6,7 +6,7 @@
 -- 1. Users
 CREATE TABLE IF NOT EXISTS Users (
     UserId INT AUTO_INCREMENT PRIMARY KEY,
-    InstitutionId INT NOT NULL DEFAULT 1,
+    CampusId INT NOT NULL DEFAULT 1,
     Username VARCHAR(50) NOT NULL,
     Email VARCHAR(100) NOT NULL,
     PasswordHash VARCHAR(255) NOT NULL,
@@ -16,14 +16,14 @@ CREATE TABLE IF NOT EXISTS Users (
     IsActive TINYINT(1) NOT NULL DEFAULT 1,
     CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UpdatedAt DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
-    UNIQUE KEY uq_inst_username (InstitutionId, Username),
-    UNIQUE KEY uq_inst_email (InstitutionId, Email)
+    UNIQUE KEY uq_campus_username (CampusId, Username),
+    UNIQUE KEY uq_campus_email (CampusId, Email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 2. AuditLogs
 CREATE TABLE IF NOT EXISTS AuditLogs (
     AuditLogId BIGINT AUTO_INCREMENT PRIMARY KEY,
-    InstitutionId INT NOT NULL DEFAULT 1,
+    CampusId INT NOT NULL DEFAULT 1,
     UserId INT NULL,
     UserName VARCHAR(100) NOT NULL DEFAULT 'System',
     Action VARCHAR(50) NOT NULL,
@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS AuditLogs (
 -- 3. CanteenOutlets
 CREATE TABLE IF NOT EXISTS CanteenOutlets (
     OutletId INT AUTO_INCREMENT PRIMARY KEY,
-    InstitutionId INT NOT NULL DEFAULT 1,
+    CampusId INT NOT NULL DEFAULT 1,
     Code VARCHAR(20) NOT NULL,
     Name VARCHAR(100) NOT NULL,
     Location VARCHAR(200) NULL,
@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS CanteenOutlets (
     AdminContactJson TEXT NULL,
     CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UpdatedAt DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
-    UNIQUE KEY uq_inst_code (InstitutionId, Code)
+    UNIQUE KEY uq_campus_code (CampusId, Code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 4. CanteenOutletSettings
@@ -73,20 +73,20 @@ CREATE TABLE IF NOT EXISTS CanteenOutletSettings (
 -- 5. Categories
 CREATE TABLE IF NOT EXISTS Categories (
     CategoryId INT AUTO_INCREMENT PRIMARY KEY,
-    InstitutionId INT NOT NULL DEFAULT 1,
+    CampusId INT NOT NULL DEFAULT 1,
     Name VARCHAR(100) NOT NULL,
     Description TEXT NULL,
     DisplayOrder INT NOT NULL DEFAULT 1,
     Status VARCHAR(20) NOT NULL DEFAULT 'Active',
     CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UpdatedAt DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
-    UNIQUE KEY uq_inst_cat_name (InstitutionId, Name)
+    UNIQUE KEY uq_campus_cat_name (CampusId, Name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 6. MenuItems
 CREATE TABLE IF NOT EXISTS MenuItems (
     MenuItemId INT AUTO_INCREMENT PRIMARY KEY,
-    InstitutionId INT NOT NULL DEFAULT 1,
+    CampusId INT NOT NULL DEFAULT 1,
     OutletId INT NOT NULL,
     CategoryId INT NOT NULL,
     Code VARCHAR(30) NOT NULL,
@@ -110,7 +110,7 @@ CREATE TABLE IF NOT EXISTS MenuItems (
     HistoricalOrderCount INT NOT NULL DEFAULT 0,
     CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UpdatedAt DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
-    UNIQUE KEY uq_inst_menu_code (InstitutionId, Code),
+    UNIQUE KEY uq_campus_menu_code (CampusId, Code),
     CONSTRAINT fk_menu_outlet FOREIGN KEY (OutletId) REFERENCES CanteenOutlets (OutletId),
     CONSTRAINT fk_menu_category FOREIGN KEY (CategoryId) REFERENCES Categories (CategoryId)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -135,7 +135,7 @@ CREATE TABLE IF NOT EXISTS MenuItemAddons (
 -- 8. Slots
 CREATE TABLE IF NOT EXISTS Slots (
     SlotId INT AUTO_INCREMENT PRIMARY KEY,
-    InstitutionId INT NOT NULL DEFAULT 1,
+    CampusId INT NOT NULL DEFAULT 1,
     OutletId INT NOT NULL,
     Session VARCHAR(30) NOT NULL DEFAULT 'Lunch',
     Date DATE NOT NULL,
@@ -151,7 +151,7 @@ CREATE TABLE IF NOT EXISTS Slots (
 -- 9. Orders
 CREATE TABLE IF NOT EXISTS Orders (
     OrderId VARCHAR(50) PRIMARY KEY,
-    InstitutionId INT NOT NULL DEFAULT 1,
+    CampusId INT NOT NULL DEFAULT 1,
     OutletId INT NOT NULL,
     UserId INT NULL,
     SlotId INT NULL,
@@ -206,7 +206,7 @@ CREATE TABLE IF NOT EXISTS PaymentTransactions (
 -- 10. InventoryItems, StockMovements, Suppliers & PurchaseOrders
 CREATE TABLE IF NOT EXISTS InventoryItems (
     ItemId INT AUTO_INCREMENT PRIMARY KEY,
-    InstitutionId INT NOT NULL DEFAULT 1,
+    CampusId INT NOT NULL DEFAULT 1,
     OutletId INT NOT NULL,
     IngredientName VARCHAR(100) NOT NULL,
     Category VARCHAR(50) NOT NULL DEFAULT 'Groceries',
@@ -238,7 +238,7 @@ CREATE TABLE IF NOT EXISTS StockMovements (
 
 CREATE TABLE IF NOT EXISTS Suppliers (
     SupplierId INT AUTO_INCREMENT PRIMARY KEY,
-    InstitutionId INT NOT NULL DEFAULT 1,
+    CampusId INT NOT NULL DEFAULT 1,
     Name VARCHAR(100) NOT NULL,
     ContactPerson VARCHAR(100) NULL,
     Phone VARCHAR(20) NULL,
@@ -253,7 +253,7 @@ CREATE TABLE IF NOT EXISTS Suppliers (
 
 CREATE TABLE IF NOT EXISTS PurchaseOrders (
     PurchaseOrderId INT AUTO_INCREMENT PRIMARY KEY,
-    InstitutionId INT NOT NULL DEFAULT 1,
+    CampusId INT NOT NULL DEFAULT 1,
     OutletId INT NOT NULL,
     PoNumber VARCHAR(50) NOT NULL,
     SupplierId INT NULL,
@@ -270,7 +270,7 @@ CREATE TABLE IF NOT EXISTS PurchaseOrders (
 -- 11. FeedbackTickets & FeedbackHistories
 CREATE TABLE IF NOT EXISTS FeedbackTickets (
     TicketId VARCHAR(50) PRIMARY KEY,
-    InstitutionId INT NOT NULL DEFAULT 1,
+    CampusId INT NOT NULL DEFAULT 1,
     OutletId INT NOT NULL,
     CustomerName VARCHAR(100) NOT NULL,
     CustomerRole VARCHAR(50) NULL,
@@ -300,17 +300,17 @@ CREATE TABLE IF NOT EXISTS FeedbackHistories (
 -- 12. SystemSettings & DsarRequests
 CREATE TABLE IF NOT EXISTS SystemSettings (
     SettingId INT AUTO_INCREMENT PRIMARY KEY,
-    InstitutionId INT NOT NULL DEFAULT 1,
+    CampusId INT NOT NULL DEFAULT 1,
     Category VARCHAR(50) NOT NULL,
     SettingKey VARCHAR(100) NOT NULL,
     SettingValueJson TEXT NOT NULL,
     UpdatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY uq_inst_cat_key (InstitutionId, Category, SettingKey)
+    UNIQUE KEY uq_campus_cat_key (CampusId, Category, SettingKey)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS DsarRequests (
     RequestId VARCHAR(50) PRIMARY KEY,
-    InstitutionId INT NOT NULL DEFAULT 1,
+    CampusId INT NOT NULL DEFAULT 1,
     UserName VARCHAR(100) NOT NULL,
     UserRole VARCHAR(50) NULL,
     Email VARCHAR(100) NOT NULL,

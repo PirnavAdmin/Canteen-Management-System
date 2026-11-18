@@ -25,7 +25,7 @@ export const STATUS_OPTIONS = [
 export const INITIAL_CANTEENS = [
   {
     id: 'canteen-1',
-    institutionId: 'INST-APEX-01',
+    campusId: 1, institutionId: 1,
     name: 'Central University Food Court',
     code: 'CNT-MAIN-01',
     campus: 'Main Campus',
@@ -54,7 +54,7 @@ export const INITIAL_CANTEENS = [
   },
   {
     id: 'canteen-2',
-    institutionId: 'INST-APEX-01',
+    campusId: 1, institutionId: 1,
     name: 'North Campus Quick Bites & Cafe',
     code: 'CNT-NRTH-02',
     campus: 'North Campus',
@@ -82,7 +82,7 @@ export const INITIAL_CANTEENS = [
   },
   {
     id: 'canteen-3',
-    institutionId: 'INST-APEX-01',
+    campusId: 1, institutionId: 1,
     name: 'Tech Hub Cafeteria',
     code: 'CNT-ENG-03',
     campus: 'Engineering Block',
@@ -110,7 +110,7 @@ export const INITIAL_CANTEENS = [
   },
   {
     id: 'canteen-4',
-    institutionId: 'INST-APEX-01',
+    campusId: 1, institutionId: 1,
     name: 'Health Sciences Med Bistro',
     code: 'CNT-MED-04',
     campus: 'Health Sciences Campus',
@@ -138,7 +138,7 @@ export const INITIAL_CANTEENS = [
   },
   {
     id: 'canteen-5',
-    institutionId: 'INST-APEX-01',
+    campusId: 1, institutionId: 1,
     name: 'Sports Complex Pavilion Kiosk',
     code: 'CNT-SPRT-05',
     campus: 'South Campus',

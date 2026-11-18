@@ -46,8 +46,8 @@ namespace CanteenManagement.API.Data
             // User configuration
             modelBuilder.Entity<User>(entity =>
             {
-                entity.HasIndex(u => new { u.InstitutionId, u.Username }).IsUnique();
-                entity.HasIndex(u => new { u.InstitutionId, u.Email }).IsUnique();
+                entity.HasIndex(u => new { u.CampusId, u.Username }).IsUnique();
+                entity.HasIndex(u => new { u.CampusId, u.Email }).IsUnique();
                 entity.Property(u => u.Role).HasDefaultValue("Student");
                 entity.Property(u => u.IsActive).HasDefaultValue(true);
             });
@@ -55,7 +55,7 @@ namespace CanteenManagement.API.Data
             // CanteenOutlet configuration
             modelBuilder.Entity<CanteenOutlet>(entity =>
             {
-                entity.HasIndex(o => new { o.InstitutionId, o.Code }).IsUnique();
+                entity.HasIndex(o => new { o.CampusId, o.Code }).IsUnique();
                 entity.HasOne(o => o.Settings)
                       .WithOne(s => s.Outlet)
                       .HasForeignKey<CanteenOutletSetting>(s => s.OutletId)
@@ -65,13 +65,13 @@ namespace CanteenManagement.API.Data
             // Category configuration
             modelBuilder.Entity<Category>(entity =>
             {
-                entity.HasIndex(c => new { c.InstitutionId, c.Name }).IsUnique();
+                entity.HasIndex(c => new { c.CampusId, c.Name }).IsUnique();
             });
 
             // MenuItem configuration
             modelBuilder.Entity<MenuItem>(entity =>
             {
-                entity.HasIndex(m => new { m.InstitutionId, m.Code }).IsUnique();
+                entity.HasIndex(m => new { m.CampusId, m.Code }).IsUnique();
                 entity.HasOne(m => m.Outlet)
                       .WithMany()
                       .HasForeignKey(m => m.OutletId)

@@ -37,7 +37,8 @@ namespace CanteenManagement.API.Helpers
                 new Claim(ClaimTypes.Name, user.Username),
                 new Claim(ClaimTypes.Email, user.Email),
                 new Claim(ClaimTypes.Role, user.Role),
-                new Claim("InstitutionId", user.InstitutionId.ToString()),
+                new Claim("CampusId", user.CampusId.ToString()),
+                new Claim("InstitutionId", user.CampusId.ToString()),
                 new Claim("FullName", user.FullName),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };

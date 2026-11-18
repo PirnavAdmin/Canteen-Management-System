@@ -13,34 +13,34 @@ namespace CanteenManagement.API.Services.Implementations.Dashboard
             _repository = repository;
         }
 
-        public async Task<DashboardSummaryDto> GetSummaryAsync(int institutionId, int? outletId = null)
+        public async Task<DashboardSummaryDto> GetSummaryAsync(int campusId, int? outletId = null)
         {
-            return await _repository.GetSummaryAsync(institutionId, outletId);
+            return await _repository.GetSummaryAsync(campusId, outletId);
         }
 
-        public async Task<IEnumerable<HourlySalesDto>> GetHourlySalesAsync(int institutionId, int? outletId = null)
+        public async Task<IEnumerable<HourlySalesDto>> GetHourlySalesAsync(int campusId, int? outletId = null)
         {
-            return await _repository.GetHourlySalesAsync(institutionId, outletId);
+            return await _repository.GetHourlySalesAsync(campusId, outletId);
         }
 
-        public async Task<IEnumerable<LiveOrderDto>> GetLiveOrdersAsync(int institutionId, int? outletId = null)
+        public async Task<IEnumerable<LiveOrderDto>> GetLiveOrdersAsync(int campusId, int? outletId = null)
         {
-            return await _repository.GetLiveOrdersAsync(institutionId, outletId);
+            return await _repository.GetLiveOrdersAsync(campusId, outletId);
         }
 
-        public async Task<IEnumerable<TopSellingItemDto>> GetTopSellingItemsAsync(int institutionId, int? outletId = null)
+        public async Task<IEnumerable<TopSellingItemDto>> GetTopSellingItemsAsync(int campusId, int? outletId = null)
         {
-            return await _repository.GetTopSellingItemsAsync(institutionId, outletId);
+            return await _repository.GetTopSellingItemsAsync(campusId, outletId);
         }
 
-        public async Task<IEnumerable<StockAlertDto>> GetStockAlertsAsync(int institutionId)
+        public async Task<IEnumerable<StockAlertDto>> GetStockAlertsAsync(int campusId)
         {
-            return await _repository.GetStockAlertsAsync(institutionId);
+            return await _repository.GetStockAlertsAsync(campusId);
         }
 
-        public async Task<IEnumerable<OutletSalesDto>> GetOutletSalesAsync(int institutionId)
+        public async Task<IEnumerable<OutletSalesDto>> GetOutletSalesAsync(int campusId)
         {
-            return await _repository.GetOutletSalesAsync(institutionId);
+            return await _repository.GetOutletSalesAsync(campusId);
         }
     }
 }

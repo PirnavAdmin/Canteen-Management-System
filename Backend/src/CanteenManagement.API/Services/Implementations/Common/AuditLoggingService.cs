@@ -22,14 +22,14 @@ namespace CanteenManagement.API.Services.Implementations.Common
             string? details = null,
             int? userId = null,
             string? userName = null,
-            int institutionId = 1,
+            int campusId = 1,
             string? ipAddress = null)
         {
             try
             {
                 var log = new AuditLog
                 {
-                    InstitutionId = institutionId,
+                    CampusId = campusId,
                     UserId = userId,
                     UserName = string.IsNullOrWhiteSpace(userName) ? "System" : userName,
                     Action = action,
@@ -50,7 +50,7 @@ namespace CanteenManagement.API.Services.Implementations.Common
         }
 
         public async Task LogActionAsync(
-            int institutionId,
+            int campusId,
             int? userId,
             string userName,
             string action,
@@ -59,7 +59,7 @@ namespace CanteenManagement.API.Services.Implementations.Common
             string? details = null,
             string? ipAddress = null)
         {
-            await LogAsync(action, entityName, entityId, details, userId, userName, institutionId, ipAddress);
+            await LogAsync(action, entityName, entityId, details, userId, userName, campusId, ipAddress);
         }
     }
 }
