@@ -14,20 +14,10 @@ import { SuppliersTable } from '../components/SuppliersTable';
 import { SupplierModal } from '../components/SupplierModal';
 import { canteenService } from '../../outlets/services/canteenService';
 
-export const InventoryPage = () => {
-  // Outlet filter state
-  const [selectedOutlet, setSelectedOutlet] = useState('ALL');
-  const [outlets, setOutlets] = useState([]);
+import { useCanteens } from '../../outlets/hooks/useCanteens';
 
-  useEffect(() => {
-    let isMounted = true;
-    canteenService.getAll()
-      .then(data => {
-        if (isMounted && Array.isArray(data)) setOutlets(data);
-      })
-      .catch(err => console.error('Failed to load outlets for inventory:', err));
-    return () => { isMounted = false; };
-  }, []);
+export const InventoryPage = () => {
+  const { selectedOutlet } = useCanteens();
 
   const {
     items,

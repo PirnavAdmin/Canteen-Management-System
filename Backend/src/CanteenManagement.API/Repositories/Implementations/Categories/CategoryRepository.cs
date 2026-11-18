@@ -18,26 +18,26 @@ namespace CanteenManagement.API.Repositories.Implementations.Categories
             _connectionFactory = connectionFactory;
         }
 
-        public async Task<IEnumerable<Category>> GetAllAsync(int institutionId)
+        public async Task<IEnumerable<Category>> GetAllAsync(int campusId)
         {
             return await _dbContext.Categories
-                .Where(c => c.InstitutionId == institutionId)
+                .Where(c => c.CampusId == campusId)
                 .OrderBy(c => c.DisplayOrder)
                 .ThenBy(c => c.Name)
                 .AsNoTracking()
                 .ToListAsync();
         }
 
-        public async Task<Category?> GetByIdAsync(int id, int institutionId)
+        public async Task<Category?> GetByIdAsync(int id, int campusId)
         {
             return await _dbContext.Categories
-                .FirstOrDefaultAsync(c => c.CategoryId == id && c.InstitutionId == institutionId);
+                .FirstOrDefaultAsync(c => c.CategoryId == id && c.CampusId == campusId);
         }
 
-        public async Task<bool> ExistsByNameAsync(string name, int institutionId, int? excludeId = null)
+        public async Task<bool> ExistsByNameAsync(string name, int campusId, int? excludeId = null)
         {
             var query = _dbContext.Categories
-                .Where(c => c.InstitutionId == institutionId && c.Name.ToLower() == name.Trim().ToLower());
+                .Where(c => c.CampusId == campusId && c.Name.ToLower() == name.Trim().ToLower());
 
             if (excludeId.HasValue)
             {
@@ -62,9 +62,9 @@ namespace CanteenManagement.API.Repositories.Implementations.Categories
             return category;
         }
 
-        public async Task<bool> DeleteAsync(int id, int institutionId)
+        public async Task<bool> DeleteAsync(int id, int campusId)
         {
-            var category = await GetByIdAsync(id, institutionId);
+            var category = await GetByIdAsync(id, campusId);
             if (category == null) return false;
 
             _dbContext.Categories.Remove(category);
@@ -92,14 +92,14 @@ namespace CanteenManagement.API.Repositories.Implementations.Categories
             }
         }
 
-        public async Task<Dictionary<int, (int linkedItemCount, int historicalOrderCount)>> GetBatchDependencyCountsAsync(int institutionId)
+        public async Task<Dictionary<int, (int linkedItemCount, int historicalOrderCount)>> GetBatchDependencyCountsAsync(int campusId)
         {
             try
             {
                 using var connection = _connectionFactory.CreateConnection();
                 var rows = await connection.QueryAsync<dynamic>(
                     "sp_GetBatchCategoryDependencyCounts",
-                    new { p_InstitutionId = institutionId },
+                    new { p_CampusId = campusId },
                     commandType: CommandType.StoredProcedure);
 
                 var result = new Dictionary<int, (int, int)>();

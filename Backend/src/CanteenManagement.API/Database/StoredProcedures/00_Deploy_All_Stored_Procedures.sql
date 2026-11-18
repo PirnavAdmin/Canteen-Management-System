@@ -11,7 +11,7 @@
 DROP PROCEDURE IF EXISTS sp_GetDashboardSummary;
 DELIMITER $$
 CREATE PROCEDURE sp_GetDashboardSummary(
-    IN p_InstitutionId INT,
+    IN p_CampusId INT,
     IN p_OutletId INT
 )
 BEGIN
@@ -26,9 +26,9 @@ BEGIN
         COALESCE(SUM(CASE WHEN Status = 'Ready for Pickup' THEN 1 ELSE 0 END), 0) AS ReadyForPickup,
         COALESCE(SUM(CASE WHEN Status = 'Completed' THEN 1 ELSE 0 END), 0) AS CompletedOrders,
         COALESCE(SUM(CASE WHEN Status = 'Cancelled' THEN 1 ELSE 0 END), 0) AS CancelledOrders,
-        (SELECT COUNT(1) FROM CanteenOutlets WHERE InstitutionId = p_InstitutionId AND Status = 'Active') AS ActiveOutlets
+        (SELECT COUNT(1) FROM CanteenOutlets WHERE CampusId = p_CampusId AND Status = 'Active') AS ActiveOutlets
     FROM Orders 
-    WHERE InstitutionId = p_InstitutionId 
+    WHERE CampusId = p_CampusId 
       AND (p_OutletId IS NULL OR p_OutletId <= 0 OR OutletId = p_OutletId);
 END $$
 DELIMITER ;
@@ -36,7 +36,7 @@ DELIMITER ;
 DROP PROCEDURE IF EXISTS sp_GetHourlySales;
 DELIMITER $$
 CREATE PROCEDURE sp_GetHourlySales(
-    IN p_InstitutionId INT,
+    IN p_CampusId INT,
     IN p_OutletId INT
 )
 BEGIN
@@ -45,7 +45,7 @@ BEGIN
         COALESCE(SUM(TotalAmount), 0) AS Sales,
         COUNT(1) AS Orders
     FROM Orders
-    WHERE InstitutionId = p_InstitutionId 
+    WHERE CampusId = p_CampusId 
       AND DATE(OrderDate) = CURRENT_DATE 
       AND Status != 'Cancelled'
       AND (p_OutletId IS NULL OR p_OutletId <= 0 OR OutletId = p_OutletId)
@@ -57,7 +57,7 @@ DELIMITER ;
 DROP PROCEDURE IF EXISTS sp_GetLiveOrders;
 DELIMITER $$
 CREATE PROCEDURE sp_GetLiveOrders(
-    IN p_InstitutionId INT,
+    IN p_CampusId INT,
     IN p_OutletId INT
 )
 BEGIN
@@ -79,7 +79,7 @@ BEGIN
         DATE_FORMAT(o.OrderDate, '%h:%i %p') AS OrderTime
     FROM Orders o
     INNER JOIN CanteenOutlets co ON o.OutletId = co.OutletId
-    WHERE o.InstitutionId = p_InstitutionId 
+    WHERE o.CampusId = p_CampusId 
       AND o.Status IN ('Placed', 'Accepted', 'Preparing', 'Ready for Pickup')
       AND (p_OutletId IS NULL OR p_OutletId <= 0 OR o.OutletId = p_OutletId)
     ORDER BY o.OrderDate ASC
@@ -106,7 +106,7 @@ DELIMITER ;
 DROP PROCEDURE IF EXISTS sp_GetTopSellingItems;
 DELIMITER $$
 CREATE PROCEDURE sp_GetTopSellingItems(
-    IN p_InstitutionId INT,
+    IN p_CampusId INT,
     IN p_OutletId INT
 )
 BEGIN
@@ -123,7 +123,7 @@ BEGIN
     INNER JOIN Orders o ON oi.OrderId = o.OrderId
     INNER JOIN MenuItems mi ON oi.MenuItemId = mi.MenuItemId
     INNER JOIN Categories cat ON mi.CategoryId = cat.CategoryId
-    WHERE o.InstitutionId = p_InstitutionId 
+    WHERE o.CampusId = p_CampusId 
       AND o.Status != 'Cancelled'
       AND (p_OutletId IS NULL OR p_OutletId <= 0 OR o.OutletId = p_OutletId)
     GROUP BY mi.MenuItemId, mi.Code, mi.Name, cat.Name, mi.FoodType
@@ -135,7 +135,7 @@ DELIMITER ;
 DROP PROCEDURE IF EXISTS sp_GetStockAlerts;
 DELIMITER $$
 CREATE PROCEDURE sp_GetStockAlerts(
-    IN p_InstitutionId INT
+    IN p_CampusId INT
 )
 BEGIN
     SELECT 
@@ -150,7 +150,7 @@ BEGIN
         ReorderLevel,
         Status
     FROM InventoryItems
-    WHERE InstitutionId = p_InstitutionId 
+    WHERE CampusId = p_CampusId 
       AND AvailableQuantity <= ReorderLevel
     ORDER BY AvailableQuantity ASC
     LIMIT 10;
@@ -160,7 +160,7 @@ DELIMITER ;
 DROP PROCEDURE IF EXISTS sp_GetOutletSales;
 DELIMITER $$
 CREATE PROCEDURE sp_GetOutletSales(
-    IN p_InstitutionId INT
+    IN p_CampusId INT
 )
 BEGIN
     SELECT 
@@ -176,7 +176,7 @@ BEGIN
     LEFT JOIN Orders o ON co.OutletId = o.OutletId 
                        AND DATE(o.OrderDate) = CURRENT_DATE 
                        AND o.Status != 'Cancelled'
-    WHERE co.InstitutionId = p_InstitutionId
+    WHERE co.CampusId = p_CampusId
     GROUP BY co.OutletId, co.Name
     ORDER BY NetSales DESC;
 END $$
@@ -189,7 +189,7 @@ DELIMITER ;
 DROP PROCEDURE IF EXISTS sp_GetReportItemWise;
 DELIMITER $$
 CREATE PROCEDURE sp_GetReportItemWise(
-    IN p_InstitutionId INT,
+    IN p_CampusId INT,
     IN p_OutletId INT
 )
 BEGIN
@@ -204,7 +204,7 @@ BEGIN
     INNER JOIN Orders o ON oi.OrderId = o.OrderId
     INNER JOIN MenuItems mi ON oi.MenuItemId = mi.MenuItemId
     INNER JOIN Categories cat ON mi.CategoryId = cat.CategoryId
-    WHERE o.InstitutionId = p_InstitutionId 
+    WHERE o.CampusId = p_CampusId 
       AND o.Status != 'Cancelled'
       AND (p_OutletId IS NULL OR p_OutletId <= 0 OR o.OutletId = p_OutletId)
     GROUP BY mi.Code, mi.Name, cat.Name, mi.Price
@@ -215,7 +215,7 @@ DELIMITER ;
 DROP PROCEDURE IF EXISTS sp_GetReportSalesSummary;
 DELIMITER $$
 CREATE PROCEDURE sp_GetReportSalesSummary(
-    IN p_InstitutionId INT,
+    IN p_CampusId INT,
     IN p_OutletId INT
 )
 BEGIN
@@ -228,7 +228,7 @@ BEGIN
         COALESCE(SUM(o.TotalAmount), 0) AS netSales
     FROM Orders o
     INNER JOIN CanteenOutlets co ON o.OutletId = co.OutletId
-    WHERE o.InstitutionId = p_InstitutionId 
+    WHERE o.CampusId = p_CampusId 
       AND o.Status != 'Cancelled'
       AND (p_OutletId IS NULL OR p_OutletId <= 0 OR o.OutletId = p_OutletId)
     GROUP BY DATE_FORMAT(o.OrderDate, '%Y-%m-%d'), co.Name
@@ -257,7 +257,7 @@ DELIMITER ;
 DROP PROCEDURE IF EXISTS sp_GetBatchCategoryDependencyCounts;
 DELIMITER $$
 CREATE PROCEDURE sp_GetBatchCategoryDependencyCounts(
-    IN p_InstitutionId INT
+    IN p_CampusId INT
 )
 BEGIN
     SELECT 
@@ -267,7 +267,7 @@ BEGIN
     FROM Categories c
     LEFT JOIN MenuItems mi ON mi.CategoryId = c.CategoryId
     LEFT JOIN OrderItems oi ON oi.MenuItemId = mi.MenuItemId
-    WHERE c.InstitutionId = p_InstitutionId
+    WHERE c.CampusId = p_CampusId
     GROUP BY c.CategoryId;
 END $$
 DELIMITER ;
@@ -313,7 +313,7 @@ DELIMITER ;
 DROP PROCEDURE IF EXISTS sp_GetCanteenOutletStats;
 DELIMITER $$
 CREATE PROCEDURE sp_GetCanteenOutletStats(
-    IN p_InstitutionId INT
+    IN p_CampusId INT
 )
 BEGIN
     SELECT 
@@ -324,7 +324,7 @@ BEGIN
         0 AS OrdersToday,
         0.00 AS RevenueToday
     FROM CanteenOutlets
-    WHERE InstitutionId = p_InstitutionId;
+    WHERE CampusId = p_CampusId;
 END $$
 DELIMITER ;
 

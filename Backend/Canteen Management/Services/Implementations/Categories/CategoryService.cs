@@ -17,10 +17,10 @@ namespace CanteenManagement.API.Services.Implementations.Categories
             _auditService = auditService;
         }
 
-        public async Task<IEnumerable<CategoryDto>> GetAllAsync(int institutionId)
+        public async Task<IEnumerable<CategoryDto>> GetAllAsync(int campusId)
         {
-            var categories = await _repository.GetAllAsync(institutionId);
-            var countsMap = await _repository.GetBatchDependencyCountsAsync(institutionId);
+            var categories = await _repository.GetAllAsync(campusId);
+            var countsMap = await _repository.GetBatchDependencyCountsAsync(campusId);
             var result = new List<CategoryDto>();
 
             foreach (var cat in categories)
@@ -32,25 +32,25 @@ namespace CanteenManagement.API.Services.Implementations.Categories
             return result;
         }
 
-        public async Task<CategoryDto?> GetByIdAsync(int id, int institutionId)
+        public async Task<CategoryDto?> GetByIdAsync(int id, int campusId)
         {
-            var cat = await _repository.GetByIdAsync(id, institutionId);
+            var cat = await _repository.GetByIdAsync(id, campusId);
             if (cat == null) return null;
 
             var (linkedItems, orders) = await _repository.GetDependencyCountsAsync(cat.CategoryId);
             return MapToDto(cat, linkedItems, orders);
         }
 
-        public async Task<CategoryDto> CreateAsync(CreateCategoryDto dto, int institutionId, string performedBy)
+        public async Task<CategoryDto> CreateAsync(CreateCategoryDto dto, int campusId, string performedBy)
         {
-            if (await _repository.ExistsByNameAsync(dto.Name, institutionId))
+            if (await _repository.ExistsByNameAsync(dto.Name, campusId))
             {
                 throw new InvalidOperationException($"Category '{dto.Name}' already exists.");
             }
 
             var category = new Category
             {
-                InstitutionId = institutionId,
+                CampusId = campusId,
                 Name = dto.Name.Trim(),
                 Description = dto.Description?.Trim(),
                 DisplayOrder = dto.DisplayOrder,
@@ -61,7 +61,7 @@ namespace CanteenManagement.API.Services.Implementations.Categories
             var created = await _repository.CreateAsync(category);
 
             await _auditService.LogActionAsync(
-                institutionId,
+                campusId,
                 null,
                 performedBy,
                 "CREATE_CATEGORY",
@@ -73,15 +73,15 @@ namespace CanteenManagement.API.Services.Implementations.Categories
             return MapToDto(created, 0, 0);
         }
 
-        public async Task<CategoryDto> UpdateAsync(int id, UpdateCategoryDto dto, int institutionId, string performedBy)
+        public async Task<CategoryDto> UpdateAsync(int id, UpdateCategoryDto dto, int campusId, string performedBy)
         {
-            var category = await _repository.GetByIdAsync(id, institutionId);
+            var category = await _repository.GetByIdAsync(id, campusId);
             if (category == null)
             {
                 throw new KeyNotFoundException($"Category with ID {id} was not found.");
             }
 
-            if (await _repository.ExistsByNameAsync(dto.Name, institutionId, id))
+            if (await _repository.ExistsByNameAsync(dto.Name, campusId, id))
             {
                 throw new InvalidOperationException($"Another category named '{dto.Name}' already exists.");
             }
@@ -94,7 +94,7 @@ namespace CanteenManagement.API.Services.Implementations.Categories
             var updated = await _repository.UpdateAsync(category);
 
             await _auditService.LogActionAsync(
-                institutionId,
+                campusId,
                 null,
                 performedBy,
                 "UPDATE_CATEGORY",
@@ -107,9 +107,9 @@ namespace CanteenManagement.API.Services.Implementations.Categories
             return MapToDto(updated, linkedItems, orders);
         }
 
-        public async Task<CategoryDto> ToggleStatusAsync(int id, int institutionId, string performedBy)
+        public async Task<CategoryDto> ToggleStatusAsync(int id, int campusId, string performedBy)
         {
-            var category = await _repository.GetByIdAsync(id, institutionId);
+            var category = await _repository.GetByIdAsync(id, campusId);
             if (category == null)
             {
                 throw new KeyNotFoundException($"Category with ID {id} was not found.");
@@ -119,7 +119,7 @@ namespace CanteenManagement.API.Services.Implementations.Categories
             var updated = await _repository.UpdateAsync(category);
 
             await _auditService.LogActionAsync(
-                institutionId,
+                campusId,
                 null,
                 performedBy,
                 "TOGGLE_CATEGORY_STATUS",
@@ -132,9 +132,9 @@ namespace CanteenManagement.API.Services.Implementations.Categories
             return MapToDto(updated, linkedItems, orders);
         }
 
-        public async Task<(bool success, bool blockedByPolicy, string? message)> DeleteAsync(int id, int institutionId, string performedBy)
+        public async Task<(bool success, bool blockedByPolicy, string? message)> DeleteAsync(int id, int campusId, string performedBy)
         {
-            var category = await _repository.GetByIdAsync(id, institutionId);
+            var category = await _repository.GetByIdAsync(id, campusId);
             if (category == null)
             {
                 return (false, false, $"Category with ID {id} was not found.");
@@ -147,11 +147,11 @@ namespace CanteenManagement.API.Services.Implementations.Categories
                 return (false, true, $"Institutional Policy Violation (SRS §3.2): Category '{category.Name}' cannot be deleted because {linkedItems} menu items and {orders} historical order records depend on it. Please deactivate the category instead.");
             }
 
-            var deleted = await _repository.DeleteAsync(id, institutionId);
+            var deleted = await _repository.DeleteAsync(id, campusId);
             if (deleted)
             {
                 await _auditService.LogActionAsync(
-                    institutionId,
+                    campusId,
                     null,
                     performedBy,
                     "DELETE_CATEGORY",
@@ -167,7 +167,7 @@ namespace CanteenManagement.API.Services.Implementations.Categories
         private static CategoryDto MapToDto(Category c, int linkedItems, int orders) => new()
         {
             Id = c.CategoryId,
-            InstitutionId = c.InstitutionId,
+            CampusId = c.CampusId,
             Name = c.Name,
             Description = c.Description,
             DisplayOrder = c.DisplayOrder,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { RefreshCw, Store } from 'lucide-react';
 import { PageHeader } from '../../../../components/common/PageHeader';
 import { Button } from '../../../../components/common/Button';
@@ -9,21 +9,10 @@ import { LiveOrderQueue } from '../components/LiveOrderQueue';
 import { TopSellingItems } from '../components/TopSellingItems';
 import { StockAlertsCard } from '../components/StockAlertsCard';
 import { OutletSalesCard } from '../components/OutletSalesCard';
-import { canteenService } from '../../outlets/services/canteenService';
+import { useCanteens } from '../../outlets/hooks/useCanteens';
 
 export const DashboardPage = () => {
-  const [selectedOutlet, setSelectedOutlet] = useState('ALL');
-  const [outlets, setOutlets] = useState([]);
-
-  useEffect(() => {
-    let isMounted = true;
-    canteenService.getAll().then((data) => {
-      if (isMounted && Array.isArray(data)) {
-        setOutlets(data);
-      }
-    }).catch(() => {});
-    return () => { isMounted = false; };
-  }, []);
+  const { selectedOutlet, selectedOutletObj } = useCanteens();
 
   const {
     loading,
@@ -40,54 +29,41 @@ export const DashboardPage = () => {
     <div>
       <PageHeader
         title="Canteen Operations Dashboard"
-        description="Comprehensive real-time administrative intelligence across dining halls, order lifecycle, sales revenue, and kitchen inventory."
-        actions={
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ position: 'relative' }}>
-              <select
-                value={selectedOutlet}
-                onChange={(e) => setSelectedOutlet(e.target.value)}
-                style={{
-                  height: '36px',
-                  padding: '0 12px 0 32px',
-                  fontSize: '13px',
-                  fontWeight: 500,
-                  color: 'var(--text-primary)',
-                  backgroundColor: 'var(--bg-surface)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: 'var(--border-radius-md)',
-                  cursor: 'pointer'
-                }}
-              >
-                <option value="ALL">All Campus Outlets</option>
-                {outlets.map(out => (
-                  <option key={out.outletId || out.id} value={out.outletId || out.id}>
-                    {out.name} ({out.code || 'MC'})
-                  </option>
-                ))}
-              </select>
-              <Store
-                size={14}
-                style={{
-                  position: 'absolute',
-                  left: '10px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: 'var(--text-muted)',
-                  pointerEvents: 'none'
-                }}
-              />
-            </div>
-
-            <Button
-              variant="secondary"
-              icon={RefreshCw}
-              onClick={refreshDashboard}
-              loading={loading}
+        description={
+          selectedOutlet === 'ALL'
+            ? 'Comprehensive real-time administrative intelligence across all dining halls, order lifecycle, sales revenue, and kitchen inventory.'
+            : `Operational analytics, kitchen queues, and live activity for "${selectedOutletObj?.name || 'Selected Outlet'}".`
+        }
+        badge={
+          selectedOutlet !== 'ALL' ? (
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '3px 10px',
+                borderRadius: '9999px',
+                backgroundColor: 'var(--color-primary-light)',
+                color: 'var(--color-primary)',
+                fontSize: '12px',
+                fontWeight: 600,
+                border: '1px solid var(--border-color)'
+              }}
             >
-              Refresh
-            </Button>
-          </div>
+              <Store size={12} />
+              {selectedOutletObj?.name || 'Active Outlet'}
+            </span>
+          ) : null
+        }
+        actions={
+          <Button
+            variant="secondary"
+            icon={RefreshCw}
+            onClick={refreshDashboard}
+            loading={loading}
+          >
+            Refresh
+          </Button>
         }
       />
 

@@ -7,7 +7,7 @@
 DROP PROCEDURE IF EXISTS sp_GetCanteenOutletStats;
 DELIMITER $$
 CREATE PROCEDURE sp_GetCanteenOutletStats(
-    IN p_InstitutionId INT
+    IN p_CampusId INT
 )
 BEGIN
     SELECT 
@@ -18,7 +18,7 @@ BEGIN
         0 AS OrdersToday,
         0.00 AS RevenueToday
     FROM CanteenOutlets
-    WHERE InstitutionId = p_InstitutionId;
+    WHERE CampusId = p_CampusId;
 END $$
 DELIMITER ;
 

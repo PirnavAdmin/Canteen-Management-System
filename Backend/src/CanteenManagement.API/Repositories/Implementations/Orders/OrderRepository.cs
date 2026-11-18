@@ -19,7 +19,7 @@ namespace CanteenManagement.API.Repositories.Implementations.Orders
             _connectionFactory = connectionFactory;
         }
 
-        public async Task<IEnumerable<Order>> GetAllAsync(int institutionId, int? outletId = null, string? status = null, string? searchTerm = null)
+        public async Task<IEnumerable<Order>> GetAllAsync(int campusId, int? outletId = null, string? status = null, string? searchTerm = null)
         {
             try
             {
@@ -28,7 +28,7 @@ namespace CanteenManagement.API.Repositories.Implementations.Orders
                     "sp_GetAllOrders",
                     new
                     {
-                        p_InstitutionId = institutionId,
+                        p_CampusId = campusId,
                         p_OutletId = outletId ?? 0,
                         p_Status = status,
                         p_SearchTerm = searchTerm
@@ -63,7 +63,7 @@ namespace CanteenManagement.API.Repositories.Implementations.Orders
                     .Include(o => o.Items)
                     .Include(o => o.Timeline)
                     .Include(o => o.Payments)
-                    .Where(o => o.InstitutionId == institutionId);
+                    .Where(o => o.CampusId == campusId);
 
                 if (outletId.HasValue && outletId.Value > 0)
                 {
@@ -87,14 +87,14 @@ namespace CanteenManagement.API.Repositories.Implementations.Orders
             }
         }
 
-        public async Task<Order?> GetByIdAsync(string id, int institutionId)
+        public async Task<Order?> GetByIdAsync(string id, int campusId)
         {
             try
             {
                 using var connection = _connectionFactory.CreateConnection();
                 using var multi = await connection.QueryMultipleAsync(
                     "sp_GetOrderById",
-                    new { p_OrderId = id, p_InstitutionId = institutionId },
+                    new { p_OrderId = id, p_CampusId = campusId },
                     commandType: CommandType.StoredProcedure);
 
                 var order = await multi.ReadFirstOrDefaultAsync<Order>();
@@ -118,7 +118,7 @@ namespace CanteenManagement.API.Repositories.Implementations.Orders
                                         .Include(o => o.Items)
                     .Include(o => o.Timeline)
                     .Include(o => o.Payments)
-                    .FirstOrDefaultAsync(o => o.OrderId == id && o.InstitutionId == institutionId);
+                    .FirstOrDefaultAsync(o => o.OrderId == id && o.CampusId == campusId);
             }
         }
 

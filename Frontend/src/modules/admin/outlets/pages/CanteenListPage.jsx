@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCanteens } from '../hooks/useCanteens';
 import { PageHeader } from '../../../../components/common/PageHeader';
@@ -12,7 +12,14 @@ import { PlusCircle } from 'lucide-react';
 
 export const CanteenListPage = () => {
   const navigate = useNavigate();
-  const { canteens, loading, toggleCanteenStatus } = useCanteens();
+  const { canteens, loading, toggleCanteenStatus, refreshCanteens } = useCanteens();
+
+  // Ensure latest list is loaded when navigating to outlets page
+  useEffect(() => {
+    if (refreshCanteens) {
+      refreshCanteens();
+    }
+  }, [refreshCanteens]);
 
   // Search & Filters state
   const [searchTerm, setSearchTerm] = useState('');
@@ -55,11 +62,21 @@ export const CanteenListPage = () => {
     });
   }, [canteens, searchTerm, selectedCampus, selectedStatus]);
 
+  // Sort canteens with recently added first (by createdAt or outletId descending)
+  const sortedCanteens = useMemo(() => {
+    return [...filteredCanteens].sort((a, b) => {
+      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      if (timeA && timeB && timeA !== timeB) return timeB - timeA;
+      return Number(b.outletId || b.id || 0) - Number(a.outletId || a.id || 0);
+    });
+  }, [filteredCanteens]);
+
   // Paginated records
   const paginatedCanteens = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
-    return filteredCanteens.slice(start, start + pageSize);
-  }, [filteredCanteens, currentPage, pageSize]);
+    return sortedCanteens.slice(start, start + pageSize);
+  }, [sortedCanteens, currentPage, pageSize]);
 
   const handleResetFilters = () => {
     setSearchTerm('');
@@ -117,7 +134,7 @@ export const CanteenListPage = () => {
         footer={
           <Pagination
             currentPage={currentPage}
-            totalItems={filteredCanteens.length}
+            totalItems={sortedCanteens.length}
             pageSize={pageSize}
             onPageChange={setCurrentPage}
             onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}

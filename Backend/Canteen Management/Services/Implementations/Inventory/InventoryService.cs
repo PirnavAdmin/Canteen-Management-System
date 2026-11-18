@@ -18,15 +18,15 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
             _auditService = auditService;
         }
 
-        public async Task<IEnumerable<InventoryItemDto>> GetItemsAsync(int institutionId, int? outletId = null)
+        public async Task<IEnumerable<InventoryItemDto>> GetItemsAsync(int campusId, int? outletId = null)
         {
-            var items = await _repository.GetItemsAsync(institutionId, outletId);
+            var items = await _repository.GetItemsAsync(campusId, outletId);
             return items.Select(MapToItemDto).ToList();
         }
 
-        public async Task<StockMovementLedgerDto> RecordMovementAsync(RecordStockMovementDto dto, int institutionId, string performedBy)
+        public async Task<StockMovementLedgerDto> RecordMovementAsync(RecordStockMovementDto dto, int campusId, string performedBy)
         {
-            var item = await _repository.GetItemByIdAsync(dto.IngredientId, institutionId);
+            var item = await _repository.GetItemByIdAsync(dto.IngredientId, campusId);
             if (item == null)
             {
                 throw new KeyNotFoundException($"Inventory item with ID {dto.IngredientId} was not found.");
@@ -78,7 +78,7 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
             var createdMovement = await _repository.AddMovementAsync(movement);
 
             await _auditService.LogActionAsync(
-                institutionId,
+                campusId,
                 null,
                 performedBy,
                 "RECORD_STOCK_MOVEMENT",
@@ -104,9 +104,9 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
             };
         }
 
-        public async Task<IEnumerable<StockMovementLedgerDto>> GetLedgerAsync(int institutionId, int? outletId = null)
+        public async Task<IEnumerable<StockMovementLedgerDto>> GetLedgerAsync(int campusId, int? outletId = null)
         {
-            var movements = await _repository.GetLedgerAsync(institutionId, outletId);
+            var movements = await _repository.GetLedgerAsync(campusId, outletId);
             return movements.Select(m => new StockMovementLedgerDto
             {
                 Id = m.MovementId,
@@ -138,9 +138,9 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
             }
         }
 
-        public async Task<IEnumerable<PurchaseOrderDto>> GetPurchaseOrdersAsync(int institutionId, int? outletId = null)
+        public async Task<IEnumerable<PurchaseOrderDto>> GetPurchaseOrdersAsync(int campusId, int? outletId = null)
         {
-            var pos = await _repository.GetPurchaseOrdersAsync(institutionId, outletId);
+            var pos = await _repository.GetPurchaseOrdersAsync(campusId, outletId);
             return pos.Select(p => new PurchaseOrderDto
             {
                 Id = p.PurchaseOrderId,
@@ -157,12 +157,12 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
             }).ToList();
         }
 
-        public async Task<PurchaseOrderDto> CreatePurchaseOrderAsync(CreatePurchaseOrderDto dto, int institutionId, string performedBy)
+        public async Task<PurchaseOrderDto> CreatePurchaseOrderAsync(CreatePurchaseOrderDto dto, int campusId, string performedBy)
         {
             var supplierName = dto.SupplierName;
             if (string.IsNullOrWhiteSpace(supplierName) && dto.SupplierId.HasValue)
             {
-                var sup = await _repository.GetSupplierByIdAsync(dto.SupplierId.Value, institutionId);
+                var sup = await _repository.GetSupplierByIdAsync(dto.SupplierId.Value, campusId);
                 supplierName = sup?.Name;
             }
 
@@ -178,7 +178,7 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
 
             var po = new PurchaseOrder
             {
-                InstitutionId = institutionId,
+                CampusId = campusId,
                 OutletId = dto.OutletId,
                 PoNumber = $"PO-{DateTime.UtcNow.Year}-{Random.Shared.Next(1000, 9999)}",
                 SupplierId = dto.SupplierId,
@@ -194,7 +194,7 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
             var created = await _repository.CreatePurchaseOrderAsync(po);
 
             await _auditService.LogActionAsync(
-                institutionId,
+                campusId,
                 null,
                 performedBy,
                 "CREATE_PURCHASE_ORDER",
@@ -219,9 +219,9 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
             };
         }
 
-        public async Task<PurchaseOrderDto> UpdatePurchaseOrderStatusAsync(int id, string status, int institutionId, string performedBy)
+        public async Task<PurchaseOrderDto> UpdatePurchaseOrderStatusAsync(int id, string status, int campusId, string performedBy)
         {
-            var po = await _repository.GetPurchaseOrderByIdAsync(id, institutionId);
+            var po = await _repository.GetPurchaseOrderByIdAsync(id, campusId);
             if (po == null)
             {
                 throw new KeyNotFoundException($"Purchase order {id} was not found.");
@@ -238,7 +238,7 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
                 var items = ParseItemsJson(po.ItemsJson);
                 if (items != null && items.Count > 0)
                 {
-                    var existingStockItems = (await _repository.GetItemsAsync(institutionId, po.OutletId > 0 ? po.OutletId : null)).ToList();
+                    var existingStockItems = (await _repository.GetItemsAsync(campusId, po.OutletId > 0 ? po.OutletId : null)).ToList();
 
                     foreach (var item in items)
                     {
@@ -267,7 +267,7 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
                         {
                             var newItem = new InventoryItem
                             {
-                                InstitutionId = institutionId,
+                                CampusId = campusId,
                                 OutletId = po.OutletId > 0 ? po.OutletId : 1,
                                 IngredientName = targetName,
                                 Category = "Groceries",
@@ -304,7 +304,7 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
             }
 
             await _auditService.LogActionAsync(
-                institutionId,
+                campusId,
                 null,
                 performedBy,
                 "UPDATE_PO_STATUS",
@@ -329,9 +329,9 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
             };
         }
 
-        public async Task<IEnumerable<SupplierDto>> GetSuppliersAsync(int institutionId)
+        public async Task<IEnumerable<SupplierDto>> GetSuppliersAsync(int campusId)
         {
-            var suppliers = await _repository.GetSuppliersAsync(institutionId);
+            var suppliers = await _repository.GetSuppliersAsync(campusId);
             return suppliers.Select(s => new SupplierDto
             {
                 Id = s.SupplierId,
@@ -347,11 +347,11 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
             }).ToList();
         }
 
-        public async Task<SupplierDto> CreateSupplierAsync(CreateSupplierDto dto, int institutionId, string performedBy)
+        public async Task<SupplierDto> CreateSupplierAsync(CreateSupplierDto dto, int campusId, string performedBy)
         {
             var supplier = new Supplier
             {
-                InstitutionId = institutionId,
+                CampusId = campusId,
                 Name = dto.Name.Trim(),
                 ContactPerson = dto.ContactPerson?.Trim(),
                 Phone = dto.Phone?.Trim(),
@@ -367,7 +367,7 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
             var created = await _repository.CreateSupplierAsync(supplier);
 
             await _auditService.LogActionAsync(
-                institutionId,
+                campusId,
                 null,
                 performedBy,
                 "CREATE_SUPPLIER",
@@ -391,9 +391,9 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
             };
         }
 
-        public async Task<SupplierDto?> UpdateSupplierAsync(int id, UpdateSupplierDto dto, int institutionId, string performedBy)
+        public async Task<SupplierDto?> UpdateSupplierAsync(int id, UpdateSupplierDto dto, int campusId, string performedBy)
         {
-            var existing = await _repository.GetSupplierByIdAsync(id, institutionId);
+            var existing = await _repository.GetSupplierByIdAsync(id, campusId);
             if (existing == null) return null;
 
             existing.Name = dto.Name.Trim();
@@ -413,7 +413,7 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
             if (updated == null) return null;
 
             await _auditService.LogActionAsync(
-                institutionId,
+                campusId,
                 null,
                 performedBy,
                 "UPDATE_SUPPLIER",
@@ -437,9 +437,9 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
             };
         }
 
-        public async Task<SupplierDeleteResultDto> DeleteSupplierAsync(int id, int institutionId, string performedBy)
+        public async Task<SupplierDeleteResultDto> DeleteSupplierAsync(int id, int campusId, string performedBy)
         {
-            var existing = await _repository.GetSupplierByIdAsync(id, institutionId);
+            var existing = await _repository.GetSupplierByIdAsync(id, campusId);
             if (existing == null)
             {
                 return new SupplierDeleteResultDto
@@ -451,10 +451,10 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
                 };
             }
 
-            var (success, actionTaken, linkedPoCount) = await _repository.DeleteSupplierAsync(id, institutionId);
+            var (success, actionTaken, linkedPoCount) = await _repository.DeleteSupplierAsync(id, campusId);
 
             await _auditService.LogActionAsync(
-                institutionId,
+                campusId,
                 null,
                 performedBy,
                 actionTaken == "HARD_DELETED" ? "DELETE_SUPPLIER" : "DEACTIVATE_SUPPLIER",
@@ -476,16 +476,16 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
             };
         }
 
-        public async Task<SupplierDto?> UpdateSupplierStatusAsync(int id, string status, int institutionId, string performedBy)
+        public async Task<SupplierDto?> UpdateSupplierStatusAsync(int id, string status, int campusId, string performedBy)
         {
-            var existing = await _repository.GetSupplierByIdAsync(id, institutionId);
+            var existing = await _repository.GetSupplierByIdAsync(id, campusId);
             if (existing == null) return null;
 
-            var updated = await _repository.ToggleSupplierStatusAsync(id, institutionId, status);
+            var updated = await _repository.ToggleSupplierStatusAsync(id, campusId, status);
             if (updated == null) return null;
 
             await _auditService.LogActionAsync(
-                institutionId,
+                campusId,
                 null,
                 performedBy,
                 "UPDATE_SUPPLIER_STATUS",

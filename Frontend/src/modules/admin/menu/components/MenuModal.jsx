@@ -74,10 +74,12 @@ export const MenuModal = ({
           setCategories(parsedCategories);
           setFormData(prev => {
             if (!initialData && !prev.category) {
+              const activeCats = parsedCategories.filter(c => String(c.status || '').toLowerCase() === 'active' || c.isActive === true);
+              const defaultCat = activeCats.length > 0 ? activeCats[0] : parsedCategories[0];
               return {
                 ...prev,
-                category: parsedCategories[0].name,
-                categoryId: parsedCategories[0].id || parsedCategories[0].categoryId || 1
+                category: defaultCat.name,
+                categoryId: defaultCat.id || defaultCat.categoryId || 1
               };
             }
             return prev;
@@ -128,12 +130,13 @@ export const MenuModal = ({
     } else {
       setIsCustomFoodType(false);
       setCustomFoodTypeValue('');
+      const firstActiveCat = categories.find(c => String(c.status || '').toLowerCase() === 'active' || c.isActive === true) || categories[0];
       setFormData({
         name: '',
         code: '',
         description: '',
-        category: categories[0]?.name || '',
-        categoryId: categories[0]?.id || categories[0]?.categoryId || 1,
+        category: firstActiveCat?.name || '',
+        categoryId: firstActiveCat?.id || firstActiveCat?.categoryId || 1,
         outletId: outlets[0]?.outletId || outlets[0]?.id || 1,
         foodType: FOOD_TYPES.VEG,
         price: '',
@@ -525,15 +528,27 @@ export const MenuModal = ({
                   borderRadius: 'var(--border-radius-md)'
                 }}
               >
-                {categories.length > 0 ? (
-                  categories.map(c => (
-                    <option key={c.id || c.categoryId} value={c.name}>
-                      {c.name}
-                    </option>
-                  ))
-                ) : (
-                  <option value="" disabled>No categories available</option>
-                )}
+                {(() => {
+                  const availableCategories = categories.filter(c => {
+                    const isActive = String(c.status || '').toLowerCase() === 'active' || c.isActive === true;
+                    if (isActive) return true;
+                    // If editing an existing item whose category is currently inactive, retain it so it's not lost
+                    if (initialData && (c.name === initialData.category || c.id === initialData.categoryId)) {
+                      return true;
+                    }
+                    return false;
+                  });
+
+                  return availableCategories.length > 0 ? (
+                    availableCategories.map(c => (
+                      <option key={c.id || c.categoryId} value={c.name}>
+                        {c.name} {String(c.status || '').toLowerCase() === 'inactive' ? '(Inactive)' : ''}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="" disabled>No active categories available</option>
+                  );
+                })()}
               </select>
             </div>
 

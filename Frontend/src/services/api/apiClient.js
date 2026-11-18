@@ -63,8 +63,9 @@ axiosInstance.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    const institutionId = localStorage.getItem('institution_id') || '1';
-    config.headers['X-Institution-Id'] = institutionId;
+    const campusId = localStorage.getItem('campus_id') || localStorage.getItem('institution_id') || '1';
+    config.headers['X-Campus-Id'] = campusId;
+    config.headers['X-Institution-Id'] = campusId;
 
     return config;
   },

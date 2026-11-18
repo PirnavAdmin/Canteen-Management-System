@@ -12,7 +12,7 @@ namespace CanteenManagement.API.Models.Feedback
         public string TicketId { get; set; } = string.Empty; // e.g. FB-2026-041
 
         [Required]
-        public int InstitutionId { get; set; } = 1;
+        public int CampusId { get; set; } = 1;
 
         [Required]
         public int OutletId { get; set; }

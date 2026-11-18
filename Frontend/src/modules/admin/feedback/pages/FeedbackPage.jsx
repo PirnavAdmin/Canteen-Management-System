@@ -7,8 +7,10 @@ import { useFeedback } from '../hooks/useFeedback';
 import { FeedbackFilters } from '../components/FeedbackFilters';
 import { FeedbackTable } from '../components/FeedbackTable';
 import { FeedbackDetailsModal } from '../components/FeedbackDetailsModal';
+import { useCanteens } from '../../outlets/hooks/useCanteens';
 
 export const FeedbackPage = () => {
+  const { selectedOutlet, selectedOutletObj } = useCanteens();
   const {
     feedbackList,
     loading,
@@ -43,9 +45,15 @@ export const FeedbackPage = () => {
       if (selectedCategory !== 'ALL' && item.complaintCategory !== selectedCategory) return false;
       if (selectedStatus !== 'ALL' && item.status !== selectedStatus) return false;
       if (selectedRating !== 'ALL' && String(item.rating) !== selectedRating) return false;
+      if (selectedOutlet !== 'ALL') {
+        const matchesId = String(item.outletId ?? item.canteenId ?? '') === String(selectedOutlet);
+        const matchesName = selectedOutletObj && item.outletName &&
+          item.outletName.toLowerCase().includes(selectedOutletObj.name.toLowerCase());
+        if (!matchesId && !matchesName) return false;
+      }
       return true;
     });
-  }, [feedbackList, searchTerm, selectedCategory, selectedStatus, selectedRating]);
+  }, [feedbackList, searchTerm, selectedCategory, selectedStatus, selectedRating, selectedOutlet, selectedOutletObj]);
 
   // Paginated records
   const paginatedFeedback = useMemo(() => {

@@ -44,13 +44,14 @@ namespace CanteenManagement.API.Controllers.V1
                 return BadRequest(ApiResponse<AuthResponseDto>.Fail("Validation failed.", errors));
             }
 
-            var institutionId = User.ResolveInstitutionId();
-            if (Request.Headers.TryGetValue("X-Institution-Id", out var hVal) && int.TryParse(hVal.FirstOrDefault(), out var hInst))
+            var campusId = User.ResolveCampusId();
+            if ((Request.Headers.TryGetValue("X-Campus-Id", out var hVal) || Request.Headers.TryGetValue("X-Institution-Id", out hVal))
+                && int.TryParse(hVal.FirstOrDefault(), out var hInst))
             {
-                institutionId = hInst;
+                campusId = hInst;
             }
 
-            var response = await _authService.LoginAsync(dto, institutionId, GetClientIpAddress());
+            var response = await _authService.LoginAsync(dto, campusId, GetClientIpAddress());
             if (!response.Success)
             {
                 return StatusCode(response.StatusCode, response);

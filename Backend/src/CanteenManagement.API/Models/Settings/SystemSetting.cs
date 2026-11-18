@@ -11,7 +11,7 @@ namespace CanteenManagement.API.Models.Settings
         public int SettingId { get; set; }
 
         [Required]
-        public int InstitutionId { get; set; } = 1;
+        public int CampusId { get; set; } = 1;
 
         [Required]
         [MaxLength(50)]
@@ -35,7 +35,7 @@ namespace CanteenManagement.API.Models.Settings
         public string RequestId { get; set; } = string.Empty; // e.g. DSAR-2026-081
 
         [Required]
-        public int InstitutionId { get; set; } = 1;
+        public int CampusId { get; set; } = 1;
 
         [Required]
         [MaxLength(100)]

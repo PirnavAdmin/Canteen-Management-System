@@ -19,11 +19,11 @@ namespace CanteenManagement.API.Repositories.Implementations.Outlets
             _dbConnectionFactory = dbConnectionFactory;
         }
 
-        public async Task<IEnumerable<CanteenOutlet>> GetAllAsync(int institutionId, string? status = null, string? search = null)
+        public async Task<IEnumerable<CanteenOutlet>> GetAllAsync(int campusId, string? status = null, string? search = null)
         {
             var query = _context.CanteenOutlets
                 .Include(o => o.Settings)
-                .Where(o => o.InstitutionId == institutionId)
+                .Where(o => o.CampusId == campusId)
                 .AsNoTracking();
 
             if (!string.IsNullOrWhiteSpace(status))
@@ -39,29 +39,29 @@ namespace CanteenManagement.API.Repositories.Implementations.Outlets
                                          (o.Location != null && o.Location.ToLower().Contains(searchLower)));
             }
 
-            return await query.OrderBy(o => o.Code).ToListAsync();
+            return await query.OrderByDescending(o => o.OutletId).ToListAsync();
         }
 
-        public async Task<CanteenOutlet?> GetByIdAsync(int outletId, int institutionId)
+        public async Task<CanteenOutlet?> GetByIdAsync(int outletId, int campusId)
         {
             return await _context.CanteenOutlets
                 .Include(o => o.Settings)
-                .FirstOrDefaultAsync(o => o.OutletId == outletId && o.InstitutionId == institutionId);
+                .FirstOrDefaultAsync(o => o.OutletId == outletId && o.CampusId == campusId);
         }
 
-        public async Task<CanteenOutlet?> GetByCodeAsync(string code, int institutionId)
+        public async Task<CanteenOutlet?> GetByCodeAsync(string code, int campusId)
         {
             var upperCode = code.Trim().ToUpper();
             return await _context.CanteenOutlets
                 .Include(o => o.Settings)
-                .FirstOrDefaultAsync(o => o.InstitutionId == institutionId && o.Code.ToUpper() == upperCode);
+                .FirstOrDefaultAsync(o => o.CampusId == campusId && o.Code.ToUpper() == upperCode);
         }
 
-        public async Task<bool> ExistsByCodeAsync(string code, int institutionId, int? excludeOutletId = null)
+        public async Task<bool> ExistsByCodeAsync(string code, int campusId, int? excludeOutletId = null)
         {
             var upperCode = code.Trim().ToUpper();
             return await _context.CanteenOutlets
-                .AnyAsync(o => o.InstitutionId == institutionId &&
+                .AnyAsync(o => o.CampusId == campusId &&
                                o.Code.ToUpper() == upperCode &&
                                (excludeOutletId == null || o.OutletId != excludeOutletId));
         }
@@ -96,9 +96,9 @@ namespace CanteenManagement.API.Repositories.Implementations.Outlets
             return affected > 0;
         }
 
-        public async Task<bool> DeleteAsync(int outletId, int institutionId)
+        public async Task<bool> DeleteAsync(int outletId, int campusId)
         {
-            var outlet = await _context.CanteenOutlets.FirstOrDefaultAsync(o => o.OutletId == outletId && o.InstitutionId == institutionId);
+            var outlet = await _context.CanteenOutlets.FirstOrDefaultAsync(o => o.OutletId == outletId && o.CampusId == campusId);
             if (outlet == null) return false;
 
             _context.CanteenOutlets.Remove(outlet);
@@ -109,22 +109,22 @@ namespace CanteenManagement.API.Repositories.Implementations.Outlets
         /// <summary>
         /// Dual ORM demonstration: Using Dapper for high-performance aggregate stats query
         /// </summary>
-        public async Task<CanteenOutletStatsDto> GetStatsAsync(int institutionId)
+        public async Task<CanteenOutletStatsDto> GetStatsAsync(int campusId)
         {
             try
             {
                 using var connection = _dbConnectionFactory.CreateConnection();
                 var stats = await connection.QueryFirstOrDefaultAsync<CanteenOutletStatsDto>(
                     "sp_GetCanteenOutletStats",
-                    new { p_InstitutionId = institutionId },
+                    new { p_CampusId = campusId },
                     commandType: CommandType.StoredProcedure);
                 return stats ?? new CanteenOutletStatsDto();
             }
             catch
             {
                 // Resilient fallback to EF Core query if direct connection has local driver constraints
-                var total = await _context.CanteenOutlets.CountAsync(o => o.InstitutionId == institutionId);
-                var active = await _context.CanteenOutlets.CountAsync(o => o.InstitutionId == institutionId && o.Status == "Active");
+                var total = await _context.CanteenOutlets.CountAsync(o => o.CampusId == campusId);
+                var active = await _context.CanteenOutlets.CountAsync(o => o.CampusId == campusId && o.Status == "Active");
                 return new CanteenOutletStatsDto
                 {
                     TotalOutlets = total,
