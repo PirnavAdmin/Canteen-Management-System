@@ -35,19 +35,24 @@ export const MenuFilters = ({
     return () => { isMounted = false; };
   }, []);
   return (
-    <div style={{
-      backgroundColor: 'var(--bg-surface)',
-      borderRadius: 'var(--border-radius-lg)',
-      border: '1px solid var(--border-color)',
-      padding: '10px 14px',
-      marginBottom: '16px',
-      display: 'flex',
-      alignItems: 'center',
-      gap: '8px',
-      flexWrap: 'nowrap',
-      overflowX: 'auto',
-      boxShadow: 'var(--shadow-xs)'
-    }}>
+    <div
+      className="no-scrollbar"
+      style={{
+        backgroundColor: 'var(--bg-surface)',
+        borderRadius: 'var(--border-radius-lg)',
+        border: '1px solid var(--border-color)',
+        padding: '10px 14px',
+        marginBottom: '16px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        flexWrap: 'nowrap',
+        overflowX: 'auto',
+        scrollbarWidth: 'none',
+        msOverflowStyle: 'none',
+        boxShadow: 'var(--shadow-xs)'
+      }}
+    >
       {/* Search Input */}
       <div style={{ position: 'relative', flex: '1 1 200px', minWidth: '160px' }}>
         <input
@@ -95,11 +100,13 @@ export const MenuFilters = ({
         }}
       >
         <option value="ALL">All Categories</option>
-        {categories.map(c => (
-          <option key={c.id || c.categoryId} value={c.name}>
-            {c.name}
-          </option>
-        ))}
+        {categories
+          .filter(c => String(c.status || '').toLowerCase() === 'active' || c.isActive === true)
+          .map(c => (
+            <option key={c.id || c.categoryId} value={c.name}>
+              {c.name}
+            </option>
+          ))}
       </select>
 
       {/* Food Type */}

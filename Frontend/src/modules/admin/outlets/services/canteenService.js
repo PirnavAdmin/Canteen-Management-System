@@ -61,7 +61,14 @@ export const canteenService = {
   getAll: async (params = {}) => {
     const response = await apiClient.get(API_ENDPOINTS.OUTLETS.BASE, params);
     const list = response?.data ?? response;
-    return Array.isArray(list) ? list.map(normalizeCanteen) : [];
+    const normalized = Array.isArray(list) ? list.map(normalizeCanteen) : [];
+    // Sort recently added first (by createdAt or outletId descending)
+    return normalized.sort((a, b) => {
+      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      if (timeA && timeB && timeA !== timeB) return timeB - timeA;
+      return Number(b.outletId || b.id || 0) - Number(a.outletId || a.id || 0);
+    });
   },
 
   getById: async (id) => {

@@ -48,9 +48,30 @@ export const Header = ({ onOpenSidebar }) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
-  const { selectedCampus, setSelectedCampus, availableCampuses } = useCanteens();
+  const {
+    selectedCampus,
+    setSelectedCampus,
+    availableCampuses,
+    canteens,
+    selectedOutlet,
+    setSelectedOutlet,
+    selectedOutletObj
+  } = useCanteens();
   const [isCampusDropdownOpen, setIsCampusDropdownOpen] = useState(false);
   const [campusSearchQuery, setCampusSearchQuery] = useState('');
+  const [isOutletDropdownOpen, setIsOutletDropdownOpen] = useState(false);
+  const [outletSearchQuery, setOutletSearchQuery] = useState('');
+
+  const filteredOutlets = useMemo(() => {
+    const list = canteens || [];
+    if (!outletSearchQuery.trim()) return list;
+    const q = outletSearchQuery.toLowerCase();
+    return list.filter(o =>
+      (o.name && o.name.toLowerCase().includes(q)) ||
+      (o.code && o.code.toLowerCase().includes(q)) ||
+      (o.campus && o.campus.toLowerCase().includes(q))
+    );
+  }, [canteens, outletSearchQuery]);
 
   const filteredCampuses = useMemo(() => {
     const list = availableCampuses || [];
@@ -260,56 +281,16 @@ export const Header = ({ onOpenSidebar }) => {
         </div>
       </div>
 
-      <div className={styles.headerRight}>
-        {/* Light / Dark Theme Switcher Button */}
-        <button
-          type="button"
-          onClick={toggleTheme}
-          title={isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
-          aria-label={isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '6px 12px',
-            borderRadius: 'var(--border-radius-full)',
-            border: '1px solid var(--border-color)',
-            backgroundColor: 'var(--bg-muted)',
-            color: 'var(--text-primary)',
-            fontSize: '12px',
-            fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'all var(--transition-fast)'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)';
-            e.currentTarget.style.borderColor = 'var(--color-accent)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--bg-muted)';
-            e.currentTarget.style.borderColor = 'var(--border-color)';
-          }}
-        >
-          {isDark ? (
-            <>
-              <Sun size={15} style={{ color: '#f59e0b' }} />
-              <span className="theme-toggle-label">Light Mode</span>
-            </>
-          ) : (
-            <>
-              <Moon size={15} style={{ color: '#6366f1' }} />
-              <span className="theme-toggle-label">Dark Mode</span>
-            </>
-          )}
-        </button>
-
-        {/* Campus Selection Dropdown */}
+      <div className={styles.headerRight} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {/* 1. Campus Selection Dropdown */}
         <div style={{ position: 'relative' }}>
           <button
             type="button"
             onClick={() => {
               setIsCampusDropdownOpen(prev => !prev);
               setCampusSearchQuery('');
+              setIsOutletDropdownOpen(false);
+              setIsProfileOpen(false);
             }}
             style={{
               display: 'flex',
@@ -318,20 +299,31 @@ export const Header = ({ onOpenSidebar }) => {
               fontSize: '12px',
               color: 'var(--text-secondary)',
               backgroundColor: 'var(--bg-muted)',
-              padding: '4px 10px',
+              padding: '5px 10px',
               borderRadius: 'var(--border-radius-full)',
               border: '1px solid var(--border-color)',
               cursor: 'pointer',
-              transition: 'all var(--transition-fast)'
+              transition: 'all var(--transition-fast)',
+              maxWidth: '150px'
             }}
             title="Institutional campus location"
             aria-label="Select institutional campus"
             onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-muted)'; }}
           >
-            <MapPin size={13} style={{ color: 'var(--color-accent)' }} />
-            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{selectedCampus || 'Main Campus'}</span>
-            <ChevronDown size={12} style={{ color: 'var(--text-muted)' }} />
+            <MapPin size={13} style={{ color: 'var(--color-accent)', flexShrink: 0 }} />
+            <span
+              style={{
+                fontWeight: 600,
+                color: 'var(--text-primary)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}
+            >
+              {selectedCampus || 'Main Campus'}
+            </span>
+            <ChevronDown size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
           </button>
 
           {isCampusDropdownOpen && (
@@ -345,7 +337,8 @@ export const Header = ({ onOpenSidebar }) => {
                   position: 'absolute',
                   top: 'calc(100% + 6px)',
                   left: 0,
-                  width: '230px',
+                  minWidth: '220px',
+                  maxWidth: 'calc(100vw - 32px)',
                   backgroundColor: 'var(--bg-surface)',
                   border: '1px solid var(--border-color)',
                   borderRadius: 'var(--border-radius-md)',
@@ -435,6 +428,232 @@ export const Header = ({ onOpenSidebar }) => {
             </>
           )}
         </div>
+
+        {/* 2. Outlets Selection Dropdown (Global Active Outlet) */}
+        <div style={{ position: 'relative' }}>
+          <button
+            type="button"
+            onClick={() => {
+              setIsOutletDropdownOpen(prev => !prev);
+              setOutletSearchQuery('');
+              setIsCampusDropdownOpen(false);
+              setIsProfileOpen(false);
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '12px',
+              color: 'var(--text-secondary)',
+              backgroundColor: 'var(--bg-muted)',
+              padding: '5px 10px',
+              borderRadius: 'var(--border-radius-full)',
+              border: selectedOutlet !== 'ALL' ? '1px solid var(--color-primary-border, var(--border-color))' : '1px solid var(--border-color)',
+              cursor: 'pointer',
+              transition: 'all var(--transition-fast)',
+              maxWidth: '180px'
+            }}
+            title="Active Canteen / Dining Outlet"
+            aria-label="Select Canteen Outlet"
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-muted)'; }}
+          >
+            <Store size={13} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />
+            <span
+              style={{
+                fontWeight: 600,
+                color: 'var(--text-primary)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}
+            >
+              {selectedOutlet === 'ALL' ? 'All Campus Outlets' : (selectedOutletObj?.name || 'All Campus Outlets')}
+            </span>
+            <ChevronDown size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+          </button>
+
+          {isOutletDropdownOpen && (
+            <>
+              <div
+                onClick={() => setIsOutletDropdownOpen(false)}
+                style={{ position: 'fixed', inset: 0, zIndex: 65 }}
+              />
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 6px)',
+                  left: 0,
+                  minWidth: '240px',
+                  maxWidth: 'calc(100vw - 32px)',
+                  backgroundColor: 'var(--bg-surface)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: 'var(--border-radius-md)',
+                  boxShadow: 'var(--shadow-md)',
+                  zIndex: 70,
+                  overflow: 'hidden'
+                }}
+              >
+                {/* Search bar inside the dropdown if > 3 outlets */}
+                {canteens.length > 3 && (
+                  <div style={{
+                    padding: '8px 10px',
+                    borderBottom: '1px solid var(--border-color-subtle)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    backgroundColor: 'var(--bg-app)'
+                  }}>
+                    <Search size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                    <input
+                      type="text"
+                      value={outletSearchQuery}
+                      onChange={(e) => setOutletSearchQuery(e.target.value)}
+                      placeholder="Search outlet..."
+                      autoFocus
+                      style={{
+                        width: '100%',
+                        background: 'none',
+                        border: 'none',
+                        outline: 'none',
+                        fontSize: '12px',
+                        color: 'var(--text-primary)'
+                      }}
+                    />
+                  </div>
+                )}
+
+                <div style={{ maxHeight: '240px', overflowY: 'auto', padding: '4px' }}>
+                  {/* Option: All Campus Outlets */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedOutlet('ALL');
+                      setIsOutletDropdownOpen(false);
+                    }}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '7px 10px',
+                      borderRadius: 'var(--border-radius-sm)',
+                      border: 'none',
+                      backgroundColor: selectedOutlet === 'ALL' ? 'var(--color-primary-light)' : 'transparent',
+                      color: selectedOutlet === 'ALL' ? 'var(--color-primary)' : 'var(--text-primary)',
+                      fontWeight: selectedOutlet === 'ALL' ? 700 : 500,
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      textAlign: 'left'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (selectedOutlet !== 'ALL') e.currentTarget.style.backgroundColor = 'var(--bg-muted)';
+                    }}
+                    onMouseLeave={(e) => {
+                      if (selectedOutlet !== 'ALL') e.currentTarget.style.backgroundColor = 'transparent';
+                    }}
+                  >
+                    <Store size={14} style={{ flexShrink: 0 }} />
+                    <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      All Campus Outlets
+                    </span>
+                  </button>
+
+                  {/* List of individual Outlets */}
+                  {filteredOutlets.map((outlet) => {
+                    const isSelected = String(selectedOutlet) === String(outlet.outletId || outlet.id);
+                    return (
+                      <button
+                        key={outlet.outletId || outlet.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedOutlet(String(outlet.outletId || outlet.id));
+                          setIsOutletDropdownOpen(false);
+                        }}
+                        style={{
+                          width: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '7px 10px',
+                          borderRadius: 'var(--border-radius-sm)',
+                          border: 'none',
+                          backgroundColor: isSelected ? 'var(--color-primary-light)' : 'transparent',
+                          color: isSelected ? 'var(--color-primary)' : 'var(--text-primary)',
+                          fontWeight: isSelected ? 700 : 500,
+                          fontSize: '12px',
+                          cursor: 'pointer',
+                          textAlign: 'left'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isSelected) e.currentTarget.style.backgroundColor = 'var(--bg-muted)';
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent';
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: '6px',
+                            height: '6px',
+                            borderRadius: '50%',
+                            backgroundColor: outlet.status === 'Active' ? 'var(--color-success)' : 'var(--text-muted)',
+                            flexShrink: 0
+                          }}
+                        />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {outlet.name}
+                          </div>
+                          {outlet.code && (
+                            <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                              {outlet.code} • {outlet.campus || 'Main Campus'}
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* 3. Light / Dark Theme Switcher Button (Icon only) */}
+        <button
+          type="button"
+          onClick={toggleTheme}
+          title={isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
+          aria-label={isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
+          style={{
+            width: '32px',
+            height: '32px',
+            borderRadius: '50%',
+            border: '1px solid var(--border-color)',
+            backgroundColor: 'var(--bg-muted)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            transition: 'all var(--transition-fast)',
+            flexShrink: 0
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)';
+            e.currentTarget.style.borderColor = 'var(--color-accent)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'var(--bg-muted)';
+            e.currentTarget.style.borderColor = 'var(--border-color)';
+          }}
+        >
+          {isDark ? (
+            <Sun size={16} style={{ color: '#f59e0b' }} />
+          ) : (
+            <Moon size={16} style={{ color: '#6366f1' }} />
+          )}
+        </button>
 
         {/* Clickable Profile Trigger + Floating Profile Modal */}
         <div style={{ position: 'relative' }}>

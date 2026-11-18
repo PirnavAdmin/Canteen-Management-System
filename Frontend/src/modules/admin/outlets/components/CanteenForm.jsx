@@ -8,7 +8,7 @@ import { Button } from '../../../../components/common/Button';
 import { CAMPUSES } from '../constants/canteenConstants';
 import { useCanteens } from '../hooks/useCanteens';
 import { validateCanteenForm } from '../utils/canteenValidators';
-import { Save, X, Building, MapPin, Phone, Mail, Hash, ShieldCheck } from 'lucide-react';
+import { Save, Building, MapPin, Phone, Mail, Hash, ShieldCheck } from 'lucide-react';
 
 export const CanteenForm = ({
   initialValues = {},
@@ -349,20 +349,12 @@ export const CanteenForm = ({
           borderTop: '1px solid var(--border-color)'
         }}>
           <Button
-            variant="secondary"
-            onClick={handleCancel}
-            icon={X}
-            disabled={isSubmitting}
-          >
-            Cancel
-          </Button>
-          <Button
             type="submit"
             variant="primary"
             icon={Save}
             loading={isSubmitting}
           >
-            {isEdit ? 'Update Canteen' : 'Save Canteen'}
+            {isEdit ? 'Update Canteen Outlet' : 'Save Canteen Outlet'}
           </Button>
         </div>
       </div>

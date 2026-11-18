@@ -8,9 +8,29 @@ const CanteenContext = createContext(null);
 export const CanteenProvider = ({ children }) => {
   const [canteens, setCanteens] = useState([]);
   const [selectedCampus, setSelectedCampus] = useState('Main Campus');
+  const [selectedOutlet, setSelectedOutletState] = useState(() => {
+    try {
+      return localStorage.getItem('cms_selected_outlet') || 'ALL';
+    } catch {
+      return 'ALL';
+    }
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { success, error: toastError, info } = useToast();
+
+  const setSelectedOutlet = useCallback((outletId) => {
+    const val = String(outletId || 'ALL');
+    setSelectedOutletState(val);
+    try {
+      localStorage.setItem('cms_selected_outlet', val);
+    } catch {}
+  }, []);
+
+  const selectedOutletObj = useMemo(() => {
+    if (selectedOutlet === 'ALL') return null;
+    return canteens.find(c => String(c.outletId || c.id) === String(selectedOutlet)) || null;
+  }, [canteens, selectedOutlet]);
 
   const availableCampuses = useMemo(() => {
     const list = Array.isArray(CAMPUSES) ? [...CAMPUSES] : [];
@@ -48,7 +68,10 @@ export const CanteenProvider = ({ children }) => {
   const createCanteen = useCallback(async (formData) => {
     try {
       const created = await canteenService.create(formData);
-      setCanteens(prev => [created, ...prev]);
+      setCanteens(prev => {
+        const withoutNew = prev.filter(c => String(c.id) !== String(created.id) && String(c.outletId) !== String(created.outletId));
+        return [created, ...withoutNew];
+      });
       success('Canteen Created', `Successfully registered outlet "${created.name}" (${created.code}).`);
       return created;
     } catch (err) {
@@ -119,6 +142,9 @@ export const CanteenProvider = ({ children }) => {
         selectedCampus,
         setSelectedCampus,
         availableCampuses,
+        selectedOutlet,
+        setSelectedOutlet,
+        selectedOutletObj,
         loading,
         error,
         getCanteen,

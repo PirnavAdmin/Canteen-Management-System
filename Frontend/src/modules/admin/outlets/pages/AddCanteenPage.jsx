@@ -11,8 +11,8 @@ export const AddCanteenPage = () => {
   const { createCanteen, canteens } = useCanteens();
 
   const handleCreate = async (formData) => {
-    const created = await createCanteen(formData);
-    navigate(`/admin/outlets/${created.id}`);
+    await createCanteen(formData);
+    navigate('/admin/outlets', { replace: true });
   };
 
   const handleBack = () => {

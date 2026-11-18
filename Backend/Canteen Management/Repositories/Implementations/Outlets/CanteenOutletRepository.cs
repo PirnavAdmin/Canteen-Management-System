@@ -39,7 +39,7 @@ namespace CanteenManagement.API.Repositories.Implementations.Outlets
                                          (o.Location != null && o.Location.ToLower().Contains(searchLower)));
             }
 
-            return await query.OrderBy(o => o.Code).ToListAsync();
+            return await query.OrderByDescending(o => o.OutletId).ToListAsync();
         }
 
         public async Task<CanteenOutlet?> GetByIdAsync(int outletId, int institutionId)

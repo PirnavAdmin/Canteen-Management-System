@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { FileSpreadsheet, Printer } from 'lucide-react';
 import { PageHeader } from '../../../../components/common/PageHeader';
 import { Button } from '../../../../components/common/Button';
@@ -12,12 +12,16 @@ import { REPORT_OPTIONS } from '../constants/reportConstants';
 import { useCanteens } from '../../outlets/hooks/useCanteens';
 
 export const ReportsPage = () => {
-  const { selectedCampus, canteens } = useCanteens();
+  const { selectedCampus, canteens, selectedOutlet: globalOutlet, setSelectedOutlet: setGlobalOutlet } = useCanteens();
   const [selectedReport, setSelectedReport] = useState('sales_summary');
-  const [selectedOutlet, setSelectedOutlet] = useState('ALL');
+  const [selectedOutlet, setSelectedOutlet] = useState(globalOutlet || 'ALL');
   const [selectedDateRange, setSelectedDateRange] = useState('today');
   const [selectedPayment, setSelectedPayment] = useState('ALL');
   const [isPrintPreviewOpen, setIsPrintPreviewOpen] = useState(false);
+
+  useEffect(() => {
+    setSelectedOutlet(globalOutlet || 'ALL');
+  }, [globalOutlet]);
 
   const { reportData, loading } = useReports(selectedReport, {
     outlet: selectedOutlet,

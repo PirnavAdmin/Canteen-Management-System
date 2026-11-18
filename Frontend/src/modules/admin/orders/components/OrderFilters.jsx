@@ -24,19 +24,24 @@ export const OrderFilters = ({
     return () => { isMounted = false; };
   }, []);
   return (
-    <div style={{
-      backgroundColor: 'var(--bg-surface)',
-      borderRadius: 'var(--border-radius-lg)',
-      border: '1px solid var(--border-color)',
-      padding: '10px 14px',
-      marginBottom: '16px',
-      display: 'flex',
-      alignItems: 'center',
-      gap: '8px',
-      flexWrap: 'nowrap',
-      overflowX: 'auto',
-      boxShadow: 'var(--shadow-xs)'
-    }}>
+    <div
+      className="no-scrollbar"
+      style={{
+        backgroundColor: 'var(--bg-surface)',
+        borderRadius: 'var(--border-radius-lg)',
+        border: '1px solid var(--border-color)',
+        padding: '10px 14px',
+        marginBottom: '16px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        flexWrap: 'nowrap',
+        overflowX: 'auto',
+        scrollbarWidth: 'none',
+        msOverflowStyle: 'none',
+        boxShadow: 'var(--shadow-xs)'
+      }}
+    >
       {/* Search Input */}
       <div style={{ position: 'relative', flex: '1 1 200px', minWidth: '160px' }}>
         <input

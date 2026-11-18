@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { PlusCircle, RotateCcw } from 'lucide-react';
 import { PageHeader } from '../../../../components/common/PageHeader';
 import { Button } from '../../../../components/common/Button';
@@ -9,6 +9,7 @@ import { MenuFilters } from '../components/MenuFilters';
 import { MenuTable } from '../components/MenuTable';
 import { MenuModal } from '../components/MenuModal';
 import { MenuItemDetailsModal } from '../components/MenuItemDetailsModal';
+import { useCanteens } from '../../outlets/hooks/useCanteens';
 
 export const MenuListPage = () => {
   const {
@@ -22,12 +23,18 @@ export const MenuListPage = () => {
     resetDailyCapacity
   } = useMenuItems();
 
-  // Filters state
+  const { selectedOutlet: globalOutlet, setSelectedOutlet: setGlobalOutlet } = useCanteens();
+
+  // Filters state (syncs with global navbar outlet)
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [selectedFoodType, setSelectedFoodType] = useState('ALL');
-  const [selectedOutlet, setSelectedOutlet] = useState('ALL');
+  const [selectedOutlet, setSelectedOutlet] = useState(globalOutlet || 'ALL');
   const [selectedStatus, setSelectedStatus] = useState('ALL');
+
+  useEffect(() => {
+    setSelectedOutlet(globalOutlet || 'ALL');
+  }, [globalOutlet]);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -162,7 +169,7 @@ export const MenuListPage = () => {
         selectedFoodType={selectedFoodType}
         onFoodTypeChange={(v) => { setSelectedFoodType(v); setCurrentPage(1); }}
         selectedOutlet={selectedOutlet}
-        onOutletChange={(v) => { setSelectedOutlet(v); setCurrentPage(1); }}
+        onOutletChange={(v) => { setSelectedOutlet(v); setGlobalOutlet(v); setCurrentPage(1); }}
         selectedStatus={selectedStatus}
         onStatusChange={(v) => { setSelectedStatus(v); setCurrentPage(1); }}
         onReset={handleResetFilters}

@@ -145,3 +145,16 @@ body, .sidebar, header, nav, main, aside, [data-theme] {
   border: 1px solid var(--color-info-border);
 }
 
+/* Hide scrollbar for Chrome, Safari, Opera and Edge */
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.no-scrollbar {
+  -ms-overflow-style: none !important;  /* IE and Edge */
+  scrollbar-width: none !important;     /* Firefox */
+}
+
