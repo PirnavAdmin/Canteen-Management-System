@@ -1,4 +1,8 @@
+using System;
+using System.Collections.Generic;
 using System.Data;
+using System.Linq;
+using System.Threading.Tasks;
 using CanteenManagement.API.Data;
 using CanteenManagement.API.DTOs.Reports;
 using CanteenManagement.API.Repositories.Interfaces.Reports;
@@ -18,32 +22,37 @@ namespace CanteenManagement.API.Repositories.Implementations.Reports
         public async Task<ReportResultDto> GetReportDataAsync(int campusId, ReportFilterDto filter)
         {
             using var connection = _connectionFactory.CreateConnection();
-            var reportType = filter.ReportType.ToLower();
+            var reportType = (filter.ReportType ?? "sales_summary").ToLower();
+            var (startDate, endDate) = ResolveDateRange(filter.DateRange, filter.StartDate, filter.EndDate);
+
             var parameters = new
             {
                 p_CampusId = campusId,
-                p_OutletId = filter.OutletId ?? 0
+                p_OutletId = filter.OutletId ?? 0,
+                p_StartDate = startDate,
+                p_EndDate = endDate,
+                p_PaymentMethod = string.IsNullOrWhiteSpace(filter.Payment) ? "ALL" : filter.Payment
             };
 
-            if (reportType == "item_wise")
+            if (reportType == "item_wise" || reportType == "items")
             {
-                var items = (await connection.QueryAsync(
+                var items = (await connection.QueryAsync<ItemWiseReportRow>(
                     "sp_GetReportItemWise",
                     parameters,
                     commandType: CommandType.StoredProcedure)).ToList();
 
                 var rows = items.Select(r => new Dictionary<string, object>
                 {
-                    ["itemCode"] = r.itemCode,
-                    ["name"] = r.name,
-                    ["category"] = r.category,
-                    ["unitPrice"] = r.unitPrice,
-                    ["qtySold"] = r.qtySold,
-                    ["totalRevenue"] = r.totalRevenue
+                    ["itemCode"] = r.ItemCode ?? string.Empty,
+                    ["name"] = r.Name ?? string.Empty,
+                    ["category"] = r.Category ?? string.Empty,
+                    ["unitPrice"] = r.UnitPrice,
+                    ["qtySold"] = (int)r.QtySold,
+                    ["totalRevenue"] = r.TotalRevenue
                 }).ToList();
 
-                decimal totalRev = items.Sum(i => (decimal)i.totalRevenue);
-                int totalSold = items.Sum(i => (int)i.qtySold);
+                decimal totalRev = items.Sum(i => i.TotalRevenue);
+                int totalSold = (int)items.Sum(i => i.QtySold);
 
                 return new ReportResultDto
                 {
@@ -68,25 +77,25 @@ namespace CanteenManagement.API.Repositories.Implementations.Reports
             }
 
             // Default: Sales Summary Report via Stored Procedure
-            var sales = (await connection.QueryAsync(
+            var sales = (await connection.QueryAsync<SalesSummaryReportRow>(
                 "sp_GetReportSalesSummary",
                 parameters,
                 commandType: CommandType.StoredProcedure)).ToList();
 
             var salesRows = sales.Select(s => new Dictionary<string, object>
             {
-                ["date"] = s.date,
-                ["outlet"] = s.outlet,
-                ["orders"] = s.orders,
-                ["grossSales"] = s.grossSales,
-                ["tax"] = s.tax,
-                ["netSales"] = s.netSales
+                ["date"] = s.Date ?? string.Empty,
+                ["outlet"] = s.Outlet ?? string.Empty,
+                ["orders"] = s.Orders,
+                ["grossSales"] = s.GrossSales,
+                ["tax"] = s.Tax,
+                ["netSales"] = s.NetSales
             }).ToList();
 
-            decimal sumGross = sales.Sum(s => (decimal)s.grossSales);
-            decimal sumNet = sales.Sum(s => (decimal)s.netSales);
-            decimal sumTax = sales.Sum(s => (decimal)s.tax);
-            int sumOrders = sales.Sum(s => (int)s.orders);
+            decimal sumGross = sales.Sum(s => s.GrossSales);
+            decimal sumNet = sales.Sum(s => s.NetSales);
+            decimal sumTax = sales.Sum(s => s.Tax);
+            int sumOrders = sales.Sum(s => s.Orders);
 
             return new ReportResultDto
             {
@@ -110,5 +119,68 @@ namespace CanteenManagement.API.Repositories.Implementations.Reports
                 Rows = salesRows
             };
         }
+
+        private static (DateTime? StartDate, DateTime? EndDate) ResolveDateRange(string? dateRange, DateTime? customStart, DateTime? customEnd)
+        {
+            if (customStart.HasValue && customEnd.HasValue)
+            {
+                return (customStart.Value.Date, customEnd.Value.Date.AddDays(1).AddTicks(-1));
+            }
+
+            if (string.IsNullOrWhiteSpace(dateRange))
+            {
+                return (null, null);
+            }
+
+            var today = DateTime.UtcNow.Date;
+
+            switch (dateRange.Trim().ToLower())
+            {
+                case "today":
+                    return (today, today.AddDays(1).AddTicks(-1));
+                case "yesterday":
+                    return (today.AddDays(-1), today.AddTicks(-1));
+                case "last_7_days":
+                case "7days":
+                    return (today.AddDays(-6), today.AddDays(1).AddTicks(-1));
+                case "month_to_date":
+                case "mtd":
+                case "this_month":
+                    return (new DateTime(today.Year, today.Month, 1), today.AddDays(1).AddTicks(-1));
+                case "quarter_to_date":
+                case "qtd":
+                case "this_quarter":
+                    return (today.AddDays(-90), today.AddDays(1).AddTicks(-1));
+                case "all":
+                case "any":
+                    return (null, null);
+                default:
+                    if (DateTime.TryParse(dateRange, out var parsedDate))
+                    {
+                        return (parsedDate.Date, parsedDate.Date.AddDays(1).AddTicks(-1));
+                    }
+                    return (null, null);
+            }
+        }
+    }
+
+    public class ItemWiseReportRow
+    {
+        public string? ItemCode { get; set; }
+        public string? Name { get; set; }
+        public string? Category { get; set; }
+        public decimal UnitPrice { get; set; }
+        public decimal QtySold { get; set; }
+        public decimal TotalRevenue { get; set; }
+    }
+
+    public class SalesSummaryReportRow
+    {
+        public string? Date { get; set; }
+        public string? Outlet { get; set; }
+        public int Orders { get; set; }
+        public decimal GrossSales { get; set; }
+        public decimal Tax { get; set; }
+        public decimal NetSales { get; set; }
     }
 }

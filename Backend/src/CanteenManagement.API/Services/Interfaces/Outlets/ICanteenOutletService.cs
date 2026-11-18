@@ -9,7 +9,7 @@ namespace CanteenManagement.API.Services.Interfaces.Outlets
         Task<ApiResponse<CanteenOutletDto>> GetByIdAsync(int outletId, int campusId);
         Task<ApiResponse<CanteenOutletDto>> CreateAsync(int campusId, CreateCanteenOutletDto dto, int userId, string userName);
         Task<ApiResponse<CanteenOutletDto>> UpdateAsync(int outletId, int campusId, UpdateCanteenOutletDto dto, int userId, string userName);
-        Task<ApiResponse<bool>> ToggleStatusAsync(int outletId, int campusId, string status, int userId, string userName);
+        Task<ApiResponse<CanteenOutletDto>> ToggleStatusAsync(int outletId, int campusId, string status, int userId, string userName);
         Task<ApiResponse<bool>> DeleteAsync(int outletId, int campusId, int userId, string userName);
         Task<ApiResponse<CanteenOutletStatsDto>> GetStatsAsync(int campusId);
         Task<ApiResponse<CanteenOutletSettingDto>> GetSettingsAsync(int outletId, int campusId);

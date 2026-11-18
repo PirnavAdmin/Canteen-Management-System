@@ -33,6 +33,8 @@ namespace CanteenManagement.API.Models.Outlets
         [MaxLength(50)]
         public string? FssaiLicenseNo { get; set; } // Mandatory printed on bills
 
+        public DateTime? FssaiValidTill { get; set; }
+
         [MaxLength(20)]
         public string? ContactNumber { get; set; }
 

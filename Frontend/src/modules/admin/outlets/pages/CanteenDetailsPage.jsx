@@ -21,7 +21,8 @@ import {
   Building,
   CheckCircle2,
   XCircle,
-  Hash
+  Hash,
+  ShieldCheck
 } from 'lucide-react';
 
 export const CanteenDetailsPage = () => {
@@ -30,6 +31,7 @@ export const CanteenDetailsPage = () => {
   const { getCanteen, toggleCanteenStatus, assignStaff, removeStaff, loading } = useCanteens();
 
   const [isToggleModalOpen, setIsToggleModalOpen] = useState(false);
+  const [isToggling, setIsToggling] = useState(false);
 
   const canteen = useMemo(() => getCanteen(id), [getCanteen, id]);
 
@@ -69,8 +71,16 @@ export const CanteenDetailsPage = () => {
   const totalDailyHours = calculateTotalHours(canteen.openingTime, canteen.closingTime);
 
   const handleConfirmToggle = async () => {
-    await toggleCanteenStatus(canteen.id);
-    setIsToggleModalOpen(false);
+    if (isToggling) return;
+    try {
+      setIsToggling(true);
+      await toggleCanteenStatus(canteen.id);
+      setIsToggleModalOpen(false);
+    } catch (err) {
+      console.error('Failed to toggle canteen status:', err);
+    } finally {
+      setIsToggling(false);
+    }
   };
 
   return (
@@ -167,6 +177,23 @@ export const CanteenDetailsPage = () => {
                 <p style={{ fontSize: '13.5px', color: 'var(--text-primary)', margin: '2px 0 0 0', lineHeight: 1.4 }}>
                   {canteen.location}
                 </p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+              <ShieldCheck size={18} style={{ color: 'var(--color-accent)', marginTop: '2px', flexShrink: 0 }} />
+              <div>
+                <span style={{ fontSize: '11.5px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
+                  FSSAI License & Compliance
+                </span>
+                <p style={{ fontSize: '13.5px', color: 'var(--text-primary)', margin: '2px 0 0 0', fontWeight: 600 }}>
+                  {canteen.fssaiLicenseNumber ? `License #${canteen.fssaiLicenseNumber}` : 'License Not Registered'}
+                </p>
+                {canteen.fssaiValidTill && (
+                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>
+                    Valid Till: {formatDate(canteen.fssaiValidTill)}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -315,8 +342,9 @@ export const CanteenDetailsPage = () => {
       {/* Status Toggle Modal */}
       <ConfirmationModal
         isOpen={isToggleModalOpen}
-        onClose={() => setIsToggleModalOpen(false)}
+        onClose={() => !isToggling && setIsToggleModalOpen(false)}
         onConfirm={handleConfirmToggle}
+        loading={isToggling}
         title={isActive ? 'Deactivate Canteen Outlet' : 'Activate Canteen Outlet'}
         variant={isActive ? 'warning' : 'primary'}
         message={

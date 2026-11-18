@@ -27,18 +27,6 @@ export const useSettings = () => {
     loadSettings();
   }, [loadSettings]);
 
-  const updateOutlet = useCallback(async (data) => {
-    try {
-      const updated = await settingsService.updateOutletSettings(data);
-      setSettings(prev => ({ ...prev, outlet: updated }));
-      success('Settings Saved', 'Outlet profile updated successfully.');
-      return updated;
-    } catch (err) {
-      toastError('Update Failed', err.message);
-      throw err;
-    }
-  }, [success, toastError]);
-
   const updatePayments = useCallback(async (data) => {
     try {
       const updated = await settingsService.updatePaymentSettings(data);
@@ -63,42 +51,12 @@ export const useSettings = () => {
     }
   }, [success, toastError]);
 
-  const updatePrivacy = useCallback(async (data) => {
-    try {
-      const updated = await settingsService.updatePrivacySettings(data);
-      setSettings(prev => ({ ...prev, privacy: updated }));
-      success('Privacy Settings Updated', 'Data protection preferences and policies saved.');
-      return updated;
-    } catch (err) {
-      toastError('Update Failed', err.message);
-      throw err;
-    }
-  }, [success, toastError]);
-
-  const updateDsar = useCallback(async (id, status, notes) => {
-    try {
-      const updated = await settingsService.updateDsarStatus(id, status, notes);
-      setSettings(prev => {
-        const reqs = prev.privacy.dsarRequests.map(r => r.id === id ? updated : r);
-        return { ...prev, privacy: { ...prev.privacy, dsarRequests: reqs } };
-      });
-      success('DSAR Status Updated', `Data Subject Request moved to ${status}.`);
-      return updated;
-    } catch (err) {
-      toastError('DSAR Error', err.message);
-      throw err;
-    }
-  }, [success, toastError]);
-
   return {
     settings,
     loading,
     error,
-    updateOutlet,
     updatePayments,
     updateRules,
-    updatePrivacy,
-    updateDsar,
     refreshSettings: loadSettings
   };
 };

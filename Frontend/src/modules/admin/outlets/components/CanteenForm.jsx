@@ -8,7 +8,7 @@ import { Button } from '../../../../components/common/Button';
 import { CAMPUSES } from '../constants/canteenConstants';
 import { useCanteens } from '../hooks/useCanteens';
 import { validateCanteenForm } from '../utils/canteenValidators';
-import { Save, Building, MapPin, Phone, Mail, Hash, ShieldCheck } from 'lucide-react';
+import { Save, Building, MapPin, Phone, Mail, Hash, ShieldCheck, Clock, FileCheck } from 'lucide-react';
 
 export const CanteenForm = ({
   initialValues = {},
@@ -26,6 +26,8 @@ export const CanteenForm = ({
     location: '',
     contactPhone: '',
     contactEmail: '',
+    fssaiLicenseNumber: '',
+    fssaiValidTill: '',
     openingTime: '08:00',
     closingTime: '20:00',
     workingDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
@@ -45,6 +47,8 @@ export const CanteenForm = ({
         location: initialValues.location || '',
         contactPhone: initialValues.contactPhone || '',
         contactEmail: initialValues.contactEmail || '',
+        fssaiLicenseNumber: initialValues.fssaiLicenseNumber || initialValues.fssaiLicenseNo || '',
+        fssaiValidTill: initialValues.fssaiValidTill ? String(initialValues.fssaiValidTill).split('T')[0] : '',
         openingTime: initialValues.openingTime || '08:00',
         closingTime: initialValues.closingTime || '20:00',
         workingDays: initialValues.workingDays || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
@@ -241,7 +245,7 @@ export const CanteenForm = ({
           </div>
         </div>
 
-        {/* Section 3: Operating Schedule */}
+        {/* Section 3: FSSAI & Regulatory Standards */}
         <div style={{ marginBottom: '14px' }}>
           <h3 style={{
             fontSize: '13.5px',
@@ -255,6 +259,51 @@ export const CanteenForm = ({
             gap: '8px'
           }}>
             <ShieldCheck size={16} style={{ color: 'var(--color-accent)' }} />
+            FSSAI & Regulatory Standards
+          </h3>
+
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+            gap: '10px 14px'
+          }}>
+            <FormInput
+              label="FSSAI License Number"
+              name="fssaiLicenseNumber"
+              value={formData.fssaiLicenseNumber}
+              onChange={handleChange}
+              placeholder="e.g. 10022044000123"
+              prefixIcon={FileCheck}
+              error={errors.fssaiLicenseNumber}
+              style={{ marginBottom: 0 }}
+            />
+
+            <FormInput
+              label="FSSAI License Valid Till"
+              name="fssaiValidTill"
+              type="date"
+              value={formData.fssaiValidTill}
+              onChange={handleChange}
+              error={errors.fssaiValidTill}
+              style={{ marginBottom: 0 }}
+            />
+          </div>
+        </div>
+
+        {/* Section 4: Operating Schedule & Order Settings */}
+        <div style={{ marginBottom: '14px' }}>
+          <h3 style={{
+            fontSize: '13.5px',
+            fontWeight: 600,
+            color: 'var(--text-primary)',
+            paddingBottom: '6px',
+            borderBottom: '1px solid var(--border-color)',
+            marginBottom: '10px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <Clock size={16} style={{ color: 'var(--color-accent)' }} />
             Operating Schedule & Order Settings
           </h3>
 

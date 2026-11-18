@@ -89,11 +89,11 @@ export const ADMIN_NAV_CONFIG = [
       },
       {
         id: 'settings',
-        label: 'Settings & Privacy',
+        label: 'Settings',
         path: '/admin/settings',
         icon: 'Settings',
         permission: PERMISSIONS.SETTINGS_VIEW,
-        description: 'Order rules, payment gateways, FSSAI compliance & privacy DSAR'
+        description: 'Order rules, payment gateways & FSSAI outlet compliance'
       }
     ]
   }

@@ -4,7 +4,10 @@ namespace CanteenManagement.API.DTOs.Reports
     {
         public string ReportType { get; set; } = "sales_summary";
         public string? DateRange { get; set; }
+        public DateTime? StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
         public int? OutletId { get; set; }
+        public string? Payment { get; set; }
         public string? Format { get; set; } = "json"; // json, csv
     }
 

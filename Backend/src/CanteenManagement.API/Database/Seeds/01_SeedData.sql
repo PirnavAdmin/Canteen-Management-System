@@ -17,8 +17,8 @@ SELECT 1, 'aarav', 'aarav.student@git.edu', '$2a$11$s1QyE9z0L.V.vF2H7Wl.wO0ZJ8nE
 WHERE NOT EXISTS (SELECT 1 FROM Users WHERE Username = 'aarav');
 
 -- 2. Default Outlets & Settings
-INSERT INTO CanteenOutlets (OutletId, CampusId, Code, Name, Location, OpenTime, CloseTime, FssaiLicenseNo, ContactNumber, Status, IsOrderAcceptanceEnabled, WorkingDays, AdminContactJson, CreatedAt)
-SELECT 1, 1, 'MC-01', 'Main Canteen', 'Campus Central Building, Ground Floor', '08:00', '16:30', '10022044000123', '+91 40 2345 6789', 'Active', 1, 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday', '{\"name\":\"Mrs. Sunitha\",\"email\":\"admin@canteen.edu\",\"phone\":\"+91 98765 43210\"}', UTC_TIMESTAMP()
+INSERT INTO CanteenOutlets (OutletId, CampusId, Code, Name, Location, OpenTime, CloseTime, FssaiLicenseNo, FssaiValidTill, ContactNumber, Status, IsOrderAcceptanceEnabled, WorkingDays, AdminContactJson, CreatedAt)
+SELECT 1, 1, 'MC-01', 'Main Canteen', 'Campus Central Building, Ground Floor', '08:00', '16:30', '10022044000123', '2028-06-30', '+91 40 2345 6789', 'Active', 1, 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday', '{\"name\":\"Mrs. Sunitha\",\"email\":\"admin@canteen.edu\",\"phone\":\"+91 98765 43210\"}', UTC_TIMESTAMP()
 WHERE NOT EXISTS (SELECT 1 FROM CanteenOutlets WHERE OutletId = 1);
 
 INSERT INTO CanteenOutletSettings (SettingId, OutletId, AutoExpireUnpaidMinutes, PickupHoldMinutes, CancellationPolicy, AllowUpi, AllowCards, AllowWallet, AllowCash, UpdatedAt)
@@ -91,18 +91,10 @@ WHERE NOT EXISTS (SELECT 1 FROM InventoryItems WHERE ItemId = 5);
 
 -- 7. Default System Settings
 INSERT INTO SystemSettings (CampusId, Category, SettingKey, SettingValueJson, UpdatedAt)
-SELECT 1, 'Outlet', 'General', '{\"autoExpireUnpaidMinutes\":10,\"pickupHoldMinutes\":30,\"cancellationPolicy\":\"UntilAccepted\",\"operatingHoursStart\":\"07:30\",\"operatingHoursEnd\":\"21:30\",\"maintenanceMode\":false}', UTC_TIMESTAMP()
-WHERE NOT EXISTS (SELECT 1 FROM SystemSettings WHERE CampusId = 1 AND Category = 'Outlet' AND SettingKey = 'General');
-
-INSERT INTO SystemSettings (CampusId, Category, SettingKey, SettingValueJson, UpdatedAt)
 SELECT 1, 'Payment', 'General', '{\"allowUpi\":true,\"allowCards\":true,\"allowWallet\":true,\"allowCash\":true,\"minOrderAmount\":10.00,\"gstPercent\":5.0}', UTC_TIMESTAMP()
 WHERE NOT EXISTS (SELECT 1 FROM SystemSettings WHERE CampusId = 1 AND Category = 'Payment' AND SettingKey = 'General');
 
 INSERT INTO SystemSettings (CampusId, Category, SettingKey, SettingValueJson, UpdatedAt)
 SELECT 1, 'OrderRules', 'General', '{\"maxItemsPerOrder\":8,\"maxQuantityPerItem\":4,\"preOrderWindowHours\":24,\"restrictDuringClassHours\":false}', UTC_TIMESTAMP()
 WHERE NOT EXISTS (SELECT 1 FROM SystemSettings WHERE CampusId = 1 AND Category = 'OrderRules' AND SettingKey = 'General');
-
-INSERT INTO SystemSettings (CampusId, Category, SettingKey, SettingValueJson, UpdatedAt)
-SELECT 1, 'Privacy', 'General', '{\"retentionPeriodDays\":2555,\"anonymizeOnErasure\":true}', UTC_TIMESTAMP()
-WHERE NOT EXISTS (SELECT 1 FROM SystemSettings WHERE CampusId = 1 AND Category = 'Privacy' AND SettingKey = 'General');
 

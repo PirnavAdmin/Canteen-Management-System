@@ -57,6 +57,7 @@ namespace CanteenManagement.API.Services.Implementations.Outlets
                 OpenTime = dto.OpenTime,
                 CloseTime = dto.CloseTime,
                 FssaiLicenseNo = dto.FssaiLicenseNo?.Trim(),
+                FssaiValidTill = dto.FssaiValidTill,
                 ContactNumber = dto.ContactNumber?.Trim(),
                 Status = dto.Status,
                 IsOrderAcceptanceEnabled = dto.IsOrderAcceptanceEnabled,
@@ -104,6 +105,7 @@ namespace CanteenManagement.API.Services.Implementations.Outlets
             existing.OpenTime = dto.OpenTime;
             existing.CloseTime = dto.CloseTime;
             existing.FssaiLicenseNo = dto.FssaiLicenseNo?.Trim();
+            existing.FssaiValidTill = dto.FssaiValidTill;
             existing.ContactNumber = dto.ContactNumber?.Trim();
             existing.Status = dto.Status;
             existing.IsOrderAcceptanceEnabled = dto.IsOrderAcceptanceEnabled;
@@ -126,12 +128,12 @@ namespace CanteenManagement.API.Services.Implementations.Outlets
             return ApiResponse<CanteenOutletDto>.Ok(MapToDto(existing), "Canteen outlet updated successfully.");
         }
 
-        public async Task<ApiResponse<bool>> ToggleStatusAsync(int outletId, int campusId, string status, int userId, string userName)
+        public async Task<ApiResponse<CanteenOutletDto>> ToggleStatusAsync(int outletId, int campusId, string status, int userId, string userName)
         {
             var existing = await _repository.GetByIdAsync(outletId, campusId);
             if (existing == null)
             {
-                return ApiResponse<bool>.Fail("Canteen outlet not found.", statusCode: 404);
+                return ApiResponse<CanteenOutletDto>.Fail("Canteen outlet not found.", statusCode: 404);
             }
 
             var oldStatus = existing.Status;
@@ -151,7 +153,7 @@ namespace CanteenManagement.API.Services.Implementations.Outlets
                 userName: userName,
                 campusId: campusId);
 
-            return ApiResponse<bool>.Ok(true, $"Outlet status changed to {status}.");
+            return ApiResponse<CanteenOutletDto>.Ok(MapToDto(existing), $"Outlet status changed to {status}.");
         }
 
         public async Task<ApiResponse<bool>> DeleteAsync(int outletId, int campusId, int userId, string userName)
@@ -258,6 +260,7 @@ namespace CanteenManagement.API.Services.Implementations.Outlets
                 OpenTime = outlet.OpenTime,
                 CloseTime = outlet.CloseTime,
                 FssaiLicenseNo = outlet.FssaiLicenseNo,
+                FssaiValidTill = outlet.FssaiValidTill,
                 ContactNumber = outlet.ContactNumber,
                 Status = outlet.Status,
                 IsOrderAcceptanceEnabled = outlet.IsOrderAcceptanceEnabled,

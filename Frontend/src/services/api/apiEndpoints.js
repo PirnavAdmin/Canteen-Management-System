@@ -87,14 +87,11 @@ export const API_ENDPOINTS = {
     MENU_UPLOAD: '/canteen-menu/upload-image'
   },
 
-  // System Settings & Privacy
+  // System Settings
   SETTINGS: {
     BASE: '/canteen-settings',
-    OUTLET: '/canteen-settings/outlet',
     PAYMENTS: '/canteen-settings/payments',
-    RULES: '/canteen-settings/rules',
-    PRIVACY: '/canteen-settings/privacy',
-    UPDATE_REQUEST_STATUS: (id) => `/canteen-settings/dsar/${id}`
+    RULES: '/canteen-settings/rules'
   }
 };
 
