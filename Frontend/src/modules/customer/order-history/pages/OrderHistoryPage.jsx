@@ -391,14 +391,14 @@ export const OrderHistoryPage = () => {
                       <td style={{ padding: '14px 16px', color: 'var(--text-primary)', fontWeight: 500 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <Store size={14} style={{ color: 'var(--text-muted)' }} />
-                          <span>{order.outletName || 'Central Dining Hall'}</span>
+                          <span>{typeof order.outletName === 'object' ? (order.outletName?.name || order.outletName?.id) : (order.outletName || 'Central Dining Hall')}</span>
                         </div>
                       </td>
 
                       {/* Dishes summary */}
                       <td style={{ padding: '14px 16px', color: 'var(--text-secondary)', maxWidth: '200px' }}>
                         <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {(order.items || []).map(i => `${i.quantity}x ${i.name}`).join(', ') || 'Campus Meal'}
+                          {(order.items || []).map(i => `${i.quantity}x ${typeof i.name === 'object' ? (i.name?.name || i.name?.id) : i.name}`).join(', ') || 'Campus Meal'}
                         </div>
                       </td>
 

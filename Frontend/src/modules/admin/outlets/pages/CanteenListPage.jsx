@@ -21,7 +21,7 @@ export const CanteenListPage = () => {
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(5);
 
   // Status toggle confirmation modal
   const [canteenToToggle, setCanteenToToggle] = useState(null);
@@ -88,7 +88,7 @@ export const CanteenListPage = () => {
           <Button
             variant="primary"
             icon={PlusCircle}
-            onClick={() => navigate('/canteen/create')}
+            onClick={() => navigate('/admin/outlets/create')}
           >
             Add Canteen Outlet
           </Button>
@@ -145,4 +145,6 @@ export const CanteenListPage = () => {
     </div>
   );
 };
+
+export default CanteenListPage;
 

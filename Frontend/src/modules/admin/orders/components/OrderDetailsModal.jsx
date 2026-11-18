@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, AlertCircle, RotateCcw, Ban, CreditCard } from 'lucide-react';
+import { X, AlertCircle, RotateCcw, Ban, CreditCard, CheckCheck, BellRing, ChefHat, CheckCircle } from 'lucide-react';
 import { Button } from '../../../../components/common/Button';
 import { StatusBadge } from '../../../../components/common/StatusBadge';
 import { formatCurrency } from '../../../../utils/formatters';
@@ -9,6 +9,7 @@ export const OrderDetailsModal = ({
   isOpen,
   onClose,
   order,
+  loading = false,
   onUpdateStatus,
   onOpenCancel,
   onProcessRefund
@@ -69,7 +70,7 @@ export const OrderDetailsModal = ({
               </h2>
             </div>
             <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>
-              Outlet: {order.outletName || 'Central Dining Hall'} • Pickup Slot: {order.slot?.timeWindow || 'Standard Pickup'} ({order.slot?.session || 'Regular Service'})
+              Outlet: {typeof order.outletName === 'object' ? (order.outletName?.name || order.outletName?.id) : (order.outletName || (typeof order.outlet === 'object' ? (order.outlet?.name || order.outlet?.id) : (order.outlet || 'Campus Central Canteen')))}
             </p>
           </div>
 
@@ -273,6 +274,7 @@ export const OrderDetailsModal = ({
               <Button
                 variant="danger"
                 icon={Ban}
+                disabled={loading}
                 onClick={() => onOpenCancel(order)}
               >
                 Cancel Order
@@ -283,6 +285,7 @@ export const OrderDetailsModal = ({
               <Button
                 variant="warning"
                 icon={RotateCcw}
+                loading={loading}
                 onClick={() => onProcessRefund(order.id)}
               >
                 Process Refund
@@ -291,16 +294,22 @@ export const OrderDetailsModal = ({
           </div>
 
           <div style={{ display: 'flex', gap: '8px' }}>
-            <Button variant="secondary" onClick={onClose}>
+            <Button variant="secondary" onClick={onClose} disabled={loading}>
               Close
             </Button>
 
             {nextSteps.map(nextSt => {
               if (nextSt === ORDER_STATUS.CANCELLED || nextSt === ORDER_STATUS.REFUNDED) return null;
+              const ActionIcon = nextSt === ORDER_STATUS.COMPLETED ? CheckCheck
+                : nextSt === ORDER_STATUS.READY_FOR_PICKUP ? BellRing
+                  : nextSt === ORDER_STATUS.PREPARING ? ChefHat
+                    : nextSt === ORDER_STATUS.ACCEPTED ? CheckCircle : null;
               return (
                 <Button
                   key={nextSt}
                   variant="primary"
+                  icon={ActionIcon}
+                  loading={loading}
                   onClick={() => onUpdateStatus(order.id, nextSt)}
                 >
                   Mark as {nextSt}

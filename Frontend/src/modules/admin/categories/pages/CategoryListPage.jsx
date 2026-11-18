@@ -24,7 +24,7 @@ export const CategoryListPage = () => {
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(5);
 
   // Status toggle confirmation modal
   const [categoryToToggle, setCategoryToToggle] = useState(null);
@@ -109,7 +109,7 @@ export const CategoryListPage = () => {
           <Button
             variant="primary"
             icon={PlusCircle}
-            onClick={() => navigate('/categories/create')}
+            onClick={() => navigate('/admin/categories/create')}
           >
             Add Food Category
           </Button>
@@ -167,4 +167,6 @@ export const CategoryListPage = () => {
     </div>
   );
 };
+
+export default CategoryListPage;
 

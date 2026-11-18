@@ -8,13 +8,13 @@ export const useReports = (reportType = 'sales_summary', filters = {}) => {
   const [error, setError] = useState(null);
   const { error: toastError } = useToast();
 
-  const { outlet, dateRange, payment } = filters;
+  const { outlet, dateRange, payment, campus } = filters;
 
   const loadReport = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await reportService.getReportData(reportType, { outlet, dateRange, payment });
+      const data = await reportService.getReportData(reportType, { outlet, dateRange, payment, campus });
       setReportData(data);
     } catch (err) {
       console.error('Failed to load report:', err);
@@ -23,7 +23,7 @@ export const useReports = (reportType = 'sales_summary', filters = {}) => {
     } finally {
       setLoading(false);
     }
-  }, [reportType, outlet, dateRange, payment, toastError]);
+  }, [reportType, outlet, dateRange, payment, campus, toastError]);
 
   useEffect(() => {
     loadReport();

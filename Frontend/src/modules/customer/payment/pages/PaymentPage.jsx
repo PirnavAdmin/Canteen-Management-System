@@ -404,7 +404,9 @@ export const PaymentPage = () => {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
                 <span style={{ color: 'var(--text-muted)' }}>Canteen Outlet:</span>
-                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{draftOrder.outletName}</span>
+                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                  {typeof draftOrder.outletName === 'object' ? (draftOrder.outletName?.name || draftOrder.outletName?.id) : draftOrder.outletName}
+                </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
                 <span style={{ color: 'var(--text-muted)' }}>Customer:</span>

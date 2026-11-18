@@ -1,34 +1,35 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { AppLayout } from '../components/layout/AppLayout';
 import { NotFoundPage } from '../components/common/NotFoundPage';
 import { ProtectedRoute } from '../modules/auth/components/ProtectedRoute';
 
-// Auth Pages
-import { LoginPage } from '../modules/auth/pages/LoginPage';
-import { RegisterPage } from '../modules/auth/pages/RegisterPage';
+// Lazy-loaded Auth Pages
+const LoginPage = lazy(() => import('../modules/auth/pages/LoginPage'));
+const RegisterPage = lazy(() => import('../modules/auth/pages/RegisterPage'));
 
-// Admin Modules
-import { DashboardPage } from '../modules/admin/dashboard';
-import { MenuListPage } from '../modules/admin/menu';
-import { OrderListPage } from '../modules/admin/orders';
-import { SlotListPage } from '../modules/admin/slots';
-import { InventoryPage } from '../modules/admin/inventory';
-import { ReportsPage } from '../modules/admin/reports';
-import { FeedbackPage } from '../modules/admin/feedback';
-import {
-  CanteenListPage,
-  AddCanteenPage,
-  EditCanteenPage,
-  CanteenDetailsPage
-} from '../modules/admin/outlets';
-import {
-  CategoryListPage,
-  AddCategoryPage,
-  EditCategoryPage,
-  CategoryDetailsPage
-} from '../modules/admin/categories';
-import { SettingsPage } from '../modules/admin/settings';
+// Lazy-loaded Admin Modules
+const DashboardPage = lazy(() => import('../modules/admin/dashboard/pages/DashboardPage'));
+const MenuListPage = lazy(() => import('../modules/admin/menu/pages/MenuListPage'));
+const OrderListPage = lazy(() => import('../modules/admin/orders/pages/OrderListPage'));
+const InventoryPage = lazy(() => import('../modules/admin/inventory/pages/InventoryPage'));
+const ReportsPage = lazy(() => import('../modules/admin/reports/pages/ReportsPage'));
+const FeedbackPage = lazy(() => import('../modules/admin/feedback/pages/FeedbackPage'));
+const CanteenListPage = lazy(() => import('../modules/admin/outlets/pages/CanteenListPage'));
+const AddCanteenPage = lazy(() => import('../modules/admin/outlets/pages/AddCanteenPage'));
+const EditCanteenPage = lazy(() => import('../modules/admin/outlets/pages/EditCanteenPage'));
+const CanteenDetailsPage = lazy(() => import('../modules/admin/outlets/pages/CanteenDetailsPage'));
+const CategoryListPage = lazy(() => import('../modules/admin/categories/pages/CategoryListPage'));
+const AddCategoryPage = lazy(() => import('../modules/admin/categories/pages/AddCategoryPage'));
+const EditCategoryPage = lazy(() => import('../modules/admin/categories/pages/EditCategoryPage'));
+const CategoryDetailsPage = lazy(() => import('../modules/admin/categories/pages/CategoryDetailsPage'));
+const SettingsPage = lazy(() => import('../modules/admin/settings/pages/SettingsPage'));
+
+const LazyRoute = ({ children }) => (
+  <Suspense fallback={null}>
+    {children}
+  </Suspense>
+);
 
 // Customer / Student / Faculty Modules
 import {
@@ -108,11 +109,19 @@ export const router = createBrowserRouter([
   // Public Admin Authentication Routes
   {
     path: '/login',
-    element: <LoginPage />
+    element: (
+      <LazyRoute>
+        <LoginPage />
+      </LazyRoute>
+    )
   },
   {
     path: '/register',
-    element: <RegisterPage />
+    element: (
+      <LazyRoute>
+        <RegisterPage />
+      </LazyRoute>
+    )
   },
 
   // Protected App & Administration Routes
@@ -141,80 +150,66 @@ export const router = createBrowserRouter([
           },
           {
             path: 'dashboard',
-            element: <DashboardPage />
+            element: <LazyRoute><DashboardPage /></LazyRoute>
           },
           {
             path: 'menu',
-            element: <MenuListPage />
+            element: <LazyRoute><MenuListPage /></LazyRoute>
           },
           {
             path: 'orders',
-            element: <OrderListPage />
-          },
-          {
-            path: 'slots',
-            element: <SlotListPage />
+            element: <LazyRoute><OrderListPage /></LazyRoute>
           },
           {
             path: 'inventory',
-            element: <InventoryPage />
+            element: <LazyRoute><InventoryPage /></LazyRoute>
           },
           {
             path: 'reports',
-            element: <ReportsPage />
+            element: <LazyRoute><ReportsPage /></LazyRoute>
           },
           {
             path: 'feedback',
-            element: <FeedbackPage />
+            element: <LazyRoute><FeedbackPage /></LazyRoute>
           },
           // Outlet Management Routes (First Domain Module)
           {
             path: 'outlets',
-            children: [
-              {
-                index: true,
-                element: <CanteenListPage />
-              },
-              {
-                path: 'create',
-                element: <AddCanteenPage />
-              },
-              {
-                path: ':id',
-                element: <CanteenDetailsPage />
-              },
-              {
-                path: ':id/edit',
-                element: <EditCanteenPage />
-              }
-            ]
+            element: <LazyRoute><CanteenListPage /></LazyRoute>
+          },
+          {
+            path: 'outlets/create',
+            element: <LazyRoute><AddCanteenPage /></LazyRoute>
+          },
+          {
+            path: 'outlets/:id',
+            element: <LazyRoute><CanteenDetailsPage /></LazyRoute>
+          },
+          {
+            path: 'outlets/:id/edit',
+            element: <LazyRoute><EditCanteenPage /></LazyRoute>
           },
           // Category Management Routes
           {
             path: 'categories',
-            children: [
-              {
-                index: true,
-                element: <CategoryListPage />
-              },
-              {
-                path: 'create',
-                element: <AddCategoryPage />
-              },
-              {
-                path: ':id',
-                element: <CategoryDetailsPage />
-              },
-              {
-                path: ':id/edit',
-                element: <EditCategoryPage />
-              }
-            ]
+            element: <LazyRoute><CategoryListPage /></LazyRoute>
+          },
+          {
+            path: 'categories/create',
+            element: <LazyRoute><AddCategoryPage /></LazyRoute>
+          },
+          {
+            path: 'categories/:id',
+            element: <LazyRoute><CategoryDetailsPage /></LazyRoute>
+          },
+          {
+            path: 'categories/:id/edit',
+            element: <LazyRoute><EditCategoryPage /></LazyRoute>
           },
           // Settings & Privacy Routes
           {
             path: 'settings',
-            element: <SettingsPage />
+            element: <LazyRoute><SettingsPage /></LazyRoute>
           }
         ]
       },
@@ -222,24 +217,37 @@ export const router = createBrowserRouter([
       // Compatibility routes for /canteen
       {
         path: 'canteen',
-        children: [
-          {
-            index: true,
-            element: <CanteenListPage />
-          },
-          {
-            path: 'create',
-            element: <AddCanteenPage />
-          },
-          {
-            path: ':id',
-            element: <CanteenDetailsPage />
-          },
-          {
-            path: ':id/edit',
-            element: <EditCanteenPage />
-          }
-        ]
+        element: <LazyRoute><CanteenListPage /></LazyRoute>
+      },
+      {
+        path: 'canteen/create',
+        element: <LazyRoute><AddCanteenPage /></LazyRoute>
+      },
+      {
+        path: 'canteen/:id',
+        element: <LazyRoute><CanteenDetailsPage /></LazyRoute>
+      },
+      {
+        path: 'canteen/:id/edit',
+        element: <LazyRoute><EditCanteenPage /></LazyRoute>
+      },
+
+      // Compatibility routes for /categories
+      {
+        path: 'categories',
+        element: <LazyRoute><CategoryListPage /></LazyRoute>
+      },
+      {
+        path: 'categories/create',
+        element: <LazyRoute><AddCategoryPage /></LazyRoute>
+      },
+      {
+        path: 'categories/:id',
+        element: <LazyRoute><CategoryDetailsPage /></LazyRoute>
+      },
+      {
+        path: 'categories/:id/edit',
+        element: <LazyRoute><EditCategoryPage /></LazyRoute>
       },
 
       // 404 Fallback within Layout

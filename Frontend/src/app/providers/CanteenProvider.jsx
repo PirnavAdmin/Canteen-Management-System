@@ -1,14 +1,27 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { canteenService } from '../../modules/admin/outlets/services/canteenService';
+import { CAMPUSES } from '../../modules/admin/outlets/constants/canteenConstants';
 import { useToast } from './ToastProvider';
 
 const CanteenContext = createContext(null);
 
 export const CanteenProvider = ({ children }) => {
   const [canteens, setCanteens] = useState([]);
+  const [selectedCampus, setSelectedCampus] = useState('Main Campus');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { success, error: toastError, info } = useToast();
+
+  const availableCampuses = useMemo(() => {
+    const list = Array.isArray(CAMPUSES) ? [...CAMPUSES] : [];
+    canteens.forEach(c => {
+      const campName = typeof c?.campus === 'object' ? (c.campus?.name || c.campus?.id) : c?.campus;
+      if (campName && !list.includes(campName)) {
+        list.push(campName);
+      }
+    });
+    return list;
+  }, [canteens]);
 
   const loadCanteens = useCallback(async () => {
     try {
@@ -104,6 +117,9 @@ export const CanteenProvider = ({ children }) => {
     <CanteenContext.Provider
       value={{
         canteens,
+        selectedCampus,
+        setSelectedCampus,
+        availableCampuses,
         loading,
         error,
         getCanteen,

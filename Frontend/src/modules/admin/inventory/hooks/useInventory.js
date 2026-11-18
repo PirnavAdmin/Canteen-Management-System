@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { inventoryService } from '../services/inventoryService';
 import { useToast } from '../../../../app/providers/ToastProvider';
 
-export const useInventory = () => {
+export const useInventory = (selectedOutlet = 'ALL') => {
   const [items, setItems] = useState([]);
   const [ledger, setLedger] = useState([]);
   const [purchaseOrders, setPurchaseOrders] = useState([]);
@@ -15,10 +15,11 @@ export const useInventory = () => {
     try {
       setLoading(true);
       setError(null);
+      const outletParams = selectedOutlet && selectedOutlet !== 'ALL' && Number(selectedOutlet) > 0 ? { outletId: Number(selectedOutlet) } : {};
       const [itms, ledg, pos, sups] = await Promise.all([
-        inventoryService.getItems(),
-        inventoryService.getLedger(),
-        inventoryService.getPurchaseOrders(),
+        inventoryService.getItems(outletParams),
+        inventoryService.getLedger(outletParams),
+        inventoryService.getPurchaseOrders(outletParams),
         inventoryService.getSuppliers()
       ]);
       setItems(itms);
@@ -32,7 +33,7 @@ export const useInventory = () => {
     } finally {
       setLoading(false);
     }
-  }, [toastError]);
+  }, [selectedOutlet, toastError]);
 
   useEffect(() => {
     loadAll();
@@ -67,13 +68,27 @@ export const useInventory = () => {
     try {
       const updated = await inventoryService.updatePOStatus(id, status);
       setPurchaseOrders(prev => prev.map(p => p.id === id ? updated : p));
-      info('PO Updated', `Purchase Order ${updated.poNumber} moved to ${status}.`);
+
+      // Step 5 -> Step 6: When marked Received, auto-reload stock and ledger so tabs reflect inward immediately!
+      if (status === 'Received') {
+        const outletParams = selectedOutlet && selectedOutlet !== 'ALL' && Number(selectedOutlet) > 0 ? { outletId: Number(selectedOutlet) } : {};
+        const [updatedItems, updatedLedger] = await Promise.all([
+          inventoryService.getItems(outletParams),
+          inventoryService.getLedger(outletParams)
+        ]);
+        setItems(updatedItems);
+        setLedger(updatedLedger);
+        success('Delivery Received', `Stock inward completed for PO ${updated.poNumber}. Stock & Movement Ledger updated!`);
+      } else {
+        info('PO Updated', `Purchase Order ${updated.poNumber} moved to ${status}.`);
+      }
+
       return updated;
     } catch (err) {
       toastError('Status Failed', err.message);
       throw err;
     }
-  }, [info, toastError]);
+  }, [info, success, toastError]);
 
   const createSupplier = useCallback(async (supData) => {
     try {
@@ -87,6 +102,58 @@ export const useInventory = () => {
     }
   }, [success, toastError]);
 
+  const updateSupplier = useCallback(async (id, updatedData) => {
+    try {
+      const updated = await inventoryService.updateSupplier(id, updatedData);
+      setSuppliers(prev => prev.map(s => {
+        const isMatch = s.id === id || String(s.id) === String(id);
+        return isMatch ? { ...s, ...updated } : s;
+      }));
+      success('Supplier Updated', `Updated details for "${updated?.name || updatedData?.name || 'Supplier'}".`);
+      return updated;
+    } catch (err) {
+      toastError('Update Failed', err.message || 'Failed to update supplier.');
+      throw err;
+    }
+  }, [success, toastError]);
+
+  const deleteSupplier = useCallback(async (id) => {
+    try {
+      const result = await inventoryService.deleteSupplier(id);
+      if (result?.actionTaken === 'SOFT_DELETED') {
+        setSuppliers(prev => prev.map(s => {
+          const isMatch = s.id === id || String(s.id) === String(id);
+          return isMatch ? { ...s, status: 'Inactive' } : s;
+        }));
+        info('Supplier Inactivated', result?.message || 'Supplier has linked purchase orders, so status was set to Inactive.');
+      } else {
+        setSuppliers(prev => prev.filter(s => !(s.id === id || String(s.id) === String(id))));
+        success('Supplier Deleted', result?.message || 'Supplier deleted successfully.');
+      }
+      return result;
+    } catch (err) {
+      toastError('Delete Failed', err.message || 'Failed to delete supplier.');
+      throw err;
+    }
+  }, [success, info, toastError]);
+
+  const deactivateSupplier = useCallback(async (id) => {
+    try {
+      const current = suppliers.find(s => s.id === id || String(s.id) === String(id));
+      const nextStatus = current?.status === 'Inactive' ? 'Active' : 'Inactive';
+      const updated = await inventoryService.updateSupplierStatus(id, nextStatus);
+      setSuppliers(prev => prev.map(s => {
+        const isMatch = s.id === id || String(s.id) === String(id);
+        return isMatch ? { ...s, ...updated, status: nextStatus } : s;
+      }));
+      info('Status Updated', `Supplier "${current?.name || current?.contactPerson || 'Supplier'}" marked as ${nextStatus}.`);
+      return updated;
+    } catch (err) {
+      toastError('Status Update Failed', err.message || 'Failed to update supplier status.');
+      throw err;
+    }
+  }, [suppliers, info, toastError]);
+
   return {
     items,
     ledger,
@@ -98,6 +165,9 @@ export const useInventory = () => {
     createPO,
     updatePOStatus,
     createSupplier,
+    updateSupplier,
+    deleteSupplier,
+    deactivateSupplier,
     refreshInventory: loadAll
   };
 };

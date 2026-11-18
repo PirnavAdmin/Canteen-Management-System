@@ -48,10 +48,6 @@ export const Sidebar = ({ isOpen, onClose }) => {
             <span className={styles.brandTitle} title={APP_CONFIG.institutionName}>
               {APP_CONFIG.institutionName}
             </span>
-            <span className={styles.brandSubtitle} style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '2px' }}>
-              <span className={styles.statusDot} />
-              Canteen
-            </span>
           </div>
           <button
             onClick={onClose}

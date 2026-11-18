@@ -6,6 +6,7 @@ import { TimeInput } from '../../../../components/forms/TimeInput';
 import { WorkingDaysSelector } from '../../../../components/forms/WorkingDaysSelector';
 import { Button } from '../../../../components/common/Button';
 import { CAMPUSES } from '../constants/canteenConstants';
+import { useCanteens } from '../hooks/useCanteens';
 import { validateCanteenForm } from '../utils/canteenValidators';
 import { Save, X, Building, MapPin, Phone, Mail, Hash, ShieldCheck } from 'lucide-react';
 
@@ -16,11 +17,12 @@ export const CanteenForm = ({
   allCanteens = []
 }) => {
   const navigate = useNavigate();
+  const { selectedCampus, setSelectedCampus } = useCanteens();
 
   const [formData, setFormData] = useState({
     name: '',
     code: '',
-    campus: '',
+    campus: selectedCampus || 'Main Campus',
     location: '',
     contactPhone: '',
     contactEmail: '',
@@ -39,7 +41,7 @@ export const CanteenForm = ({
       setFormData({
         name: initialValues.name || '',
         code: initialValues.code || '',
-        campus: initialValues.campus || '',
+        campus: initialValues.campus || selectedCampus || 'Main Campus',
         location: initialValues.location || '',
         contactPhone: initialValues.contactPhone || '',
         contactEmail: initialValues.contactEmail || '',
@@ -49,8 +51,13 @@ export const CanteenForm = ({
         status: initialValues.status || 'Active',
         isOrderAcceptanceEnabled: initialValues.isOrderAcceptanceEnabled ?? true
       });
+      if (initialValues.campus) {
+        setSelectedCampus(initialValues.campus);
+      }
+    } else if (!isEdit && selectedCampus) {
+      setFormData(prev => ({ ...prev, campus: selectedCampus }));
     }
-  }, [initialValues]);
+  }, [initialValues, isEdit, selectedCampus, setSelectedCampus]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -58,6 +65,10 @@ export const CanteenForm = ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
+
+    if (name === 'campus' && value) {
+      setSelectedCampus(value);
+    }
 
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: null }));
@@ -90,24 +101,32 @@ export const CanteenForm = ({
     }
   };
 
+  const handleCancel = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate('/admin/outlets');
+    }
+  };
+
   return (
     <form onSubmit={handleSubmit} noValidate>
       <div style={{
         backgroundColor: 'var(--bg-surface)',
         borderRadius: 'var(--border-radius-lg)',
         border: '1px solid var(--border-color)',
-        padding: '28px',
+        padding: '16px 20px',
         boxShadow: 'var(--shadow-xs)'
       }}>
         {/* Section 1: Basic Information */}
-        <div style={{ marginBottom: '28px' }}>
+        <div style={{ marginBottom: '14px' }}>
           <h3 style={{
-            fontSize: '15px',
+            fontSize: '13.5px',
             fontWeight: 600,
             color: 'var(--text-primary)',
-            paddingBottom: '12px',
+            paddingBottom: '6px',
             borderBottom: '1px solid var(--border-color)',
-            marginBottom: '20px',
+            marginBottom: '10px',
             display: 'flex',
             alignItems: 'center',
             gap: '8px'
@@ -118,8 +137,8 @@ export const CanteenForm = ({
 
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-            gap: '20px'
+            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+            gap: '10px 14px'
           }}>
             <FormInput
               label="Canteen / Outlet Name"
@@ -129,7 +148,7 @@ export const CanteenForm = ({
               placeholder="e.g. Central University Food Court"
               required
               error={errors.name}
-              helperText="Full institutional name for this dining facility."
+              style={{ marginBottom: 0 }}
             />
 
             <FormInput
@@ -144,7 +163,7 @@ export const CanteenForm = ({
               required
               prefixIcon={Hash}
               error={errors.code}
-              helperText="Unique uppercase identifier for audit and POS mapping."
+              style={{ marginBottom: 0 }}
             />
 
             <FormSelect
@@ -156,7 +175,7 @@ export const CanteenForm = ({
               placeholder="Select Campus..."
               required
               error={errors.campus}
-              helperText="Institutional campus where this outlet is situated."
+              style={{ marginBottom: 0 }}
             />
 
             <FormInput
@@ -168,20 +187,20 @@ export const CanteenForm = ({
               required
               prefixIcon={MapPin}
               error={errors.location}
-              helperText="Floor, block, or building details for students and staff."
+              style={{ marginBottom: 0 }}
             />
           </div>
         </div>
 
         {/* Section 2: Contact Information */}
-        <div style={{ marginBottom: '28px' }}>
+        <div style={{ marginBottom: '14px' }}>
           <h3 style={{
-            fontSize: '15px',
+            fontSize: '13.5px',
             fontWeight: 600,
             color: 'var(--text-primary)',
-            paddingBottom: '12px',
+            paddingBottom: '6px',
             borderBottom: '1px solid var(--border-color)',
-            marginBottom: '20px',
+            marginBottom: '10px',
             display: 'flex',
             alignItems: 'center',
             gap: '8px'
@@ -192,8 +211,8 @@ export const CanteenForm = ({
 
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-            gap: '20px'
+            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+            gap: '10px 14px'
           }}>
             <FormInput
               label="Contact Phone"
@@ -204,7 +223,7 @@ export const CanteenForm = ({
               required
               prefixIcon={Phone}
               error={errors.contactPhone}
-              helperText="Manager desk or counter dispatch number."
+              style={{ marginBottom: 0 }}
             />
 
             <FormInput
@@ -217,20 +236,20 @@ export const CanteenForm = ({
               required
               prefixIcon={Mail}
               error={errors.contactEmail}
-              helperText="Official university correspondence email."
+              style={{ marginBottom: 0 }}
             />
           </div>
         </div>
 
         {/* Section 3: Operating Schedule */}
-        <div style={{ marginBottom: '28px' }}>
+        <div style={{ marginBottom: '14px' }}>
           <h3 style={{
-            fontSize: '15px',
+            fontSize: '13.5px',
             fontWeight: 600,
             color: 'var(--text-primary)',
-            paddingBottom: '12px',
+            paddingBottom: '6px',
             borderBottom: '1px solid var(--border-color)',
-            marginBottom: '20px',
+            marginBottom: '10px',
             display: 'flex',
             alignItems: 'center',
             gap: '8px'
@@ -241,9 +260,9 @@ export const CanteenForm = ({
 
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-            gap: '20px',
-            marginBottom: '16px'
+            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+            gap: '10px 14px',
+            marginBottom: '10px'
           }}>
             <TimeInput
               label="Opening Time"
@@ -252,7 +271,7 @@ export const CanteenForm = ({
               onChange={handleChange}
               required
               error={errors.openingTime}
-              helperText="Time when outlet opens for kitchen prep/service."
+              style={{ marginBottom: 0 }}
             />
 
             <TimeInput
@@ -262,7 +281,7 @@ export const CanteenForm = ({
               onChange={handleChange}
               required
               error={errors.closingTime}
-              helperText="Time when daily counter operations cease."
+              style={{ marginBottom: 0 }}
             />
 
             <FormSelect
@@ -271,11 +290,12 @@ export const CanteenForm = ({
               value={formData.status}
               onChange={handleChange}
               options={[
-                { value: 'Active', label: 'Active (Open for institutional operations)' },
-                { value: 'Inactive', label: 'Inactive (Temporarily suspended / closed)' }
+                { value: 'Active', label: 'Active' },
+                { value: 'Inactive', label: 'Inactive' }
               ]}
               required
               error={errors.status}
+              style={{ marginBottom: 0 }}
             />
           </div>
 
@@ -285,13 +305,13 @@ export const CanteenForm = ({
             onChange={handleWorkingDaysChange}
             required
             error={errors.workingDays}
-            helperText="Select which days this outlet is open for student and faculty service."
+            style={{ marginBottom: 0 }}
           />
 
-          {/* Order Acceptance Availability Toggle (SRS 3.1 & 75) */}
+          {/* Order Acceptance Availability Toggle */}
           <div style={{
-            marginTop: '20px',
-            padding: '16px',
+            marginTop: '10px',
+            padding: '10px 14px',
             backgroundColor: 'var(--bg-app)',
             borderRadius: 'var(--border-radius-md)',
             border: '1px solid var(--border-color)',
@@ -301,13 +321,8 @@ export const CanteenForm = ({
             gap: '16px',
             flexWrap: 'wrap'
           }}>
-            <div>
-              <div style={{ fontSize: '13.5px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                Order Acceptance Availability (SRS §3.1)
-              </div>
-              <div style={{ fontSize: '12.5px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                Allow students, faculty, and staff to place new online orders during active operating hours.
-              </div>
+            <div style={{ fontSize: '13.5px', fontWeight: 600, color: 'var(--text-primary)' }}>
+              Order Acceptance Availability
             </div>
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
               <input
@@ -330,12 +345,12 @@ export const CanteenForm = ({
           alignItems: 'center',
           justifyContent: 'flex-end',
           gap: '12px',
-          paddingTop: '20px',
+          paddingTop: '12px',
           borderTop: '1px solid var(--border-color)'
         }}>
           <Button
             variant="secondary"
-            onClick={() => navigate(initialValues?.id ? `/canteen/${initialValues.id}` : '/canteen')}
+            onClick={handleCancel}
             icon={X}
             disabled={isSubmitting}
           >

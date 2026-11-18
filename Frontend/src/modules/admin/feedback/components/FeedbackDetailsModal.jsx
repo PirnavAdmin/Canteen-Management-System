@@ -8,6 +8,7 @@ export const FeedbackDetailsModal = ({ isOpen, onClose, ticket, onResolve }) => 
   const [status, setStatus] = useState(FEEDBACK_STATUS.RESOLVED);
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (ticket) {
@@ -19,18 +20,23 @@ export const FeedbackDetailsModal = ({ isOpen, onClose, ticket, onResolve }) => 
 
   if (!isOpen || !ticket) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!notes.trim()) {
       setError('Resolution notes / supervisory comments are required before updating grievance status.');
       return;
     }
-    onResolve(ticket.id, {
-      status,
-      notes,
-      resolvedBy: 'Dr. Rajesh Sharma (Administrator)'
-    });
-    onClose();
+    try {
+      setSubmitting(true);
+      await onResolve(ticket.id, {
+        status,
+        notes,
+        resolvedBy: 'Dr. Rajesh Sharma (Administrator)'
+      });
+      onClose();
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -221,10 +227,10 @@ export const FeedbackDetailsModal = ({ isOpen, onClose, ticket, onResolve }) => 
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '6px' }}>
-              <Button variant="secondary" onClick={onClose} type="button">
+              <Button variant="secondary" onClick={onClose} type="button" disabled={submitting}>
                 Close
               </Button>
-              <Button variant="primary" type="submit">
+              <Button variant="primary" type="submit" loading={submitting}>
                 Save Resolution
               </Button>
             </div>

@@ -16,10 +16,15 @@ export const StockLedgerTable = ({ ledger = [], loading = false }) => {
     {
       key: 'ingredientName',
       header: 'Ingredient',
-      render: (val) => (
-        <strong style={{ fontSize: '13px', color: 'var(--text-primary)' }}>
-          {val}
-        </strong>
+      render: (val, row) => (
+        <div>
+          <strong style={{ fontSize: '13px', color: 'var(--text-primary)', display: 'block' }}>
+            {val}
+          </strong>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginTop: '1px' }}>
+            {row.outletName || (row.outletId === 1 ? 'Main Canteen' : (row.outletId ? `Outlet #${row.outletId}` : 'Main Canteen'))}
+          </span>
+        </div>
       )
     },
     {

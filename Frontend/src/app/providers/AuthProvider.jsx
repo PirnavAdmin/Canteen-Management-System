@@ -67,6 +67,78 @@ const DEMO_USERS = [
 ];
 
 const AuthContext = createContext(null);
+const LOCAL_USERS_KEY = 'cms_local_registered_users';
+
+const isNetworkFailure = (err) => {
+  if (!err) return false;
+  const raw = err.raw || err;
+  return (
+    !raw?.response ||
+    raw?.code === 'ERR_NETWORK' ||
+    err.message === 'Network Error' ||
+    err.message === 'Failed to fetch'
+  );
+};
+
+const getLocalUsers = () => {
+  try {
+    const raw = localStorage.getItem(LOCAL_USERS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+};
+
+const createLocalSessionProfile = (usernameOrEmail) => {
+  const identifier = (usernameOrEmail || '').trim().toLowerCase();
+  const localUsers = getLocalUsers();
+
+  const matchedLocal = localUsers.find(
+    (u) =>
+      u.username?.toLowerCase() === identifier ||
+      u.email?.toLowerCase() === identifier
+  );
+  if (matchedLocal) {
+    return matchedLocal;
+  }
+
+  if (identifier === 'staff' || identifier.startsWith('staff@')) {
+    return {
+      id: 'staff-001',
+      username: 'staff',
+      fullName: 'Ravi Kumar',
+      name: 'Ravi Kumar',
+      email: 'staff@cms.edu',
+      role: 'Staff',
+      roleCode: ROLES.CANTEEN_STAFF,
+      institutionId: 1
+    };
+  }
+
+  if (identifier === 'aarav' || identifier === 'student' || identifier.startsWith('student@')) {
+    return {
+      id: 'stu-001',
+      username: 'aarav',
+      fullName: 'Aarav Patel',
+      name: 'Aarav Patel',
+      email: 'aarav@cms.edu',
+      role: 'Student',
+      roleCode: ROLES.STUDENT,
+      institutionId: 1
+    };
+  }
+
+  return {
+    id: 'adm-001',
+    username: (usernameOrEmail || '').trim(),
+    fullName: identifier === 'admin' ? 'Sunitha Sharma' : 'Dr. Rajesh Sharma',
+    name: identifier === 'admin' ? 'Sunitha Sharma' : 'Dr. Rajesh Sharma',
+    email: identifier.includes('@') ? (usernameOrEmail || '').trim() : 'admin@cms.edu',
+    role: 'Admin',
+    roleCode: ROLES.INSTITUTION_ADMIN,
+    institutionId: 1
+  };
+};
 
 export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(() => localStorage.getItem('token') || null);
@@ -80,7 +152,7 @@ export const AuthProvider = ({ children }) => {
   });
   const [loading, setLoading] = useState(true);
 
-  // Initialize and verify session with backend
+  // Initialize and verify session with backend (with offline/local demo fallback)
   useEffect(() => {
     const verifySession = async () => {
       const savedToken = localStorage.getItem('token');
@@ -89,14 +161,8 @@ export const AuthProvider = ({ children }) => {
         return;
       }
 
-      // If already authenticated via demo or local session, keep valid user profile
-      const storedUser = localStorage.getItem('auth_user');
-      if (savedToken.startsWith('demo-token-') && storedUser) {
-        try {
-          setUser(JSON.parse(storedUser));
-        } catch {
-          setUser(null);
-        }
+      // Skip backend call when operating in local frontend-only demo session
+      if (savedToken.startsWith('local-demo-token-')) {
         setLoading(false);
         return;
       }
@@ -107,20 +173,14 @@ export const AuthProvider = ({ children }) => {
           setUser(response.data);
           localStorage.setItem('auth_user', JSON.stringify(response.data));
         } else {
-          // Invalidate
           localStorage.removeItem('token');
           localStorage.removeItem('auth_user');
           setUser(null);
           setToken(null);
         }
       } catch (err) {
-        // Fallback: If backend is offline or network error, retain existing user session
-        if (storedUser && (err.message?.includes('Network Error') || !err.status || err.status >= 500)) {
-          try {
-            setUser(JSON.parse(storedUser));
-          } catch {
-            setUser(null);
-          }
+        if (isNetworkFailure(err) && localStorage.getItem('auth_user')) {
+          console.info('Backend offline — preserving local authenticated session.');
         } else {
           console.warn('Session verification failed or token expired:', err.message);
           localStorage.removeItem('token');
@@ -145,6 +205,15 @@ export const AuthProvider = ({ children }) => {
     return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
   }, []);
 
+  const persistSession = useCallback((jwtToken, userProfile) => {
+    localStorage.setItem('token', jwtToken);
+    localStorage.setItem('auth_user', JSON.stringify(userProfile));
+    localStorage.setItem('institution_id', String(userProfile.institutionId || 1));
+    setToken(jwtToken);
+    setUser(userProfile);
+    return { token: jwtToken, user: userProfile };
+  }, []);
+
   const login = useCallback(async (usernameOrEmail, password) => {
     try {
       const response = await apiClient.post(API_ENDPOINTS.AUTH.LOGIN, {
@@ -161,75 +230,22 @@ export const AuthProvider = ({ children }) => {
         setUser(userProfile);
         return response.data;
       }
+      if (response && response.success && response.data) {
+        const { token: jwtToken, user: userProfile } = response.data;
+        return persistSession(jwtToken, userProfile);
+      }
 
       throw new Error(response?.message || 'Login failed.');
     } catch (err) {
-      // If backend returned a clear 400/401 auth rejection from an active server, reject accordingly
-      const isNetworkError =
-        !err.status ||
-        err.status >= 500 ||
-        err.message?.includes('Network Error') ||
-        err.message?.includes('ECONNREFUSED') ||
-        err.raw?.code === 'ERR_NETWORK';
-
-      if (!isNetworkError) {
-        throw new Error(err.message || 'Invalid username or password.', { cause: err });
+      // Fall back to local session authentication when backend is not connected yet
+      if (isNetworkFailure(err)) {
+        const localProfile = createLocalSessionProfile(usernameOrEmail);
+        const localToken = `local-demo-token-${Date.now()}`;
+        return persistSession(localToken, localProfile);
       }
-
-      // Backend API server is offline - Use offline demo authentication fallback
-      console.warn('Backend API server unreachable (Network Error). Using demo authentication fallback.');
-
-      const cleanInput = (usernameOrEmail || '').trim().toLowerCase();
-      const localUsers = JSON.parse(localStorage.getItem('cms_registered_users') || '[]');
-      const allUsers = [...DEMO_USERS, ...localUsers];
-
-      const matchedUser = allUsers.find(u =>
-        u.username.toLowerCase() === cleanInput ||
-        u.email.toLowerCase() === cleanInput ||
-        (u.secondaryEmail && u.secondaryEmail.toLowerCase() === cleanInput) ||
-        (u.rollNo && u.rollNo.toLowerCase() === cleanInput) ||
-        (cleanInput === 'faculty' && u.role === 'Faculty') ||
-        (cleanInput === 'student' && u.role === 'Student')
-      );
-
-      if (!matchedUser) {
-        throw new Error('Account not found. Please click one of the quick demo accounts below.', { cause: err });
-      }
-
-      // Validate password (allow exact match, lowercase match, or standard demo passwords)
-      const validPasswords = [
-        matchedUser.password,
-        matchedUser.password?.toLowerCase(),
-        'admin@123',
-        'staff@123',
-        'student@123',
-        'faculty@123',
-        'admin',
-        '123456'
-      ].filter(Boolean);
-
-      const enteredPass = (password || '').trim();
-      const isPassValid = validPasswords.some(p => p.toLowerCase() === enteredPass.toLowerCase());
-
-      if (!isPassValid) {
-        throw new Error('Incorrect password. For demo accounts, click the quick demo buttons below.', { cause: err });
-      }
-
-      const { password: _, ...userProfile } = matchedUser;
-      const demoToken = `demo-token-${userProfile.role.toLowerCase()}-${Date.now()}`;
-
-      localStorage.setItem('token', demoToken);
-      localStorage.setItem('auth_user', JSON.stringify(userProfile));
-      localStorage.setItem('institution_id', String(userProfile.institutionId || 1));
-      setToken(demoToken);
-      setUser(userProfile);
-
-      return {
-        token: demoToken,
-        user: userProfile
-      };
+      throw new Error(err?.message || 'Login failed.', { cause: err });
     }
-  }, []);
+  }, [persistSession]);
 
   const register = useCallback(async (registrationData) => {
     try {
@@ -244,61 +260,42 @@ export const AuthProvider = ({ children }) => {
         setUser(userProfile);
         return response.data;
       }
+      if (response && response.success && response.data) {
+        const { token: jwtToken, user: userProfile } = response.data;
+        return persistSession(jwtToken, userProfile);
+      }
 
       throw new Error(response?.message || 'Registration failed.');
     } catch (err) {
-      const isNetworkError =
-        !err.status ||
-        err.status >= 500 ||
-        err.message?.includes('Network Error') ||
-        err.message?.includes('ECONNREFUSED') ||
-        err.raw?.code === 'ERR_NETWORK';
+      if (isNetworkFailure(err)) {
+        const role = registrationData.role || 'Student';
+        const roleCode =
+          role === 'Admin'
+            ? ROLES.INSTITUTION_ADMIN
+            : role === 'Staff'
+              ? ROLES.CANTEEN_STAFF
+              : ROLES.STUDENT;
 
-      if (!isNetworkError) {
-        throw new Error(err.message || 'Registration failed.', { cause: err });
+        const newUser = {
+          id: `usr-${Date.now()}`,
+          username: registrationData.username,
+          email: registrationData.email,
+          fullName: registrationData.fullName,
+          name: registrationData.fullName,
+          phoneNumber: registrationData.phoneNumber || null,
+          role,
+          roleCode,
+          institutionId: registrationData.institutionId || 1
+        };
+
+        const existing = getLocalUsers();
+        localStorage.setItem(LOCAL_USERS_KEY, JSON.stringify([...existing, newUser]));
+        const localToken = `local-demo-token-${Date.now()}`;
+        return persistSession(localToken, newUser);
       }
-
-      // Offline mock registration fallback
-      const localUsers = JSON.parse(localStorage.getItem('cms_registered_users') || '[]');
-      const usernameExists = localUsers.some(u => u.username.toLowerCase() === registrationData.username.trim().toLowerCase()) ||
-        DEMO_USERS.some(u => u.username.toLowerCase() === registrationData.username.trim().toLowerCase());
-
-      if (usernameExists) {
-        throw new Error(`Username "${registrationData.username}" is already taken.`, { cause: err });
-      }
-
-      const newUser = {
-        userId: Date.now() % 100000,
-        institutionId: registrationData.institutionId || 1,
-        username: registrationData.username.trim(),
-        email: registrationData.email.trim(),
-        password: registrationData.password,
-        fullName: registrationData.fullName.trim(),
-        role: registrationData.role || 'Student',
-        roleCode: registrationData.role === 'Admin' ? ROLES.INSTITUTION_ADMIN : registrationData.role === 'Staff' ? ROLES.CANTEEN_STAFF : ROLES.STUDENT,
-        phoneNumber: registrationData.phoneNumber ? registrationData.phoneNumber.trim() : null,
-        isActive: true,
-        createdAt: new Date().toISOString()
-      };
-
-      localUsers.push(newUser);
-      localStorage.setItem('cms_registered_users', JSON.stringify(localUsers));
-
-      const { password: _, ...userProfile } = newUser;
-      const demoToken = `demo-token-${userProfile.role.toLowerCase()}-${Date.now()}`;
-
-      localStorage.setItem('token', demoToken);
-      localStorage.setItem('auth_user', JSON.stringify(userProfile));
-      localStorage.setItem('institution_id', String(userProfile.institutionId || 1));
-      setToken(demoToken);
-      setUser(userProfile);
-
-      return {
-        token: demoToken,
-        user: userProfile
-      };
+      throw new Error(err?.message || 'Registration failed.', { cause: err });
     }
-  }, []);
+  }, [persistSession]);
 
   const logout = useCallback(() => {
     localStorage.removeItem('token');

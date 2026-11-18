@@ -20,11 +20,11 @@ export const Breadcrumb = ({ items = [] }) => {
             <ChevronRight size={12} style={{ color: 'var(--text-placeholder)' }} />
             {isLast || !item.path ? (
               <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
-                {item.label}
+                {typeof item.label === 'object' ? (item.label?.name || item.label?.title || item.label?.id || '—') : item.label}
               </span>
             ) : (
               <Link to={item.path} style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>
-                {item.label}
+                {typeof item.label === 'object' ? (item.label?.name || item.label?.title || item.label?.id || '—') : item.label}
               </Link>
             )}
           </React.Fragment>

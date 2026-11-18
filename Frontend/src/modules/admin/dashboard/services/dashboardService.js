@@ -1,71 +1,44 @@
 /**
  * Dashboard API Service
+ * Pure live integration with .NET 8 Web API (Hostinger Cloud MySQL DB).
+ * No mock data, no localStorage caching, no simulated fallbacks.
  */
 
 import { apiClient, API_ENDPOINTS } from '../../../../services/api';
-import {
-  INITIAL_DASHBOARD_SUMMARY,
-  INITIAL_HOURLY_SALES,
-  INITIAL_LIVE_ORDERS,
-  INITIAL_TOP_SELLING,
-  INITIAL_STOCK_ALERTS,
-  INITIAL_OUTLET_SALES
-} from '../constants/dashboardConstants';
 
 export const dashboardService = {
   getSummary: async (outletId = 'ALL') => {
-    try {
-      const data = await apiClient.get(API_ENDPOINTS.DASHBOARD.SUMMARY, { outletId });
-      return data;
-    } catch {
-      // Graceful fallback for mock/offline presentation
-      return INITIAL_DASHBOARD_SUMMARY;
-    }
+    const params = outletId && outletId !== 'ALL' ? { outletId: Number(outletId) } : {};
+    const response = await apiClient.get(API_ENDPOINTS.DASHBOARD.SUMMARY, params);
+    return response?.data ?? response;
   },
 
   getHourlySales: async (outletId = 'ALL') => {
-    try {
-      const data = await apiClient.get(API_ENDPOINTS.DASHBOARD.HOURLY_SALES, { outletId });
-      return data;
-    } catch {
-      return INITIAL_HOURLY_SALES;
-    }
+    const params = outletId && outletId !== 'ALL' ? { outletId: Number(outletId) } : {};
+    const response = await apiClient.get(API_ENDPOINTS.DASHBOARD.HOURLY_SALES, params);
+    return response?.data ?? response;
   },
 
   getLiveOrders: async (outletId = 'ALL') => {
-    try {
-      const data = await apiClient.get(API_ENDPOINTS.DASHBOARD.LIVE_ORDERS, { outletId });
-      return data;
-    } catch {
-      return INITIAL_LIVE_ORDERS;
-    }
+    const params = outletId && outletId !== 'ALL' ? { outletId: Number(outletId) } : {};
+    const response = await apiClient.get(API_ENDPOINTS.DASHBOARD.LIVE_ORDERS, params);
+    return response?.data ?? response;
   },
 
   getTopSelling: async (outletId = 'ALL') => {
-    try {
-      const data = await apiClient.get(API_ENDPOINTS.DASHBOARD.TOP_SELLING, { outletId });
-      return data;
-    } catch {
-      return INITIAL_TOP_SELLING;
-    }
+    const params = outletId && outletId !== 'ALL' ? { outletId: Number(outletId) } : {};
+    const response = await apiClient.get(API_ENDPOINTS.DASHBOARD.TOP_SELLING, params);
+    return response?.data ?? response;
   },
 
   getStockAlerts: async () => {
-    try {
-      const data = await apiClient.get(API_ENDPOINTS.DASHBOARD.STOCK_ALERTS);
-      return data;
-    } catch {
-      return INITIAL_STOCK_ALERTS;
-    }
+    const response = await apiClient.get(API_ENDPOINTS.DASHBOARD.STOCK_ALERTS);
+    return response?.data ?? response;
   },
 
   getOutletSales: async () => {
-    try {
-      const data = await apiClient.get(API_ENDPOINTS.DASHBOARD.OUTLET_SALES);
-      return data;
-    } catch {
-      return INITIAL_OUTLET_SALES;
-    }
+    const response = await apiClient.get(API_ENDPOINTS.DASHBOARD.OUTLET_SALES);
+    return response?.data ?? response;
   }
 };
 

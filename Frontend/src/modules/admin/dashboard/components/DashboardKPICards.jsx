@@ -4,7 +4,7 @@ import {
   Clock,
   CheckCircle2,
   ChefHat,
-  PackageCheck,
+  BellRing,
   CheckCheck,
   XCircle,
   IndianRupee
@@ -49,7 +49,7 @@ export const DashboardKPICards = ({ summary = {} }) => {
       label: 'Ready for Pickup',
       value: formatNumber(summary.readyForPickup || 0),
       subtext: 'Tokens on counter display',
-      icon: PackageCheck,
+      icon: BellRing,
       color: '#059669',
       bg: '#ecfdf5'
     },

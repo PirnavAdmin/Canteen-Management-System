@@ -4,7 +4,8 @@ import { useCategories } from '../hooks/useCategories';
 import { PageHeader } from '../../../../components/common/PageHeader';
 import { CategoryForm } from '../components/CategoryForm';
 import { EmptyState } from '../../../../components/common/EmptyState';
-import { LayoutGrid } from 'lucide-react';
+import { Button } from '../../../../components/common/Button';
+import { LayoutGrid, ArrowLeft } from 'lucide-react';
 
 export const EditCategoryPage = () => {
   const { id } = useParams();
@@ -15,7 +16,15 @@ export const EditCategoryPage = () => {
 
   const handleUpdate = async (formData) => {
     await updateCategory(id, formData);
-    navigate(`/categories/${id}`);
+    navigate(`/admin/categories/${id}`);
+  };
+
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate('/admin/categories');
+    }
   };
 
   if (loading) {
@@ -32,7 +41,7 @@ export const EditCategoryPage = () => {
         <PageHeader
           title="Edit Food Category"
           breadcrumbItems={[
-            { label: 'Food Categories', path: '/categories' },
+            { label: 'Food Categories', path: '/admin/categories' },
             { label: 'Edit' }
           ]}
         />
@@ -41,7 +50,7 @@ export const EditCategoryPage = () => {
           title="Category Not Found"
           message={`No food category found with identifier "${id}".`}
           actionLabel="Return to Categories List"
-          onAction={() => navigate('/categories')}
+          onAction={() => navigate('/admin/categories')}
         />
       </div>
     );
@@ -53,10 +62,19 @@ export const EditCategoryPage = () => {
         title={`Edit Category: ${category.name}`}
         description={`Modify menu display order #${category.displayOrder}, active state, or description.`}
         breadcrumbItems={[
-          { label: 'Food Categories', path: '/categories' },
-          { label: category.name, path: `/categories/${id}` },
+          { label: 'Food Categories', path: '/admin/categories' },
+          { label: category.name, path: `/admin/categories/${id}` },
           { label: 'Edit' }
         ]}
+        actions={
+          <Button
+            variant="secondary"
+            icon={ArrowLeft}
+            onClick={handleBack}
+          >
+            Back to Categories
+          </Button>
+        }
       />
 
       <CategoryForm
@@ -68,4 +86,6 @@ export const EditCategoryPage = () => {
     </div>
   );
 };
+
+export default EditCategoryPage;
 

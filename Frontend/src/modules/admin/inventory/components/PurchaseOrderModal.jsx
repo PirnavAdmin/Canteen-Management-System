@@ -2,9 +2,15 @@ import React, { useState } from 'react';
 import { X, Plus, Trash2 } from 'lucide-react';
 import { Button } from '../../../../components/common/Button';
 
-export const PurchaseOrderModal = ({ isOpen, onClose, suppliers = [], onCreatePO }) => {
+export const PurchaseOrderModal = ({ isOpen, onClose, suppliers = [], outlets = [], defaultOutletId = 1, loading = false, onCreatePO }) => {
+  const [outletId, setOutletId] = useState(defaultOutletId || (outlets[0]?.outletId || 1));
   const [supplierId, setSupplierId] = useState(suppliers[0]?.id || 'sup-01');
   const [expectedDelivery, setExpectedDelivery] = useState('');
+
+  React.useEffect(() => {
+    if (defaultOutletId) setOutletId(defaultOutletId);
+    if (suppliers.length > 0 && !supplierId) setSupplierId(suppliers[0].id);
+  }, [defaultOutletId, isOpen, suppliers]);
   const [items, setItems] = useState([
     { ingredientName: '', qty: '', unit: 'kg', unitPrice: '' }
   ]);
@@ -27,7 +33,7 @@ export const PurchaseOrderModal = ({ isOpen, onClose, suppliers = [], onCreatePO
     setItems(updated);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!expectedDelivery) {
       setError('Please select an expected delivery date.');
@@ -39,7 +45,7 @@ export const PurchaseOrderModal = ({ isOpen, onClose, suppliers = [], onCreatePO
       return;
     }
 
-    const selectedSup = suppliers.find(s => s.id === supplierId) || { name: 'Institutional Vendor' };
+    const selectedSup = suppliers.find(s => String(s.id) === String(supplierId)) || suppliers[0] || { name: 'Institutional Vendor' };
     const processedItems = items.map(it => ({
       ...it,
       qty: Number(it.qty),
@@ -48,7 +54,8 @@ export const PurchaseOrderModal = ({ isOpen, onClose, suppliers = [], onCreatePO
     }));
     const totalAmount = processedItems.reduce((acc, curr) => acc + curr.total, 0);
 
-    onCreatePO({
+    await onCreatePO({
+      outletId: Number(outletId) || 1,
       supplierId,
       supplierName: selectedSup.name,
       expectedDelivery,
@@ -218,10 +225,10 @@ export const PurchaseOrderModal = ({ isOpen, onClose, suppliers = [], onCreatePO
           {error && <div style={{ fontSize: '11.5px', color: 'var(--color-danger)' }}>{error}</div>}
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px', borderTop: '1px solid var(--border-color)', paddingTop: '14px' }}>
-            <Button variant="secondary" onClick={onClose} type="button">
+            <Button variant="secondary" onClick={onClose} type="button" disabled={loading}>
               Cancel
             </Button>
-            <Button variant="primary" type="submit">
+            <Button variant="primary" type="submit" loading={loading}>
               Submit Purchase Order
             </Button>
           </div>

@@ -5,7 +5,7 @@ import { FormSelect } from '../../../../components/forms/FormSelect';
 import { FormTextarea } from '../../../../components/forms/FormTextarea';
 import { Button } from '../../../../components/common/Button';
 import { validateCategoryForm } from '../utils/categoryValidators';
-import { Save, X, LayoutGrid, ListOrdered, ShieldAlert } from 'lucide-react';
+import { Save, X, LayoutGrid, ListOrdered, ShieldAlert, ArrowLeft } from 'lucide-react';
 
 export const CategoryForm = ({
   initialValues = {},
@@ -71,13 +71,21 @@ export const CategoryForm = ({
     }
   };
 
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate('/admin/categories');
+    }
+  };
+
   return (
     <form onSubmit={handleSubmit} noValidate>
       <div style={{
         backgroundColor: 'var(--bg-surface)',
         borderRadius: 'var(--border-radius-lg)',
         border: '1px solid var(--border-color)',
-        padding: '28px',
+        padding: '16px 20px',
         boxShadow: 'var(--shadow-xs)'
       }}>
         {/* Institutional Safeguard Banner */}
@@ -85,22 +93,22 @@ export const CategoryForm = ({
           display: 'flex',
           alignItems: 'flex-start',
           gap: '12px',
-          padding: '14px 16px',
+          padding: '12px 14px',
           backgroundColor: 'var(--color-primary-light)',
           border: '1px solid var(--color-primary-border)',
           borderRadius: 'var(--border-radius-md)',
-          marginBottom: '24px'
+          marginBottom: '14px'
         }}>
           <ShieldAlert size={18} style={{ color: 'var(--color-primary)', marginTop: '2px', flexShrink: 0 }} />
           <div style={{ fontSize: '12.5px', color: 'var(--color-primary)', lineHeight: 1.4 }}>
-            <strong>Institutional Integrity Policy (SRS §3.2 & §6.2):</strong> Food categories establish master classifications across SMS/CMS dining schedules. Categories with active or historical item/order dependencies must not be permanently deleted. Use deactivation to retire categories without breaking financial audit trails.
+            <strong>Institutional Integrity Policy:</strong> Food categories establish master classifications across SMS/CMS dining schedules. Categories with active or historical item/order dependencies must not be permanently deleted. Use deactivation to retire categories without breaking financial audit trails.
           </div>
         </div>
 
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-          gap: '20px'
+          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+          gap: '10px 14px'
         }}>
           <FormInput
             label="Category Name"
@@ -111,11 +119,11 @@ export const CategoryForm = ({
             required
             prefixIcon={LayoutGrid}
             error={errors.name}
-            helperText="Clear label visible on digital and printed dining menus."
+            style={{ marginBottom: 0 }}
           />
 
           <FormInput
-            label="Display Order (Rank)"
+            label="Display Order"
             name="displayOrder"
             type="number"
             min="1"
@@ -126,7 +134,7 @@ export const CategoryForm = ({
             required
             prefixIcon={ListOrdered}
             error={errors.displayOrder}
-            helperText="Sort position on menu browsing screens (1 appears first)."
+            style={{ marginBottom: 0 }}
           />
 
           <FormSelect
@@ -135,16 +143,16 @@ export const CategoryForm = ({
             value={formData.status}
             onChange={handleChange}
             options={[
-              { value: 'Active', label: 'Active (Available for item assignment & display)' },
-              { value: 'Inactive', label: 'Inactive (Hidden from daily menu scheduling)' }
+              { value: 'Active', label: 'Active' },
+              { value: 'Inactive', label: 'Inactive' }
             ]}
             required
             error={errors.status}
-            helperText="Inactive categories cannot receive new food item mappings."
+            style={{ marginBottom: 0 }}
           />
         </div>
 
-        <div style={{ marginTop: '16px' }}>
+        <div style={{ marginTop: '12px' }}>
           <FormTextarea
             label="Category Description & Operating Notes"
             name="description"
@@ -153,7 +161,7 @@ export const CategoryForm = ({
             rows={3}
             placeholder="e.g. Fresh morning South/North Indian specials, served 07:30 to 11:30 AM..."
             error={errors.description}
-            helperText="Optional descriptive notes for kitchen and customer reference (max 250 characters)."
+            style={{ marginBottom: 0 }}
           />
         </div>
 
@@ -163,17 +171,17 @@ export const CategoryForm = ({
           alignItems: 'center',
           justifyContent: 'flex-end',
           gap: '12px',
-          paddingTop: '20px',
+          paddingTop: '14px',
           borderTop: '1px solid var(--border-color)',
-          marginTop: '12px'
+          marginTop: '14px'
         }}>
           <Button
             variant="secondary"
-            onClick={() => navigate(initialValues?.id ? `/categories/${initialValues.id}` : '/categories')}
-            icon={X}
+            onClick={handleBack}
+            icon={ArrowLeft}
             disabled={isSubmitting}
           >
-            Cancel
+            Back to Categories
           </Button>
           <Button
             type="submit"

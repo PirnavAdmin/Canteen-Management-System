@@ -35,7 +35,7 @@ export const DataTable = ({
       ...style
     }}>
       <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-        <table style={{ width: '100%', minWidth: '680px', borderCollapse: 'collapse', textAlign: 'left' }}>
+        <table style={{ width: '100%', minWidth: '600px', borderCollapse: 'collapse', textAlign: 'left' }}>
           <thead>
             <tr style={{
               backgroundColor: 'var(--bg-app)',
@@ -52,8 +52,8 @@ export const DataTable = ({
                     scope="col"
                     onClick={() => isSortable && onSort(col.key)}
                     style={{
-                      padding: '9px 12px',
-                      fontSize: '11.5px',
+                      padding: '8px 10px',
+                      fontSize: '11px',
                       fontWeight: 600,
                       color: 'var(--text-secondary)',
                       textTransform: 'uppercase',
@@ -143,17 +143,17 @@ export const DataTable = ({
                         cellContent = cellValue != null ? cellValue : '—';
                       }
 
-                      // Defensive guard for React 19: prevent non-React element objects (e.g. { id, name }) from crashing rendering
+                      // Defensive guard: prevent plain objects (e.g. { id, name }) from crashing React render
                       if (cellContent !== null && typeof cellContent === 'object' && !React.isValidElement(cellContent)) {
-                        cellContent = cellContent.name || cellContent.title || cellContent.label || cellContent.id || '—';
+                        cellContent = cellContent.name || cellContent.title || cellContent.label || cellContent.fullName || cellContent.id || '—';
                       }
 
                       return (
                         <td
                           key={col.key || `cell-${colIdx}`}
                           style={{
-                            padding: '8px 12px',
-                            fontSize: '13px',
+                            padding: '8px 10px',
+                            fontSize: '12.5px',
                             color: 'var(--text-primary)',
                             textAlign: col.align || 'left',
                             verticalAlign: 'middle',

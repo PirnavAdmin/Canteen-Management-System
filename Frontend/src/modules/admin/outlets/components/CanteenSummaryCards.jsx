@@ -22,11 +22,12 @@ export const CanteenSummaryCards = ({ canteens = [] }) => {
   return (
     <div style={{
       display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-      gap: '16px',
-      marginBottom: '24px'
+      gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
+      gap: '12px',
+      marginBottom: '16px'
     }}>
       <StatCard
+        compact
         title="Total Outlets"
         value={total}
         description="Registered institutional dining halls"
@@ -35,6 +36,7 @@ export const CanteenSummaryCards = ({ canteens = [] }) => {
         bgColor="var(--color-primary-light)"
       />
       <StatCard
+        compact
         title="Active Outlets"
         value={active}
         description={`${Math.round((active / (total || 1)) * 100)}% operational across campuses`}
@@ -43,20 +45,22 @@ export const CanteenSummaryCards = ({ canteens = [] }) => {
         bgColor="var(--color-success-bg)"
       />
       <StatCard
+        compact
         title="Campuses Served"
         value={campuses}
         description="Locations with dining services"
         icon={MapPin}
-        color="#8b5cf6"
-        bgColor="#f5f3ff"
+        color="var(--color-info)"
+        bgColor="var(--color-info-bg)"
       />
       <StatCard
+        compact
         title="Avg. Daily Hours"
         value={`${avgHours} hrs`}
         description="Daily service window per outlet"
         icon={Clock}
-        color="#ea580c"
-        bgColor="#fff7ed"
+        color="var(--color-warning)"
+        bgColor="var(--color-warning-bg)"
       />
     </div>
   );

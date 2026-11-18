@@ -1,32 +1,40 @@
-import React, { useState } from 'react';
-import { Download, FileSpreadsheet, Printer } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { FileSpreadsheet, Printer } from 'lucide-react';
 import { PageHeader } from '../../../../components/common/PageHeader';
 import { Button } from '../../../../components/common/Button';
 import { DataTable } from '../../../../components/tables/DataTable';
 import { useReports } from '../hooks/useReports';
 import { ReportFilters } from '../components/ReportFilters';
 import { ReportSummaryHeader } from '../components/ReportSummaryHeader';
-import { exportToCSV, exportToExcel, triggerPrintPDF } from '../utils/exportUtils';
+import { ReportPrintPreviewModal } from '../components/ReportPrintPreviewModal';
+import { exportToExcel } from '../utils/exportUtils';
 import { REPORT_OPTIONS } from '../constants/reportConstants';
+import { useCanteens } from '../../outlets/hooks/useCanteens';
 
 export const ReportsPage = () => {
+  const { selectedCampus, canteens } = useCanteens();
   const [selectedReport, setSelectedReport] = useState('sales_summary');
   const [selectedOutlet, setSelectedOutlet] = useState('ALL');
   const [selectedDateRange, setSelectedDateRange] = useState('today');
   const [selectedPayment, setSelectedPayment] = useState('ALL');
+  const [isPrintPreviewOpen, setIsPrintPreviewOpen] = useState(false);
 
   const { reportData, loading } = useReports(selectedReport, {
     outlet: selectedOutlet,
     dateRange: selectedDateRange,
-    payment: selectedPayment
+    payment: selectedPayment,
+    campus: selectedCampus
   });
 
   const activeReportConfig = REPORT_OPTIONS.find(r => r.id === selectedReport) || REPORT_OPTIONS[0];
 
-  const handleExportCSV = () => {
-    if (!reportData) return;
-    exportToCSV(`CMS_Report_${selectedReport}`, reportData.columns, reportData.rows);
-  };
+  const selectedOutletName = useMemo(() => {
+    if (selectedOutlet === 'ALL') {
+      return selectedCampus ? `All Outlets (${selectedCampus})` : 'All Outlets';
+    }
+    const found = canteens?.find(c => String(c.id || c.outletId) === String(selectedOutlet));
+    return found ? found.name : 'All Outlets';
+  }, [selectedOutlet, selectedCampus, canteens]);
 
   const handleExportExcel = () => {
     if (!reportData) return;
@@ -37,21 +45,12 @@ export const ReportsPage = () => {
     <div>
       <PageHeader
         title="Reports & Financial Analytics"
-        description="Statutory GST tax reporting, daily/monthly revenue reconciliation, kitchen wastage audits, item performance, and capacity analytics."
         breadcrumbItems={[
           { label: 'Admin' },
           { label: 'Reports & Analytics' }
         ]}
         actions={
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Button
-              variant="secondary"
-              icon={Download}
-              onClick={handleExportCSV}
-              disabled={!reportData}
-            >
-              CSV
-            </Button>
             <Button
               variant="secondary"
               icon={FileSpreadsheet}
@@ -63,7 +62,8 @@ export const ReportsPage = () => {
             <Button
               variant="primary"
               icon={Printer}
-              onClick={triggerPrintPDF}
+              onClick={() => setIsPrintPreviewOpen(true)}
+              disabled={!reportData}
             >
               Print / PDF
             </Button>
@@ -96,7 +96,7 @@ export const ReportsPage = () => {
         overflow: 'hidden'
       }}>
         <div style={{
-          padding: '14px 20px',
+          padding: '12px 18px',
           borderBottom: '1px solid var(--border-color)',
           display: 'flex',
           justifyContent: 'space-between',
@@ -106,9 +106,6 @@ export const ReportsPage = () => {
             <h3 style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
               {activeReportConfig.label}
             </h3>
-            <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
-              Classification: {typeof activeReportConfig.category === 'object' ? (activeReportConfig.category?.name || activeReportConfig.category?.id || '') : activeReportConfig.category} • Institutional Verified Records
-            </span>
           </div>
 
           <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
@@ -123,6 +120,18 @@ export const ReportsPage = () => {
           style={{ border: 'none', borderRadius: 0, boxShadow: 'none' }}
         />
       </div>
+
+      {/* Print & PDF Preview Modal */}
+      <ReportPrintPreviewModal
+        isOpen={isPrintPreviewOpen}
+        onClose={() => setIsPrintPreviewOpen(false)}
+        reportConfig={activeReportConfig}
+        reportData={reportData}
+        campus={selectedCampus || 'Main Campus'}
+        outletName={selectedOutletName}
+        dateRange={selectedDateRange}
+        paymentMethod={selectedPayment}
+      />
     </div>
   );
 };

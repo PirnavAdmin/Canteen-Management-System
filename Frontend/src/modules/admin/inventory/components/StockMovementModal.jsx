@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { Button } from '../../../../components/common/Button';
 
-export const StockMovementModal = ({ isOpen, onClose, item, defaultType = 'Stock In', onRecordMovement }) => {
+export const StockMovementModal = ({ isOpen, onClose, item, defaultType = 'Stock In', loading = false, onRecordMovement }) => {
   const [movementType, setMovementType] = useState(defaultType);
   const [quantity, setQuantity] = useState('');
   const [reason, setReason] = useState('');
@@ -26,7 +26,7 @@ export const StockMovementModal = ({ isOpen, onClose, item, defaultType = 'Stock
 
   if (!isOpen || !item) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const qty = Number(quantity);
     if (!qty || qty === 0) {
@@ -38,7 +38,7 @@ export const StockMovementModal = ({ isOpen, onClose, item, defaultType = 'Stock
       return;
     }
 
-    onRecordMovement({
+    await onRecordMovement({
       ingredientId: item.id,
       movementType,
       quantity: movementType === 'Stock Out' || movementType === 'Wastage' ? -Math.abs(qty) : qty,
@@ -235,10 +235,10 @@ export const StockMovementModal = ({ isOpen, onClose, item, defaultType = 'Stock
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px', borderTop: '1px solid var(--border-color)', paddingTop: '14px' }}>
-            <Button variant="secondary" onClick={onClose} type="button">
+            <Button variant="secondary" onClick={onClose} type="button" disabled={loading}>
               Cancel
             </Button>
-            <Button variant="primary" type="submit">
+            <Button variant="primary" type="submit" loading={loading}>
               Log Movement to Ledger
             </Button>
           </div>

@@ -1,13 +1,29 @@
 import React from 'react';
-import { Eye, ArrowRight } from 'lucide-react';
+import { Eye, CheckCircle, ChefHat, BellRing, CheckCheck, ArrowRight, Loader2 } from 'lucide-react';
 import { DataTable } from '../../../../components/tables/DataTable';
 import { StatusBadge } from '../../../../components/common/StatusBadge';
 import { formatCurrency } from '../../../../utils/formatters';
 import { ORDER_STATUS, ORDER_LIFECYCLE_NEXT_STEPS } from '../../../../constants/appConstants';
 
+const getStepIcon = (nextStatus) => {
+  switch (nextStatus) {
+    case ORDER_STATUS.ACCEPTED:
+      return CheckCircle;
+    case ORDER_STATUS.PREPARING:
+      return ChefHat;
+    case ORDER_STATUS.READY_FOR_PICKUP:
+      return BellRing;
+    case ORDER_STATUS.COMPLETED:
+      return CheckCheck;
+    default:
+      return ArrowRight;
+  }
+};
+
 export const OrderTable = ({
   orders = [],
   loading = false,
+  actionLoadingId = null,
   onView,
   onAdvanceStatus,
   footer
@@ -16,23 +32,25 @@ export const OrderTable = ({
     {
       key: 'token',
       header: 'Token / ID',
+      width: '75px',
       render: (val, row) => (
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', whiteSpace: 'nowrap' }}>
           <span
-            onClick={() => onView && onView(row)}
+            onClick={() => onView(row)}
+            title={`Order ${row.id}`}
             style={{
               fontWeight: 700,
               color: 'var(--color-primary)',
               cursor: 'pointer',
-              fontSize: '13.5px'
+              fontSize: '12.5px'
             }}
             onMouseEnter={(e) => { e.target.style.textDecoration = 'underline'; }}
             onMouseLeave={(e) => { e.target.style.textDecoration = 'none'; }}
           >
             {val || row?.token || row?.id || '—'}
           </span>
-          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-            {row?.id || '—'}
+          <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+            {row.id}
           </span>
         </div>
       )
@@ -40,17 +58,16 @@ export const OrderTable = ({
     {
       key: 'customer',
       header: 'Customer',
-      render: (val, row) => {
-        const custName = val?.name || row?.customerName || (typeof val === 'string' ? val : 'Walk-in Customer');
-        const custRole = val?.role || row?.customerRole || 'Student';
-        const custId = val?.rollNo || val?.department || row?.customerRollNo || row?.rollNo || '';
-
+      render: (val) => {
+        const custName = typeof val === 'object' ? (val?.name || val?.fullName || val?.id || '—') : (val || '—');
+        const custRole = typeof val === 'object' ? (val?.role || '') : '';
+        const custDept = typeof val === 'object' ? (val?.rollNo || val?.department || '') : '';
         return (
-          <div style={{ display: 'flex', flexDirection: 'column', maxWidth: '160px', overflow: 'hidden' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', maxWidth: '115px', overflow: 'hidden' }}>
             <span
               title={custName}
               style={{
-                fontSize: '13px',
+                fontSize: '12px',
                 fontWeight: 600,
                 color: 'var(--text-primary)',
                 whiteSpace: 'nowrap',
@@ -60,18 +77,20 @@ export const OrderTable = ({
             >
               {custName}
             </span>
-            <span
-              title={`${custRole}${custId ? ` • ${custId}` : ''}`}
-              style={{
-                fontSize: '11px',
-                color: 'var(--text-muted)',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis'
-              }}
-            >
-              {custRole}{custId ? ` • ${custId}` : ''}
-            </span>
+            {custRole && (
+              <span
+                title={`${custRole}${custDept ? ` • ${custDept}` : ''}`}
+                style={{
+                  fontSize: '10px',
+                  color: 'var(--text-muted)',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis'
+                }}
+              >
+                {custRole}{custDept ? ` • ${custDept}` : ''}
+              </span>
+            )}
           </div>
         );
       }
@@ -80,22 +99,23 @@ export const OrderTable = ({
       key: 'outletName',
       header: 'Outlet',
       render: (val, row) => {
-        const rawOutlet = val || row?.outletName || row?.canteenName || 'Central Dining Hall';
-        const outlet = typeof rawOutlet === 'object' ? (rawOutlet?.name || rawOutlet?.id || 'Central Dining Hall') : String(rawOutlet || 'Central Dining Hall');
+        const outStr = typeof val === 'object'
+          ? (val?.name || val?.outletName || val?.id || '')
+          : (val || (typeof row?.outlet === 'object' ? (row.outlet?.name || row.outlet?.id) : (row?.outlet || '—')));
         return (
           <span
-            title={outlet}
+            title={outStr}
             style={{
-              fontSize: '12px',
+              fontSize: '11.5px',
               color: 'var(--text-secondary)',
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               display: 'block',
-              maxWidth: '140px'
+              maxWidth: '100px'
             }}
           >
-            {outlet}
+            {outStr}
           </span>
         );
       }
@@ -103,19 +123,15 @@ export const OrderTable = ({
     {
       key: 'items',
       header: 'Items',
-      render: (items, row) => {
-        const list = Array.isArray(items) ? items : Array.isArray(row?.items) ? row.items : [];
-        const itemStr = list.length > 0
-          ? list.map(i => `${i?.name || 'Dish'} (x${i?.quantity || 1})`).join(', ')
-          : 'Campus Meal';
-
+      render: (items) => {
+        const itemStr = (Array.isArray(items) ? items : []).map(i => `${i.name} (x${i.quantity})`).join(', ');
         return (
           <div
             title={itemStr}
             style={{
-              fontSize: '12px',
+              fontSize: '11.5px',
               color: 'var(--text-secondary)',
-              maxWidth: '190px',
+              maxWidth: '120px',
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis'
@@ -127,116 +143,93 @@ export const OrderTable = ({
       }
     },
     {
-      key: 'slot',
-      header: 'Pickup Slot',
-      render: (val, row) => {
-        // Safe check whether parent configuration object exists before accessing .timeWindow
-        const slotConfig = val ?? row?.slot ?? null;
-        const timeWindow = slotConfig?.timeWindow ?? (typeof val === 'string' ? val : '12:30 PM - 01:00 PM');
-        const session = slotConfig?.session ?? (row?.pickupSlot ? 'Scheduled' : 'Lunch');
-
-        return (
-          <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-            <div style={{ fontWeight: 500 }}>{timeWindow}</div>
-            <div style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>{session}</div>
-          </div>
-        );
-      }
-    },
-    {
       key: 'totalAmount',
       header: 'Total',
-      render: (val, row) => {
-        const amount = Number(val ?? row?.totalAmount ?? row?.pricing?.totalAmount ?? 0);
-        return (
-          <span style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--text-primary)' }}>
-            {formatCurrency(amount)}
-          </span>
-        );
-      }
+      render: (val) => (
+        <span style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+          {formatCurrency(val)}
+        </span>
+      )
     },
     {
       key: 'payment',
       header: 'Payment',
-      render: (val, row) => {
-        const payConfig = val ?? row?.payment ?? null;
-        const method = payConfig?.method || row?.paymentMethod || 'Campus Wallet';
-        const status = payConfig?.status || row?.paymentStatus || 'Paid';
-
-        return (
-          <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>
-            <div>{method}</div>
-            <div style={{
-              color: status === 'Paid' ? 'var(--color-success)' : status === 'Refunded' ? '#d97706' : 'var(--color-danger)',
-              fontWeight: 600
-            }}>
-              {status}
-            </div>
+      render: (val) => (
+        <div style={{ fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+          <div>{val?.method || 'Campus Wallet'}</div>
+          <div style={{
+            color: val?.status === 'Paid' ? 'var(--color-success)' : val?.status === 'Refunded' ? '#d97706' : 'var(--color-danger)',
+            fontWeight: 600
+          }}>
+            {val?.status || 'Paid'}
           </div>
-        );
-      }
+        </div>
+      )
     },
     {
       key: 'status',
       header: 'Order Status',
-      render: (val, row) => {
-        const status = val || row?.status || ORDER_STATUS.PLACED;
-        return <StatusBadge status={status} size="sm" />;
-      }
+      align: 'center',
+      render: (val) => <StatusBadge status={val} size="sm" />
     },
     {
       key: 'actions',
       header: 'Actions',
-      align: 'right',
+      align: 'center',
+      width: '80px',
       render: (_, row) => {
         const orderStatus = row?.status || ORDER_STATUS.PLACED;
         const nextSteps = ORDER_LIFECYCLE_NEXT_STEPS[orderStatus] || [];
         const nextOperationalStatus = nextSteps.find(s => s !== ORDER_STATUS.CANCELLED && s !== ORDER_STATUS.REFUNDED);
+        const StepIcon = nextOperationalStatus ? getStepIcon(nextOperationalStatus) : null;
 
         return (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
             <button
               type="button"
               onClick={() => onView && onView(row)}
               style={{
                 background: 'none',
                 border: '1px solid var(--border-color)',
-                borderRadius: 'var(--border-radius-sm)',
-                padding: '6px 8px',
+                borderRadius: '4px',
+                padding: '5px',
                 color: 'var(--text-secondary)',
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '4px',
-                fontSize: '12px'
+                justifyContent: 'center'
               }}
               title="View Order Details"
+              aria-label="View Order Details"
             >
-              <Eye size={13} />
-              <span>Details</span>
+              <Eye size={14} />
             </button>
 
-            {nextOperationalStatus && (
+            {nextOperationalStatus && StepIcon && (
               <button
                 type="button"
-                onClick={() => onAdvanceStatus && onAdvanceStatus(row, nextOperationalStatus)}
+                disabled={actionLoadingId === row.id}
+                onClick={() => onAdvanceStatus(row, nextOperationalStatus)}
                 style={{
                   background: 'var(--color-primary-light)',
                   border: '1px solid var(--color-primary-border)',
-                  borderRadius: 'var(--border-radius-sm)',
-                  padding: '6px 10px',
+                  borderRadius: '4px',
+                  padding: '5px',
                   color: 'var(--color-primary)',
-                  cursor: 'pointer',
+                  cursor: actionLoadingId === row.id ? 'not-allowed' : 'pointer',
+                  opacity: actionLoadingId === row.id ? 0.7 : 1,
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '4px',
-                  fontSize: '12px',
-                  fontWeight: 600
+                  justifyContent: 'center'
                 }}
-                title={`Advance to ${nextOperationalStatus}`}
+                title={`Mark as ${nextOperationalStatus}`}
+                aria-label={`Mark as ${nextOperationalStatus}`}
               >
-                <span>{nextOperationalStatus}</span>
-                <ArrowRight size={13} />
+                {actionLoadingId === row.id ? (
+                  <Loader2 size={14} style={{ animation: 'spin 0.8s linear infinite' }} />
+                ) : (
+                  <StepIcon size={14} />
+                )}
               </button>
             )}
           </div>

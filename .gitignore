@@ -27,3 +27,10 @@ dist-ssr/
 Thumbs.db
 *.zip
 
+## Uploaded Media
+uploads/*
+!uploads/.gitkeep
+**/uploads/*
+!**/uploads/.gitkeep
+
+

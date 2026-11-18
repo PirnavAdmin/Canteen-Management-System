@@ -11,11 +11,12 @@ export const CategorySummaryCards = ({ categories = [] }) => {
   return (
     <div style={{
       display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-      gap: '16px',
-      marginBottom: '24px'
+      gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
+      gap: '12px',
+      marginBottom: '16px'
     }}>
       <StatCard
+        compact
         title="Total Categories"
         value={total}
         description="Menu food groups configured"
@@ -24,6 +25,7 @@ export const CategorySummaryCards = ({ categories = [] }) => {
         bgColor="var(--color-primary-light)"
       />
       <StatCard
+        compact
         title="Active Categories"
         value={active}
         description={`${Math.round((active / (total || 1)) * 100)}% visible in student menu`}
@@ -32,20 +34,22 @@ export const CategorySummaryCards = ({ categories = [] }) => {
         bgColor="var(--color-success-bg)"
       />
       <StatCard
+        compact
         title="Linked Food Items"
         value={totalItemsMapped}
         description="Historical & active menu items"
         icon={UtensilsCrossed}
-        color="#8b5cf6"
-        bgColor="#f5f3ff"
+        color="var(--color-info)"
+        bgColor="var(--color-info-bg)"
       />
       <StatCard
+        compact
         title="Display Order Depth"
         value={`#${maxOrder}`}
         description="Highest priority rank assigned"
         icon={ListOrdered}
-        color="#ea580c"
-        bgColor="#fff7ed"
+        color="var(--color-warning)"
+        bgColor="var(--color-warning-bg)"
       />
     </div>
   );

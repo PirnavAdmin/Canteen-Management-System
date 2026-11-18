@@ -30,6 +30,16 @@ namespace CanteenManagement.API.Helpers
                 StatusCode = statusCode
             };
         }
+
+        public static ApiResponse<T> SuccessResponse(T data, string message = "Success", int statusCode = 200)
+        {
+            return Ok(data, message, statusCode);
+        }
+
+        public static ApiResponse<T> ErrorResponse(string message, List<string>? errors = null, int statusCode = 400)
+        {
+            return Fail(message, errors, statusCode);
+        }
     }
 
     public class ApiResponse : ApiResponse<object>
@@ -56,6 +66,21 @@ namespace CanteenManagement.API.Helpers
                 StatusCode = statusCode
             };
         }
+
+        public new static ApiResponse SuccessResponse(object data, string message = "Success", int statusCode = 200)
+        {
+            return new ApiResponse
+            {
+                Success = true,
+                Message = message,
+                Data = data,
+                StatusCode = statusCode
+            };
+        }
+
+        public new static ApiResponse ErrorResponse(string message, List<string>? errors = null, int statusCode = 400)
+        {
+            return Fail(message, errors, statusCode);
+        }
     }
 }
-

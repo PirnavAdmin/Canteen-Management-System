@@ -47,7 +47,7 @@ export const CanteenDetailsPage = () => {
         <PageHeader
           title="Canteen Details"
           breadcrumbItems={[
-            { label: 'Canteen Outlets', path: '/canteen' },
+            { label: 'Canteen Outlets', path: '/admin/outlets' },
             { label: 'Details' }
           ]}
         />
@@ -56,7 +56,7 @@ export const CanteenDetailsPage = () => {
             <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>
               The requested canteen outlet does not exist or may have been deleted.
             </p>
-            <Button variant="primary" onClick={() => navigate('/canteen')}>
+            <Button variant="primary" onClick={() => navigate('/admin/outlets')}>
               Return to Canteens List
             </Button>
           </div>
@@ -80,7 +80,7 @@ export const CanteenDetailsPage = () => {
         description={`Canteen Code: ${canteen.code} • Campus: ${canteen.campus}`}
         badge={<StatusBadge status={canteen.status} />}
         breadcrumbItems={[
-          { label: 'Canteen Outlets', path: '/canteen' },
+          { label: 'Canteen Outlets', path: '/admin/outlets' },
           { label: canteen.name }
         ]}
         actions={
@@ -88,9 +88,15 @@ export const CanteenDetailsPage = () => {
             <Button
               variant="secondary"
               icon={ArrowLeft}
-              onClick={() => navigate('/canteen')}
+              onClick={() => {
+                if (window.history.length > 1) {
+                  navigate(-1);
+                } else {
+                  navigate('/admin/outlets');
+                }
+              }}
             >
-              Back to List
+              Back to Outlets
             </Button>
             <Button
               variant="outline"
@@ -106,7 +112,7 @@ export const CanteenDetailsPage = () => {
             <Button
               variant="primary"
               icon={Edit}
-              onClick={() => navigate(`/canteen/${id}/edit`)}
+              onClick={() => navigate(`/admin/outlets/${id}/edit`)}
             >
               Edit Outlet
             </Button>
@@ -323,3 +329,5 @@ export const CanteenDetailsPage = () => {
     </div>
   );
 };
+
+export default CanteenDetailsPage;

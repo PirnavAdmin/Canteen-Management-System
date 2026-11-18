@@ -4,7 +4,8 @@ import { useCanteens } from '../hooks/useCanteens';
 import { PageHeader } from '../../../../components/common/PageHeader';
 import { CanteenForm } from '../components/CanteenForm';
 import { EmptyState } from '../../../../components/common/EmptyState';
-import { Store } from 'lucide-react';
+import { Button } from '../../../../components/common/Button';
+import { Store, ArrowLeft } from 'lucide-react';
 
 export const EditCanteenPage = () => {
   const { id } = useParams();
@@ -15,7 +16,15 @@ export const EditCanteenPage = () => {
 
   const handleUpdate = async (formData) => {
     await updateCanteen(id, formData);
-    navigate(`/canteen/${id}`);
+    navigate(`/admin/outlets/${id}`);
+  };
+
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate('/admin/outlets');
+    }
   };
 
   if (loading) {
@@ -53,10 +62,19 @@ export const EditCanteenPage = () => {
         title={`Edit Canteen: ${canteen.name}`}
         description={`Modify operational hours, campus assignment, contact records, or working days for ${canteen.code}.`}
         breadcrumbItems={[
-          { label: 'Canteen Outlets', path: '/canteen' },
+          { label: 'Canteen Outlets', path: '/admin/outlets' },
           { label: canteen.name, path: `/canteen/${id}` },
           { label: 'Edit' }
         ]}
+        actions={
+          <Button
+            variant="secondary"
+            icon={ArrowLeft}
+            onClick={handleBack}
+          >
+            Back to Outlets
+          </Button>
+        }
       />
 
       <CanteenForm
@@ -68,4 +86,6 @@ export const EditCanteenPage = () => {
     </div>
   );
 };
+
+export default EditCanteenPage;
 
