@@ -1,9 +1,9 @@
-import { SafeImage } from '../../../../components/common/SafeImage';
 import React from 'react';
 import { X, Utensils, MapPin, Clock, Flame, Users } from 'lucide-react';
 import { Button } from '../../../../components/common/Button';
 import { StatusBadge } from '../../../../components/common/StatusBadge';
-import { formatCurrency, resolveImageUrl } from '../../../../utils/formatters';
+import { formatCurrency } from '../../../../utils/formatters';
+import { SafeImage } from '../../../../components/common/SafeImage';
 
 export const MenuItemDetailsModal = ({ isOpen, onClose, item }) => {
   if (!isOpen || !item) return null;
@@ -35,10 +35,11 @@ export const MenuItemDetailsModal = ({ isOpen, onClose, item }) => {
           overflow: hidden;
         }
         .menu-details-image-side {
-          width: 330px;
-          min-width: 280px;
+          flex: 1;
+          width: 50%;
+          min-width: 300px;
           position: relative;
-          background-color: var(--bg-muted);
+          background-color: #0f172a;
           flex-shrink: 0;
           display: flex;
           align-items: center;
@@ -47,12 +48,13 @@ export const MenuItemDetailsModal = ({ isOpen, onClose, item }) => {
         }
         .menu-details-content-side {
           flex: 1;
+          width: 50%;
           min-width: 0;
           display: flex;
           flex-direction: column;
           overflow-y: auto;
         }
-        @media (max-width: 720px) {
+        @media (max-width: 768px) {
           .menu-details-card-container {
             flex-direction: column;
             max-height: 90vh;
@@ -60,8 +62,11 @@ export const MenuItemDetailsModal = ({ isOpen, onClose, item }) => {
           .menu-details-image-side {
             width: 100%;
             min-width: 100%;
-            height: 220px;
+            height: 250px;
             flex-shrink: 0;
+          }
+          .menu-details-content-side {
+            width: 100%;
           }
         }
       `}</style>
@@ -70,7 +75,7 @@ export const MenuItemDetailsModal = ({ isOpen, onClose, item }) => {
         backgroundColor: 'var(--modal-bg)',
         color: 'var(--text-primary)',
         borderRadius: 'var(--border-radius-xl)',
-        maxWidth: '780px',
+        maxWidth: '860px',
         width: '100%',
         display: 'flex',
         flexDirection: 'column',
@@ -116,56 +121,88 @@ export const MenuItemDetailsModal = ({ isOpen, onClose, item }) => {
 
         {/* Responsive Split Container: Left Image, Right Details */}
         <div className="menu-details-card-container">
-          {/* Left Side: Recipe Image */}
+          {/* Left Side: Recipe Image (50% equal split, accommodates both horizontal and vertical photos) */}
           <div className="menu-details-image-side">
-            {(() => {
-              const displayUrl = resolveImageUrl(item.imageUrl);
-              return (
-                <>
-                  {displayUrl ? (
-                    <img
-                      src={displayUrl}
-                      alt={item.name}
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                        display: 'block'
-                      }}
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                        if (e.currentTarget.nextElementSibling) {
-                          e.currentTarget.nextElementSibling.style.display = 'flex';
-                        }
-                      }}
-                    />
-                  ) : null}
-
-                  <div style={{
-                    display: displayUrl ? 'none' : 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
+            {item.imageUrl ? (
+              <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                {/* Ambient blurred backdrop for seamless edge-to-edge aspect ratio blending */}
+                <SafeImage
+                  src={item.imageUrl}
+                  alt=""
+                  aria-hidden="true"
+                  style={{
+                    position: 'absolute',
+                    inset: '-20px',
+                    width: 'calc(100% + 40px)',
+                    height: 'calc(100% + 40px)',
+                    objectFit: 'cover',
+                    filter: 'blur(22px) brightness(0.4)',
+                    transform: 'scale(1.15)',
+                    pointerEvents: 'none',
+                    opacity: 0.85
+                  }}
+                />
+                {/* Main Image: contain ensures 100% of horizontal & vertical images are clearly visible without cropping */}
+                <SafeImage
+                  src={item.imageUrl}
+                  alt={item.name}
+                  style={{
+                    position: 'relative',
                     width: '100%',
                     height: '100%',
-                    minHeight: '220px',
-                    backgroundColor: 'var(--bg-muted)',
-                    color: 'var(--text-muted)',
-                    gap: '8px',
-                    padding: '24px'
-                  }}>
-                    <Utensils size={40} style={{ opacity: 0.5 }} />
-                    <span style={{ fontSize: '12px', fontWeight: 500 }}>No dish photo uploaded</span>
-                  </div>
-                </>
-              );
-            })()}
+                    maxHeight: '100%',
+                    objectFit: 'contain',
+                    display: 'block',
+                    zIndex: 1,
+                    filter: 'drop-shadow(0 4px 16px rgba(0, 0, 0, 0.45))'
+                  }}
+                  fallback={
+                    <div style={{
+                      position: 'relative',
+                      zIndex: 1,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '100%',
+                      height: '100%',
+                      minHeight: '220px',
+                      backgroundColor: 'var(--bg-muted)',
+                      color: 'var(--text-muted)',
+                      gap: '8px',
+                      padding: '24px'
+                    }}>
+                      <Utensils size={40} style={{ opacity: 0.5 }} />
+                      <span style={{ fontSize: '12px', fontWeight: 500 }}>No dish photo available</span>
+                    </div>
+                  }
+                />
+              </div>
+            ) : (
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '100%',
+                height: '100%',
+                minHeight: '220px',
+                backgroundColor: 'var(--bg-muted)',
+                color: 'var(--text-muted)',
+                gap: '8px',
+                padding: '24px'
+              }}>
+                <Utensils size={40} style={{ opacity: 0.5 }} />
+                <span style={{ fontSize: '12px', fontWeight: 500 }}>No dish photo uploaded</span>
+              </div>
+            )}
 
             {/* Badges Overlaid on Image */}
             <div style={{
               position: 'absolute',
               top: '12px',
               left: '12px',
+              zIndex: 2,
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
@@ -186,6 +223,7 @@ export const MenuItemDetailsModal = ({ isOpen, onClose, item }) => {
               bottom: '12px',
               left: '12px',
               right: '12px',
+              zIndex: 2,
               display: 'flex',
               alignItems: 'center',
               gap: '6px',

@@ -1,9 +1,9 @@
-import { SafeImage } from '../../../../components/common/SafeImage';
 import React, { useState } from 'react';
 import { Eye, Edit, Power, Globe, GlobeLock, Trash2, Utensils, MoreVertical } from 'lucide-react';
 import { DataTable } from '../../../../components/tables/DataTable';
 import { StatusBadge } from '../../../../components/common/StatusBadge';
-import { formatCurrency, formatNumber, resolveImageUrl } from '../../../../utils/formatters';
+import { formatCurrency, formatNumber } from '../../../../utils/formatters';
+import { SafeImage } from '../../../../components/common/SafeImage';
 
 export const MenuTable = ({
   items = [],
@@ -61,25 +61,14 @@ export const MenuTable = ({
               }}
               title={`View ${val} details`}
             >
-              {(() => {
-                const displayUrl = resolveImageUrl(row.imageUrl);
-                return (
-                  <>
-                    {displayUrl ? (
-                      <img
-                        src={displayUrl}
-                        alt={val}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                        onError={(e) => {
-                          e.currentTarget.style.display = 'none';
-                          if (e.currentTarget.nextElementSibling) {
-                            e.currentTarget.nextElementSibling.style.display = 'flex';
-                          }
-                        }}
-                      />
-                    ) : null}
+              {row.imageUrl ? (
+                <SafeImage
+                  src={row.imageUrl}
+                  alt={val}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  fallback={
                     <div style={{
-                      display: displayUrl ? 'none' : 'flex',
+                      display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       width: '100%',
@@ -89,9 +78,21 @@ export const MenuTable = ({
                     }}>
                       <Utensils size={15} />
                     </div>
-                  </>
-                );
-              })()}
+                  }
+                />
+              ) : (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '100%',
+                  height: '100%',
+                  backgroundColor: 'var(--bg-muted)',
+                  color: 'var(--text-muted)'
+                }}>
+                  <Utensils size={15} />
+                </div>
+              )}
             </div>
 
             {/* Dish text with ellipsis and tooltip */}

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 
 // In-memory cache for resolved object URLs to prevent redundant network fetches
 const blobCache = new Map();

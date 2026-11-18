@@ -1,4 +1,3 @@
-import { SafeImage } from '../../../../components/common/SafeImage';
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Camera, Upload, Sparkles, Loader2, CheckCircle2, Globe, AlertCircle } from 'lucide-react';
 import { Button } from '../../../../components/common/Button';
@@ -6,7 +5,8 @@ import { ALLERGENS, FOOD_TYPES } from '../../../../constants/appConstants';
 import { canteenService } from '../../outlets/services/canteenService';
 import { categoryService } from '../../categories/services/categoryService';
 import { mediaService } from '../../../../services/api/mediaService';
-import { resolveImageUrl } from '../../../../utils/formatters';
+import { SafeImage } from '../../../../components/common/SafeImage';
+import { useToast } from '../../../../app/providers/ToastProvider';
 
 export const MenuModal = ({
   isOpen,
@@ -24,6 +24,8 @@ export const MenuModal = ({
   const [imageLoadError, setImageLoadError] = useState(false);
   const [isCustomFoodType, setIsCustomFoodType] = useState(false);
   const [customFoodTypeValue, setCustomFoodTypeValue] = useState('');
+  const [uploadSuccessMessage, setUploadSuccessMessage] = useState('');
+  const toast = useToast();
 
   const [formData, setFormData] = useState({
     name: '',
@@ -117,6 +119,7 @@ export const MenuModal = ({
       });
       setImagePreview(currentImg);
       setImageLoadError(false);
+      setUploadSuccessMessage('');
       if (currentImg.startsWith('http://') || currentImg.startsWith('https://')) {
         setPhotoSourceMode('url');
       } else {
@@ -148,6 +151,7 @@ export const MenuModal = ({
       });
       setImagePreview('');
       setImageLoadError(false);
+      setUploadSuccessMessage('');
       setPhotoSourceMode('upload');
     }
     setErrors({});
@@ -181,8 +185,13 @@ export const MenuModal = ({
       const savedPath = result?.fileUrl || result?.data?.fileUrl || '';
       if (savedPath) {
         setFormData(prev => ({ ...prev, imageUrl: savedPath }));
-        setImagePreview(savedPath);
+        // Retain the instant localBlobUrl so user immediately sees their photo without interruption
+        setImagePreview(localBlobUrl);
         setImageLoadError(false);
+        setUploadSuccessMessage('Photo uploaded successfully');
+        if (toast?.success) {
+          toast.success('Upload Successful', 'Photo uploaded successfully.');
+        }
       }
     } catch (err) {
       console.error('Image upload failed:', err);
@@ -191,6 +200,7 @@ export const MenuModal = ({
         imageUrl: err?.message || 'Failed to upload image. Please try again.'
       }));
       setImagePreview(formData.imageUrl || '');
+      setUploadSuccessMessage('');
     } finally {
       setUploadingImage(false);
       e.target.value = '';
@@ -201,6 +211,7 @@ export const MenuModal = ({
     setFormData(prev => ({ ...prev, imageUrl: '' }));
     setImagePreview('');
     setImageLoadError(false);
+    setUploadSuccessMessage('');
     setErrors(prev => {
       const { imageUrl, ...rest } = prev;
       return rest;
@@ -702,10 +713,10 @@ export const MenuModal = ({
                 flexShrink: 0
               }}>
                 {(imagePreview || formData.imageUrl) && !imageLoadError ? (
-                  <img
-                    src={resolveImageUrl(imagePreview || formData.imageUrl)}
+                  <SafeImage
+                    src={imagePreview || formData.imageUrl}
                     alt="Dish Preview"
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    style={{ width: '100%', height: '100%', objectFit: 'contain', backgroundColor: 'var(--bg-muted)' }}
                     onError={() => setImageLoadError(true)}
                   />
                 ) : imageLoadError ? (
@@ -815,7 +826,10 @@ export const MenuModal = ({
                         fontWeight: 500
                       }}>
                         <CheckCircle2 size={14} />
-                        <span>Saved on server: {formData.imageUrl.split('/').pop()}</span>
+                        <span>
+                          {uploadSuccessMessage ? `${uploadSuccessMessage}: ` : 'Photo uploaded successfully: '}
+                          {formData.imageUrl.split('/').pop()}
+                        </span>
                       </div>
                     ) : (
                       <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>

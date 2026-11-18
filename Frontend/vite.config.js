@@ -4,14 +4,16 @@ import { defineConfig, loadEnv } from 'vite';
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
-  const apiTarget = env.VITE_API_BASE_URL || 'https://heroics-ambush-baton.ngrok-free.dev';
+  const rawApiBase = env.VITE_API_BASE_URL || 'https://heroics-ambush-baton.ngrok-free.dev';
+  const backendBase = rawApiBase.replace(/\/api(\/v\d+)?\/?$/, '').replace(/\/+$/, '') || 'http://localhost:5000';
+  const apiTarget = rawApiBase;
 
   return {
     plugins: [react()],
     server: {
       proxy: {
         '/api': {
-          target: 'http://localhost:5000',
+          target: backendBase,
           changeOrigin: true,
           secure: false,
           headers: {
@@ -19,7 +21,7 @@ export default defineConfig(({ mode }) => {
           }
         },
         '/uploads': {
-          target: 'http://localhost:5000',
+          target: backendBase,
           changeOrigin: true,
           secure: false,
           headers: {
