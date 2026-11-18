@@ -5,7 +5,7 @@ namespace CanteenManagement.API.DTOs.Auth
     public class RegisterRequestDto
     {
         [Required(ErrorMessage = "Institution ID is required.")]
-        public int InstitutionId { get; set; } = 1;
+        public int CampusId { get; set; } = 1;
 
         [Required(ErrorMessage = "Username is required.")]
         [StringLength(50, MinimumLength = 3, ErrorMessage = "Username must be between 3 and 50 characters.")]

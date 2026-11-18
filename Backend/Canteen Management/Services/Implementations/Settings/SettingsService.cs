@@ -18,13 +18,13 @@ namespace CanteenManagement.API.Services.Implementations.Settings
             _auditService = auditService;
         }
 
-        public async Task<SystemSettingsResponseDto> GetSettingsAsync(int institutionId)
+        public async Task<SystemSettingsResponseDto> GetSettingsAsync(int campusId)
         {
-            var outletJson = await _repository.GetSettingAsync(institutionId, "Outlet", "General");
-            var paymentJson = await _repository.GetSettingAsync(institutionId, "Payment", "General");
-            var rulesJson = await _repository.GetSettingAsync(institutionId, "OrderRules", "General");
-            var privacyJson = await _repository.GetSettingAsync(institutionId, "Privacy", "General");
-            var dsarList = await _repository.GetDsarRequestsAsync(institutionId);
+            var outletJson = await _repository.GetSettingAsync(campusId, "Outlet", "General");
+            var paymentJson = await _repository.GetSettingAsync(campusId, "Payment", "General");
+            var rulesJson = await _repository.GetSettingAsync(campusId, "OrderRules", "General");
+            var privacyJson = await _repository.GetSettingAsync(campusId, "Privacy", "General");
+            var dsarList = await _repository.GetDsarRequestsAsync(campusId);
 
             var outlet = outletJson != null ? JsonSerializer.Deserialize<OutletSettingsDto>(outletJson.SettingValueJson) : new();
             var payment = paymentJson != null ? JsonSerializer.Deserialize<PaymentSettingsDto>(paymentJson.SettingValueJson) : new();
@@ -54,11 +54,11 @@ namespace CanteenManagement.API.Services.Implementations.Settings
             };
         }
 
-        public async Task<OutletSettingsDto> UpdateOutletSettingsAsync(OutletSettingsDto dto, int institutionId, string performedBy)
+        public async Task<OutletSettingsDto> UpdateOutletSettingsAsync(OutletSettingsDto dto, int campusId, string performedBy)
         {
             var setting = new SystemSetting
             {
-                InstitutionId = institutionId,
+                CampusId = campusId,
                 Category = "Outlet",
                 SettingKey = "General",
                 SettingValueJson = JsonSerializer.Serialize(dto),
@@ -68,7 +68,7 @@ namespace CanteenManagement.API.Services.Implementations.Settings
             await _repository.SaveSettingAsync(setting);
 
             await _auditService.LogActionAsync(
-                institutionId,
+                campusId,
                 null,
                 performedBy,
                 "UPDATE_OUTLET_SETTINGS",
@@ -80,11 +80,11 @@ namespace CanteenManagement.API.Services.Implementations.Settings
             return dto;
         }
 
-        public async Task<PaymentSettingsDto> UpdatePaymentSettingsAsync(PaymentSettingsDto dto, int institutionId, string performedBy)
+        public async Task<PaymentSettingsDto> UpdatePaymentSettingsAsync(PaymentSettingsDto dto, int campusId, string performedBy)
         {
             var setting = new SystemSetting
             {
-                InstitutionId = institutionId,
+                CampusId = campusId,
                 Category = "Payment",
                 SettingKey = "General",
                 SettingValueJson = JsonSerializer.Serialize(dto),
@@ -94,7 +94,7 @@ namespace CanteenManagement.API.Services.Implementations.Settings
             await _repository.SaveSettingAsync(setting);
 
             await _auditService.LogActionAsync(
-                institutionId,
+                campusId,
                 null,
                 performedBy,
                 "UPDATE_PAYMENT_SETTINGS",
@@ -106,11 +106,11 @@ namespace CanteenManagement.API.Services.Implementations.Settings
             return dto;
         }
 
-        public async Task<OrderRulesDto> UpdateOrderRulesAsync(OrderRulesDto dto, int institutionId, string performedBy)
+        public async Task<OrderRulesDto> UpdateOrderRulesAsync(OrderRulesDto dto, int campusId, string performedBy)
         {
             var setting = new SystemSetting
             {
-                InstitutionId = institutionId,
+                CampusId = campusId,
                 Category = "OrderRules",
                 SettingKey = "General",
                 SettingValueJson = JsonSerializer.Serialize(dto),
@@ -120,7 +120,7 @@ namespace CanteenManagement.API.Services.Implementations.Settings
             await _repository.SaveSettingAsync(setting);
 
             await _auditService.LogActionAsync(
-                institutionId,
+                campusId,
                 null,
                 performedBy,
                 "UPDATE_ORDER_RULES",
@@ -132,11 +132,11 @@ namespace CanteenManagement.API.Services.Implementations.Settings
             return dto;
         }
 
-        public async Task<PrivacySettingsDto> UpdatePrivacySettingsAsync(PrivacySettingsDto dto, int institutionId, string performedBy)
+        public async Task<PrivacySettingsDto> UpdatePrivacySettingsAsync(PrivacySettingsDto dto, int campusId, string performedBy)
         {
             var setting = new SystemSetting
             {
-                InstitutionId = institutionId,
+                CampusId = campusId,
                 Category = "Privacy",
                 SettingKey = "General",
                 SettingValueJson = JsonSerializer.Serialize(dto),
@@ -146,7 +146,7 @@ namespace CanteenManagement.API.Services.Implementations.Settings
             await _repository.SaveSettingAsync(setting);
 
             await _auditService.LogActionAsync(
-                institutionId,
+                campusId,
                 null,
                 performedBy,
                 "UPDATE_PRIVACY_SETTINGS",
@@ -158,9 +158,9 @@ namespace CanteenManagement.API.Services.Implementations.Settings
             return dto;
         }
 
-        public async Task<DsarRequestDto> UpdateDsarStatusAsync(string requestId, UpdateDsarStatusDto dto, int institutionId, string performedBy)
+        public async Task<DsarRequestDto> UpdateDsarStatusAsync(string requestId, UpdateDsarStatusDto dto, int campusId, string performedBy)
         {
-            var request = await _repository.GetDsarRequestByIdAsync(requestId, institutionId);
+            var request = await _repository.GetDsarRequestByIdAsync(requestId, campusId);
             if (request == null)
             {
                 throw new KeyNotFoundException($"DSAR request {requestId} was not found.");
@@ -182,7 +182,7 @@ namespace CanteenManagement.API.Services.Implementations.Settings
             var updated = await _repository.UpdateDsarRequestAsync(request);
 
             await _auditService.LogActionAsync(
-                institutionId,
+                campusId,
                 null,
                 performedBy,
                 "UPDATE_DSAR_STATUS",

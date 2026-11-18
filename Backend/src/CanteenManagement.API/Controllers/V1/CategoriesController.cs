@@ -22,16 +22,16 @@ namespace CanteenManagement.API.Controllers.V1
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
-            var institutionId = User.ResolveInstitutionId();
-            var categories = await _categoryService.GetAllAsync(institutionId);
+            var campusId = User.ResolveCampusId();
+            var categories = await _categoryService.GetAllAsync(campusId);
             return Ok(ApiResponse<IEnumerable<CategoryDto>>.SuccessResponse(categories));
         }
 
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
         {
-            var institutionId = User.ResolveInstitutionId();
-            var category = await _categoryService.GetByIdAsync(id, institutionId);
+            var campusId = User.ResolveCampusId();
+            var category = await _categoryService.GetByIdAsync(id, campusId);
             if (category == null)
             {
                 return NotFound(ApiResponse<string>.ErrorResponse($"Category with ID {id} was not found."));
@@ -51,9 +51,9 @@ namespace CanteenManagement.API.Controllers.V1
 
             try
             {
-                var institutionId = User.ResolveInstitutionId();
+                var campusId = User.ResolveCampusId();
                 var userName = User.ResolveUserName();
-                var created = await _categoryService.CreateAsync(dto, institutionId, userName);
+                var created = await _categoryService.CreateAsync(dto, campusId, userName);
                 return CreatedAtAction(nameof(GetById), new { id = created.Id }, ApiResponse<CategoryDto>.SuccessResponse(created, "Category created successfully."));
             }
             catch (InvalidOperationException ex)
@@ -74,9 +74,9 @@ namespace CanteenManagement.API.Controllers.V1
 
             try
             {
-                var institutionId = User.ResolveInstitutionId();
+                var campusId = User.ResolveCampusId();
                 var userName = User.ResolveUserName();
-                var updated = await _categoryService.UpdateAsync(id, dto, institutionId, userName);
+                var updated = await _categoryService.UpdateAsync(id, dto, campusId, userName);
                 return Ok(ApiResponse<CategoryDto>.SuccessResponse(updated, "Category updated successfully."));
             }
             catch (KeyNotFoundException ex)
@@ -95,9 +95,9 @@ namespace CanteenManagement.API.Controllers.V1
         {
             try
             {
-                var institutionId = User.ResolveInstitutionId();
+                var campusId = User.ResolveCampusId();
                 var userName = User.ResolveUserName();
-                var toggled = await _categoryService.ToggleStatusAsync(id, institutionId, userName);
+                var toggled = await _categoryService.ToggleStatusAsync(id, campusId, userName);
                 return Ok(ApiResponse<CategoryDto>.SuccessResponse(toggled, $"Category status changed to {toggled.Status}."));
             }
             catch (KeyNotFoundException ex)
@@ -110,9 +110,9 @@ namespace CanteenManagement.API.Controllers.V1
         [Authorize(Policy = "RequireAdmin")]
         public async Task<IActionResult> Delete(int id)
         {
-            var institutionId = User.ResolveInstitutionId();
+            var campusId = User.ResolveCampusId();
             var userName = User.ResolveUserName();
-            var (success, blockedByPolicy, message) = await _categoryService.DeleteAsync(id, institutionId, userName);
+            var (success, blockedByPolicy, message) = await _categoryService.DeleteAsync(id, campusId, userName);
 
             if (blockedByPolicy)
             {

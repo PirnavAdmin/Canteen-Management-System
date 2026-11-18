@@ -247,7 +247,7 @@ export const CategoryDetailsPage = () => {
         fontSize: '12px',
         color: 'var(--text-muted)'
       }}>
-        <span>Institution: <strong>{category.institutionId || 'INST-APEX-01'}</strong></span>
+        <span>Institution: <strong>{category.campusId || category.institutionId || 'INST-APEX-01'}</strong></span>
         <span>Registered On: <strong>{formatDate(category.createdAt)}</strong></span>
         <span>Last Updated: <strong>{formatDate(category.updatedAt)}</strong></span>
       </div>

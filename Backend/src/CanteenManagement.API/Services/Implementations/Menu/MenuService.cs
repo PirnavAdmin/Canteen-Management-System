@@ -22,19 +22,19 @@ namespace CanteenManagement.API.Services.Implementations.Menu
             _dbContext = dbContext;
         }
 
-        public async Task<IEnumerable<MenuItemDto>> GetAllAsync(int institutionId, MenuItemFilterDto? filter = null)
+        public async Task<IEnumerable<MenuItemDto>> GetAllAsync(int campusId, MenuItemFilterDto? filter = null)
         {
-            var items = await _repository.GetAllAsync(institutionId, filter);
+            var items = await _repository.GetAllAsync(campusId, filter);
             return items.Select(MapToDto).ToList();
         }
 
-        public async Task<MenuItemDto?> GetByIdAsync(int id, int institutionId)
+        public async Task<MenuItemDto?> GetByIdAsync(int id, int campusId)
         {
-            var item = await _repository.GetByIdAsync(id, institutionId);
+            var item = await _repository.GetByIdAsync(id, campusId);
             return item == null ? null : MapToDto(item);
         }
 
-        public async Task<MenuItemDto> CreateAsync(CreateMenuItemDto dto, int institutionId, string performedBy)
+        public async Task<MenuItemDto> CreateAsync(CreateMenuItemDto dto, int campusId, string performedBy)
         {
             if (string.IsNullOrWhiteSpace(dto.Code))
             {
@@ -42,7 +42,7 @@ namespace CanteenManagement.API.Services.Implementations.Menu
                 dto.Code = $"{(string.IsNullOrEmpty(letters) ? "ITM" : letters)}-{Random.Shared.Next(100, 999)}";
             }
 
-            if (await _repository.ExistsByCodeAsync(dto.Code, institutionId))
+            if (await _repository.ExistsByCodeAsync(dto.Code, campusId))
             {
                 dto.Code = $"{dto.Code}-{Random.Shared.Next(10, 99)}";
             }
@@ -50,8 +50,8 @@ namespace CanteenManagement.API.Services.Implementations.Menu
             // Fallback outlet resolution
             if (dto.OutletId <= 0)
             {
-                var outlet = await _dbContext.CanteenOutlets.FirstOrDefaultAsync(o => o.InstitutionId == institutionId && o.Status == "Active")
-                             ?? await _dbContext.CanteenOutlets.FirstOrDefaultAsync(o => o.InstitutionId == institutionId);
+                var outlet = await _dbContext.CanteenOutlets.FirstOrDefaultAsync(o => o.CampusId == campusId && o.Status == "Active")
+                             ?? await _dbContext.CanteenOutlets.FirstOrDefaultAsync(o => o.CampusId == campusId);
                 dto.OutletId = outlet?.OutletId ?? 1;
             }
 
@@ -59,16 +59,16 @@ namespace CanteenManagement.API.Services.Implementations.Menu
             if (dto.CategoryId <= 0)
             {
                 var cat = (!string.IsNullOrWhiteSpace(dto.Category)
-                    ? await _dbContext.Categories.FirstOrDefaultAsync(c => c.InstitutionId == institutionId && c.Name == dto.Category)
+                    ? await _dbContext.Categories.FirstOrDefaultAsync(c => c.CampusId == campusId && c.Name == dto.Category)
                     : null)
-                    ?? await _dbContext.Categories.FirstOrDefaultAsync(c => c.InstitutionId == institutionId && c.Status == "Active")
-                    ?? await _dbContext.Categories.FirstOrDefaultAsync(c => c.InstitutionId == institutionId);
+                    ?? await _dbContext.Categories.FirstOrDefaultAsync(c => c.CampusId == campusId && c.Status == "Active")
+                    ?? await _dbContext.Categories.FirstOrDefaultAsync(c => c.CampusId == campusId);
                 dto.CategoryId = cat?.CategoryId ?? 1;
             }
 
             var item = new MenuItem
             {
-                InstitutionId = institutionId,
+                CampusId = campusId,
                 OutletId = dto.OutletId,
                 CategoryId = dto.CategoryId,
                 Code = dto.Code.Trim().ToUpper(),
@@ -110,7 +110,7 @@ namespace CanteenManagement.API.Services.Implementations.Menu
             var created = await _repository.CreateAsync(item);
 
             await _auditService.LogActionAsync(
-                institutionId,
+                campusId,
                 null,
                 performedBy,
                 "CREATE_MENU_ITEM",
@@ -120,13 +120,13 @@ namespace CanteenManagement.API.Services.Implementations.Menu
             );
 
             // Fetch with eager loaded navigations
-            var loaded = await _repository.GetByIdAsync(created.MenuItemId, institutionId);
+            var loaded = await _repository.GetByIdAsync(created.MenuItemId, campusId);
             return MapToDto(loaded ?? created);
         }
 
-        public async Task<MenuItemDto> UpdateAsync(int id, UpdateMenuItemDto dto, int institutionId, string performedBy)
+        public async Task<MenuItemDto> UpdateAsync(int id, UpdateMenuItemDto dto, int campusId, string performedBy)
         {
-            var item = await _repository.GetByIdAsync(id, institutionId);
+            var item = await _repository.GetByIdAsync(id, campusId);
             if (item == null)
             {
                 throw new KeyNotFoundException($"Menu item with ID {id} was not found.");
@@ -134,7 +134,7 @@ namespace CanteenManagement.API.Services.Implementations.Menu
 
             if (!string.IsNullOrWhiteSpace(dto.Code))
             {
-                if (await _repository.ExistsByCodeAsync(dto.Code, institutionId, id))
+                if (await _repository.ExistsByCodeAsync(dto.Code, campusId, id))
                 {
                     throw new InvalidOperationException($"Another menu item with code '{dto.Code}' already exists.");
                 }
@@ -145,7 +145,7 @@ namespace CanteenManagement.API.Services.Implementations.Menu
             if (dto.CategoryId > 0) item.CategoryId = dto.CategoryId;
             else if (!string.IsNullOrWhiteSpace(dto.Category))
             {
-                var cat = await _dbContext.Categories.FirstOrDefaultAsync(c => c.InstitutionId == institutionId && c.Name == dto.Category);
+                var cat = await _dbContext.Categories.FirstOrDefaultAsync(c => c.CampusId == campusId && c.Name == dto.Category);
                 if (cat != null) item.CategoryId = cat.CategoryId;
             }
 
@@ -187,7 +187,7 @@ namespace CanteenManagement.API.Services.Implementations.Menu
             var updated = await _repository.UpdateAsync(item);
 
             await _auditService.LogActionAsync(
-                institutionId,
+                campusId,
                 null,
                 performedBy,
                 "UPDATE_MENU_ITEM",
@@ -196,13 +196,13 @@ namespace CanteenManagement.API.Services.Implementations.Menu
                 $"Updated menu item '{updated.Name}' ({updated.Code})."
             );
 
-            var loaded = await _repository.GetByIdAsync(updated.MenuItemId, institutionId);
+            var loaded = await _repository.GetByIdAsync(updated.MenuItemId, campusId);
             return MapToDto(loaded ?? updated);
         }
 
-        public async Task<MenuItemDto> ToggleStatusAsync(int id, int institutionId, string performedBy)
+        public async Task<MenuItemDto> ToggleStatusAsync(int id, int campusId, string performedBy)
         {
-            var item = await _repository.GetByIdAsync(id, institutionId);
+            var item = await _repository.GetByIdAsync(id, campusId);
             if (item == null)
             {
                 throw new KeyNotFoundException($"Menu item with ID {id} was not found.");
@@ -214,7 +214,7 @@ namespace CanteenManagement.API.Services.Implementations.Menu
             var updated = await _repository.UpdateAsync(item);
 
             await _auditService.LogActionAsync(
-                institutionId,
+                campusId,
                 null,
                 performedBy,
                 "TOGGLE_MENU_STATUS",
@@ -226,9 +226,9 @@ namespace CanteenManagement.API.Services.Implementations.Menu
             return MapToDto(updated);
         }
 
-        public async Task<MenuItemDto> TogglePublishAsync(int id, int institutionId, string performedBy)
+        public async Task<MenuItemDto> TogglePublishAsync(int id, int campusId, string performedBy)
         {
-            var item = await _repository.GetByIdAsync(id, institutionId);
+            var item = await _repository.GetByIdAsync(id, campusId);
             if (item == null)
             {
                 throw new KeyNotFoundException($"Menu item with ID {id} was not found.");
@@ -239,7 +239,7 @@ namespace CanteenManagement.API.Services.Implementations.Menu
             var updated = await _repository.UpdateAsync(item);
 
             await _auditService.LogActionAsync(
-                institutionId,
+                campusId,
                 null,
                 performedBy,
                 "TOGGLE_MENU_PUBLISH",
@@ -251,9 +251,9 @@ namespace CanteenManagement.API.Services.Implementations.Menu
             return MapToDto(updated);
         }
 
-        public async Task<(bool success, bool blockedByPolicy, string? message)> DeleteAsync(int id, int institutionId, string performedBy)
+        public async Task<(bool success, bool blockedByPolicy, string? message)> DeleteAsync(int id, int campusId, string performedBy)
         {
-            var item = await _repository.GetByIdAsync(id, institutionId);
+            var item = await _repository.GetByIdAsync(id, campusId);
             if (item == null)
             {
                 return (false, false, $"Menu item with ID {id} was not found.");
@@ -265,11 +265,11 @@ namespace CanteenManagement.API.Services.Implementations.Menu
                 return (false, true, $"Institutional Policy Violation: Menu item '{item.Name}' ({item.Code}) has {orderCount} historical student/faculty orders and cannot be permanently deleted. Please mark as 'Inactive' or 'Draft' instead.");
             }
 
-            var deleted = await _repository.DeleteAsync(id, institutionId);
+            var deleted = await _repository.DeleteAsync(id, campusId);
             if (deleted)
             {
                 await _auditService.LogActionAsync(
-                    institutionId,
+                    campusId,
                     null,
                     performedBy,
                     "DELETE_MENU_ITEM",
@@ -282,11 +282,11 @@ namespace CanteenManagement.API.Services.Implementations.Menu
             return (deleted, false, null);
         }
 
-        public async Task<int> ResetDailyCapacityAsync(int institutionId, string performedBy, bool force = false)
+        public async Task<int> ResetDailyCapacityAsync(int campusId, string performedBy, bool force = false)
         {
-            var resetCount = await _repository.ResetDailyCapacityAsync(institutionId, force);
+            var resetCount = await _repository.ResetDailyCapacityAsync(campusId, force);
             await _auditService.LogActionAsync(
-                institutionId,
+                campusId,
                 null,
                 performedBy,
                 "RESET_DAILY_CAPACITY",

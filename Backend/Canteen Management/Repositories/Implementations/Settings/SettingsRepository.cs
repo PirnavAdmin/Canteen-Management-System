@@ -14,15 +14,15 @@ namespace CanteenManagement.API.Repositories.Implementations.Settings
             _dbContext = dbContext;
         }
 
-        public async Task<SystemSetting?> GetSettingAsync(int institutionId, string category, string key)
+        public async Task<SystemSetting?> GetSettingAsync(int campusId, string category, string key)
         {
             return await _dbContext.SystemSettings
-                .FirstOrDefaultAsync(s => s.InstitutionId == institutionId && s.Category == category && s.SettingKey == key);
+                .FirstOrDefaultAsync(s => s.CampusId == campusId && s.Category == category && s.SettingKey == key);
         }
 
         public async Task<SystemSetting> SaveSettingAsync(SystemSetting setting)
         {
-            var existing = await GetSettingAsync(setting.InstitutionId, setting.Category, setting.SettingKey);
+            var existing = await GetSettingAsync(setting.CampusId, setting.Category, setting.SettingKey);
             if (existing == null)
             {
                 await _dbContext.SystemSettings.AddAsync(setting);
@@ -39,19 +39,19 @@ namespace CanteenManagement.API.Repositories.Implementations.Settings
             return setting;
         }
 
-        public async Task<IEnumerable<DsarRequest>> GetDsarRequestsAsync(int institutionId)
+        public async Task<IEnumerable<DsarRequest>> GetDsarRequestsAsync(int campusId)
         {
             return await _dbContext.DsarRequests
-                .Where(r => r.InstitutionId == institutionId)
+                .Where(r => r.CampusId == campusId)
                 .OrderByDescending(r => r.RequestedAt)
                 .AsNoTracking()
                 .ToListAsync();
         }
 
-        public async Task<DsarRequest?> GetDsarRequestByIdAsync(string id, int institutionId)
+        public async Task<DsarRequest?> GetDsarRequestByIdAsync(string id, int campusId)
         {
             return await _dbContext.DsarRequests
-                .FirstOrDefaultAsync(r => r.RequestId == id && r.InstitutionId == institutionId);
+                .FirstOrDefaultAsync(r => r.RequestId == id && r.CampusId == campusId);
         }
 
         public async Task<DsarRequest> CreateDsarRequestAsync(DsarRequest request)

@@ -15,13 +15,13 @@ namespace CanteenManagement.API.Repositories.Implementations.Reports
             _connectionFactory = connectionFactory;
         }
 
-        public async Task<ReportResultDto> GetReportDataAsync(int institutionId, ReportFilterDto filter)
+        public async Task<ReportResultDto> GetReportDataAsync(int campusId, ReportFilterDto filter)
         {
             using var connection = _connectionFactory.CreateConnection();
             var reportType = filter.ReportType.ToLower();
             var parameters = new
             {
-                p_InstitutionId = institutionId,
+                p_CampusId = campusId,
                 p_OutletId = filter.OutletId ?? 0
             };
 

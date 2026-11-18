@@ -6,7 +6,7 @@
 DROP PROCEDURE IF EXISTS sp_GetAllMenuItems;
 DELIMITER $$
 CREATE PROCEDURE sp_GetAllMenuItems(
-    IN p_InstitutionId INT,
+    IN p_CampusId INT,
     IN p_OutletId INT,
     IN p_CategoryId INT,
     IN p_FoodType VARCHAR(20),
@@ -20,12 +20,12 @@ BEGIN
         Availability = CASE WHEN Availability = 'SoldOut' THEN 'Available' ELSE Availability END,
         LastResetDate = CURRENT_DATE(),
         UpdatedAt = UTC_TIMESTAMP()
-    WHERE (p_InstitutionId IS NULL OR p_InstitutionId = 0 OR InstitutionId = p_InstitutionId)
+    WHERE (p_CampusId IS NULL OR p_CampusId = 0 OR CampusId = p_CampusId)
       AND (LastResetDate IS NULL OR LastResetDate < CURRENT_DATE());
 
     SELECT 
         m.MenuItemId,
-        m.InstitutionId,
+        m.CampusId,
         m.OutletId,
         m.CategoryId,
         m.Code,
@@ -56,7 +56,7 @@ BEGIN
     FROM MenuItems m
     LEFT JOIN Categories c ON m.CategoryId = c.CategoryId
     LEFT JOIN CanteenOutlets co ON m.OutletId = co.OutletId
-    WHERE m.InstitutionId = p_InstitutionId
+    WHERE m.CampusId = p_CampusId
       AND (p_OutletId IS NULL OR p_OutletId <= 0 OR m.OutletId = p_OutletId)
       AND (p_CategoryId IS NULL OR p_CategoryId <= 0 OR m.CategoryId = p_CategoryId)
       AND (p_FoodType IS NULL OR p_FoodType = '' OR p_FoodType = 'ALL' OR m.FoodType = p_FoodType)
@@ -70,7 +70,7 @@ DROP PROCEDURE IF EXISTS sp_GetMenuItemById;
 DELIMITER $$
 CREATE PROCEDURE sp_GetMenuItemById(
     IN p_MenuItemId INT,
-    IN p_InstitutionId INT
+    IN p_CampusId INT
 )
 BEGIN
     -- Auto-reset capacity if date rolled over
@@ -79,12 +79,12 @@ BEGIN
         Availability = CASE WHEN Availability = 'SoldOut' THEN 'Available' ELSE Availability END,
         LastResetDate = CURRENT_DATE(),
         UpdatedAt = UTC_TIMESTAMP()
-    WHERE MenuItemId = p_MenuItemId AND InstitutionId = p_InstitutionId
+    WHERE MenuItemId = p_MenuItemId AND CampusId = p_CampusId
       AND (LastResetDate IS NULL OR LastResetDate < CURRENT_DATE());
 
     SELECT 
         m.MenuItemId,
-        m.InstitutionId,
+        m.CampusId,
         m.OutletId,
         co.Name AS OutletName,
         m.CategoryId,
@@ -113,7 +113,7 @@ BEGIN
     FROM MenuItems m
     LEFT JOIN Categories c ON m.CategoryId = c.CategoryId
     LEFT JOIN CanteenOutlets co ON m.OutletId = co.OutletId
-    WHERE m.MenuItemId = p_MenuItemId AND m.InstitutionId = p_InstitutionId
+    WHERE m.MenuItemId = p_MenuItemId AND m.CampusId = p_CampusId
     LIMIT 1;
 
     -- Variants
@@ -131,7 +131,7 @@ DELIMITER ;
 DROP PROCEDURE IF EXISTS sp_CreateMenuItem;
 DELIMITER $$
 CREATE PROCEDURE sp_CreateMenuItem(
-    IN p_InstitutionId INT,
+    IN p_CampusId INT,
     IN p_OutletId INT,
     IN p_CategoryId INT,
     IN p_Code VARCHAR(30),
@@ -154,12 +154,12 @@ CREATE PROCEDURE sp_CreateMenuItem(
 )
 BEGIN
     INSERT INTO MenuItems (
-        InstitutionId, OutletId, CategoryId, Code, Name, Description, FoodType, Price,
+        CampusId, OutletId, CategoryId, Code, Name, Description, FoodType, Price,
         DailyCapacity, RemainingCapacity, Availability, Status, PublicationStatus,
         ServingSize, Calories, ImageUrl, AllergensJson, WorkingDaysJson, StartTime, EndTime, CreatedAt
     )
     VALUES (
-        p_InstitutionId, p_OutletId, p_CategoryId, p_Code, p_Name, p_Description, COALESCE(p_FoodType, 'Veg'), p_Price,
+        p_CampusId, p_OutletId, p_CategoryId, p_Code, p_Name, p_Description, COALESCE(p_FoodType, 'Veg'), p_Price,
         COALESCE(p_DailyCapacity, 100), COALESCE(p_RemainingCapacity, p_DailyCapacity, 100), COALESCE(p_Availability, 'Available'),
         COALESCE(p_Status, 'Active'), COALESCE(p_PublicationStatus, 'Published'), p_ServingSize, p_Calories, p_ImageUrl,
         p_AllergensJson, p_WorkingDaysJson, p_StartTime, p_EndTime, UTC_TIMESTAMP()
@@ -167,7 +167,7 @@ BEGIN
 
     SELECT 
         m.MenuItemId,
-        m.InstitutionId,
+        m.CampusId,
         m.OutletId,
         co.Name AS OutletName,
         m.CategoryId,
@@ -203,7 +203,7 @@ DROP PROCEDURE IF EXISTS sp_UpdateMenuItem;
 DELIMITER $$
 CREATE PROCEDURE sp_UpdateMenuItem(
     IN p_MenuItemId INT,
-    IN p_InstitutionId INT,
+    IN p_CampusId INT,
     IN p_OutletId INT,
     IN p_CategoryId INT,
     IN p_Code VARCHAR(30),
@@ -246,11 +246,11 @@ BEGIN
         StartTime = p_StartTime,
         EndTime = p_EndTime,
         UpdatedAt = UTC_TIMESTAMP()
-    WHERE MenuItemId = p_MenuItemId AND InstitutionId = p_InstitutionId;
+    WHERE MenuItemId = p_MenuItemId AND CampusId = p_CampusId;
 
     SELECT 
         m.MenuItemId,
-        m.InstitutionId,
+        m.CampusId,
         m.OutletId,
         co.Name AS OutletName,
         m.CategoryId,
@@ -286,11 +286,11 @@ DROP PROCEDURE IF EXISTS sp_DeleteMenuItem;
 DELIMITER $$
 CREATE PROCEDURE sp_DeleteMenuItem(
     IN p_MenuItemId INT,
-    IN p_InstitutionId INT
+    IN p_CampusId INT
 )
 BEGIN
     DELETE FROM MenuItems 
-    WHERE MenuItemId = p_MenuItemId AND InstitutionId = p_InstitutionId;
+    WHERE MenuItemId = p_MenuItemId AND CampusId = p_CampusId;
 
     SELECT ROW_COUNT() AS DeletedRows;
 END $$
@@ -345,7 +345,7 @@ DELIMITER ;
 DROP PROCEDURE IF EXISTS sp_ResetDailyMenuCapacity;
 DELIMITER $$
 CREATE PROCEDURE sp_ResetDailyMenuCapacity(
-    IN p_InstitutionId INT,
+    IN p_CampusId INT,
     IN p_Force BOOLEAN
 )
 BEGIN
@@ -354,7 +354,7 @@ BEGIN
         Availability = CASE WHEN Availability = 'SoldOut' THEN 'Available' ELSE Availability END,
         LastResetDate = CURRENT_DATE(),
         UpdatedAt = UTC_TIMESTAMP()
-    WHERE (p_InstitutionId IS NULL OR p_InstitutionId = 0 OR InstitutionId = p_InstitutionId)
+    WHERE (p_CampusId IS NULL OR p_CampusId = 0 OR CampusId = p_CampusId)
       AND (p_Force = TRUE OR LastResetDate IS NULL OR LastResetDate < CURRENT_DATE());
 
     SELECT ROW_COUNT() AS ResetCount;

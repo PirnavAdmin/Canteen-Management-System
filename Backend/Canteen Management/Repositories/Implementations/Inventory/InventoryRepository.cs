@@ -19,7 +19,7 @@ namespace CanteenManagement.API.Repositories.Implementations.Inventory
             _connectionFactory = connectionFactory;
         }
 
-        public async Task<IEnumerable<InventoryItem>> GetItemsAsync(int institutionId, int? outletId = null)
+        public async Task<IEnumerable<InventoryItem>> GetItemsAsync(int campusId, int? outletId = null)
         {
             try
             {
@@ -31,7 +31,7 @@ namespace CanteenManagement.API.Repositories.Implementations.Inventory
                         item.Outlet = outlet;
                         return item;
                     },
-                    new { p_InstitutionId = institutionId, p_OutletId = outletId ?? 0 },
+                    new { p_CampusId = campusId, p_OutletId = outletId ?? 0 },
                     splitOn: "OutletId",
                     commandType: CommandType.StoredProcedure);
 
@@ -41,7 +41,7 @@ namespace CanteenManagement.API.Repositories.Implementations.Inventory
             {
                 var query = _dbContext.InventoryItems
                     .Include(i => i.Outlet)
-                    .Where(i => i.InstitutionId == institutionId);
+                    .Where(i => i.CampusId == campusId);
 
                 if (outletId.HasValue && outletId.Value > 0)
                 {
@@ -52,7 +52,7 @@ namespace CanteenManagement.API.Repositories.Implementations.Inventory
             }
         }
 
-        public async Task<InventoryItem?> GetItemByIdAsync(int id, int institutionId)
+        public async Task<InventoryItem?> GetItemByIdAsync(int id, int campusId)
         {
             try
             {
@@ -64,7 +64,7 @@ namespace CanteenManagement.API.Repositories.Implementations.Inventory
                         item.Outlet = outlet;
                         return item;
                     },
-                    new { p_ItemId = id, p_InstitutionId = institutionId },
+                    new { p_ItemId = id, p_CampusId = campusId },
                     splitOn: "OutletId",
                     commandType: CommandType.StoredProcedure);
 
@@ -74,7 +74,7 @@ namespace CanteenManagement.API.Repositories.Implementations.Inventory
             {
                 return await _dbContext.InventoryItems
                     .Include(i => i.Outlet)
-                    .FirstOrDefaultAsync(i => i.ItemId == id && i.InstitutionId == institutionId);
+                    .FirstOrDefaultAsync(i => i.ItemId == id && i.CampusId == campusId);
             }
         }
 
@@ -87,7 +87,7 @@ namespace CanteenManagement.API.Repositories.Implementations.Inventory
                     "sp_AddInventoryItem",
                     new
                     {
-                        p_InstitutionId = item.InstitutionId,
+                        p_CampusId = item.CampusId,
                         p_OutletId = item.OutletId,
                         p_IngredientName = item.IngredientName,
                         p_Category = item.Category,
@@ -168,7 +168,7 @@ namespace CanteenManagement.API.Repositories.Implementations.Inventory
             }
         }
 
-        public async Task<IEnumerable<StockMovement>> GetLedgerAsync(int institutionId, int? outletId = null)
+        public async Task<IEnumerable<StockMovement>> GetLedgerAsync(int campusId, int? outletId = null)
         {
             try
             {
@@ -180,7 +180,7 @@ namespace CanteenManagement.API.Repositories.Implementations.Inventory
                         movement.Item = item;
                         return movement;
                     },
-                    new { p_InstitutionId = institutionId, p_OutletId = outletId ?? 0 },
+                    new { p_CampusId = campusId, p_OutletId = outletId ?? 0 },
                     splitOn: "ItemId",
                     commandType: CommandType.StoredProcedure);
 
@@ -190,7 +190,7 @@ namespace CanteenManagement.API.Repositories.Implementations.Inventory
             {
                 var query = _dbContext.StockMovements
                     .Include(m => m.Item)
-                    .Where(m => m.Item != null && m.Item.InstitutionId == institutionId);
+                    .Where(m => m.Item != null && m.Item.CampusId == campusId);
 
                 if (outletId.HasValue && outletId.Value > 0)
                 {
@@ -201,21 +201,21 @@ namespace CanteenManagement.API.Repositories.Implementations.Inventory
             }
         }
 
-        public async Task<IEnumerable<PurchaseOrder>> GetPurchaseOrdersAsync(int institutionId, int? outletId = null)
+        public async Task<IEnumerable<PurchaseOrder>> GetPurchaseOrdersAsync(int campusId, int? outletId = null)
         {
             try
             {
                 using var connection = _connectionFactory.CreateConnection();
                 return await connection.QueryAsync<PurchaseOrder>(
                     "sp_GetPurchaseOrders",
-                    new { p_InstitutionId = institutionId, p_OutletId = outletId ?? 0 },
+                    new { p_CampusId = campusId, p_OutletId = outletId ?? 0 },
                     commandType: CommandType.StoredProcedure);
             }
             catch
             {
                 var query = _dbContext.PurchaseOrders
                     .Include(p => p.Supplier)
-                    .Where(p => p.InstitutionId == institutionId);
+                    .Where(p => p.CampusId == campusId);
 
                 if (outletId.HasValue && outletId.Value > 0)
                 {
@@ -226,21 +226,21 @@ namespace CanteenManagement.API.Repositories.Implementations.Inventory
             }
         }
 
-        public async Task<PurchaseOrder?> GetPurchaseOrderByIdAsync(int id, int institutionId)
+        public async Task<PurchaseOrder?> GetPurchaseOrderByIdAsync(int id, int campusId)
         {
             try
             {
                 using var connection = _connectionFactory.CreateConnection();
                 return await connection.QueryFirstOrDefaultAsync<PurchaseOrder>(
                     "sp_GetPurchaseOrderById",
-                    new { p_PurchaseOrderId = id, p_InstitutionId = institutionId },
+                    new { p_PurchaseOrderId = id, p_CampusId = campusId },
                     commandType: CommandType.StoredProcedure);
             }
             catch
             {
                 return await _dbContext.PurchaseOrders
                     .Include(p => p.Supplier)
-                    .FirstOrDefaultAsync(p => p.PurchaseOrderId == id && p.InstitutionId == institutionId);
+                    .FirstOrDefaultAsync(p => p.PurchaseOrderId == id && p.CampusId == campusId);
             }
         }
 
@@ -253,7 +253,7 @@ namespace CanteenManagement.API.Repositories.Implementations.Inventory
                     "sp_CreatePurchaseOrder",
                     new
                     {
-                        p_InstitutionId = po.InstitutionId,
+                        p_CampusId = po.CampusId,
                         p_OutletId = po.OutletId,
                         p_PoNumber = po.PoNumber,
                         p_SupplierId = po.SupplierId,
@@ -301,40 +301,40 @@ namespace CanteenManagement.API.Repositories.Implementations.Inventory
             }
         }
 
-        public async Task<IEnumerable<Supplier>> GetSuppliersAsync(int institutionId)
+        public async Task<IEnumerable<Supplier>> GetSuppliersAsync(int campusId)
         {
             try
             {
                 using var connection = _connectionFactory.CreateConnection();
                 return await connection.QueryAsync<Supplier>(
                     "sp_GetSuppliers",
-                    new { p_InstitutionId = institutionId },
+                    new { p_CampusId = campusId },
                     commandType: CommandType.StoredProcedure);
             }
             catch
             {
                 return await _dbContext.Suppliers
-                    .Where(s => s.InstitutionId == institutionId)
+                    .Where(s => s.CampusId == campusId)
                     .OrderBy(s => s.Name)
                     .AsNoTracking()
                     .ToListAsync();
             }
         }
 
-        public async Task<Supplier?> GetSupplierByIdAsync(int id, int institutionId)
+        public async Task<Supplier?> GetSupplierByIdAsync(int id, int campusId)
         {
             try
             {
                 using var connection = _connectionFactory.CreateConnection();
                 return await connection.QueryFirstOrDefaultAsync<Supplier>(
                     "sp_GetSupplierById",
-                    new { p_SupplierId = id, p_InstitutionId = institutionId },
+                    new { p_SupplierId = id, p_CampusId = campusId },
                     commandType: CommandType.StoredProcedure);
             }
             catch
             {
                 return await _dbContext.Suppliers
-                    .FirstOrDefaultAsync(s => s.SupplierId == id && s.InstitutionId == institutionId);
+                    .FirstOrDefaultAsync(s => s.SupplierId == id && s.CampusId == campusId);
             }
         }
 
@@ -347,7 +347,7 @@ namespace CanteenManagement.API.Repositories.Implementations.Inventory
                     "sp_CreateSupplier",
                     new
                     {
-                        p_InstitutionId = supplier.InstitutionId,
+                        p_CampusId = supplier.CampusId,
                         p_Name = supplier.Name,
                         p_ContactPerson = supplier.ContactPerson,
                         p_Phone = supplier.Phone,
@@ -378,7 +378,7 @@ namespace CanteenManagement.API.Repositories.Implementations.Inventory
                     new
                     {
                         p_SupplierId = supplier.SupplierId,
-                        p_InstitutionId = supplier.InstitutionId,
+                        p_CampusId = supplier.CampusId,
                         p_Name = supplier.Name,
                         p_ContactPerson = supplier.ContactPerson,
                         p_Phone = supplier.Phone,
@@ -395,7 +395,7 @@ namespace CanteenManagement.API.Repositories.Implementations.Inventory
             }
             catch
             {
-                var existing = await _dbContext.Suppliers.FirstOrDefaultAsync(s => s.SupplierId == supplier.SupplierId && s.InstitutionId == supplier.InstitutionId);
+                var existing = await _dbContext.Suppliers.FirstOrDefaultAsync(s => s.SupplierId == supplier.SupplierId && s.CampusId == supplier.CampusId);
                 if (existing == null) return null;
 
                 existing.Name = supplier.Name;
@@ -414,14 +414,14 @@ namespace CanteenManagement.API.Repositories.Implementations.Inventory
             }
         }
 
-        public async Task<(bool success, string actionTaken, int linkedPoCount)> DeleteSupplierAsync(int id, int institutionId)
+        public async Task<(bool success, string actionTaken, int linkedPoCount)> DeleteSupplierAsync(int id, int campusId)
         {
             try
             {
                 using var connection = _connectionFactory.CreateConnection();
                 var result = await connection.QueryFirstOrDefaultAsync<dynamic>(
                     "sp_DeleteSupplier",
-                    new { p_SupplierId = id, p_InstitutionId = institutionId },
+                    new { p_SupplierId = id, p_CampusId = campusId },
                     commandType: CommandType.StoredProcedure);
 
                 if (result != null)
@@ -436,10 +436,10 @@ namespace CanteenManagement.API.Repositories.Implementations.Inventory
             }
             catch
             {
-                var supplier = await _dbContext.Suppliers.FirstOrDefaultAsync(s => s.SupplierId == id && s.InstitutionId == institutionId);
+                var supplier = await _dbContext.Suppliers.FirstOrDefaultAsync(s => s.SupplierId == id && s.CampusId == campusId);
                 if (supplier == null) return (false, "NOT_FOUND", 0);
 
-                var poCount = await _dbContext.PurchaseOrders.CountAsync(po => po.SupplierId == id && po.InstitutionId == institutionId);
+                var poCount = await _dbContext.PurchaseOrders.CountAsync(po => po.SupplierId == id && po.CampusId == campusId);
                 if (poCount > 0)
                 {
                     supplier.Status = "Inactive";
@@ -454,21 +454,21 @@ namespace CanteenManagement.API.Repositories.Implementations.Inventory
             }
         }
 
-        public async Task<Supplier?> ToggleSupplierStatusAsync(int id, int institutionId, string status)
+        public async Task<Supplier?> ToggleSupplierStatusAsync(int id, int campusId, string status)
         {
             try
             {
                 using var connection = _connectionFactory.CreateConnection();
                 var updated = await connection.QueryFirstOrDefaultAsync<Supplier>(
                     "sp_ToggleSupplierStatus",
-                    new { p_SupplierId = id, p_InstitutionId = institutionId, p_Status = status },
+                    new { p_SupplierId = id, p_CampusId = campusId, p_Status = status },
                     commandType: CommandType.StoredProcedure);
 
                 return updated;
             }
             catch
             {
-                var supplier = await _dbContext.Suppliers.FirstOrDefaultAsync(s => s.SupplierId == id && s.InstitutionId == institutionId);
+                var supplier = await _dbContext.Suppliers.FirstOrDefaultAsync(s => s.SupplierId == id && s.CampusId == campusId);
                 if (supplier == null) return null;
 
                 supplier.Status = status;

@@ -15,12 +15,12 @@ namespace CanteenManagement.API.Repositories.Implementations.Dashboard
             _connectionFactory = connectionFactory;
         }
 
-        public async Task<DashboardSummaryDto> GetSummaryAsync(int institutionId, int? outletId = null)
+        public async Task<DashboardSummaryDto> GetSummaryAsync(int campusId, int? outletId = null)
         {
             using var connection = _connectionFactory.CreateConnection();
             var parameters = new
             {
-                p_InstitutionId = institutionId,
+                p_CampusId = campusId,
                 p_OutletId = outletId ?? 0
             };
 
@@ -49,12 +49,12 @@ namespace CanteenManagement.API.Repositories.Implementations.Dashboard
             };
         }
 
-        public async Task<IEnumerable<HourlySalesDto>> GetHourlySalesAsync(int institutionId, int? outletId = null)
+        public async Task<IEnumerable<HourlySalesDto>> GetHourlySalesAsync(int campusId, int? outletId = null)
         {
             using var connection = _connectionFactory.CreateConnection();
             var parameters = new
             {
-                p_InstitutionId = institutionId,
+                p_CampusId = campusId,
                 p_OutletId = outletId ?? 0
             };
 
@@ -64,12 +64,12 @@ namespace CanteenManagement.API.Repositories.Implementations.Dashboard
                 commandType: CommandType.StoredProcedure);
         }
 
-        public async Task<IEnumerable<LiveOrderDto>> GetLiveOrdersAsync(int institutionId, int? outletId = null)
+        public async Task<IEnumerable<LiveOrderDto>> GetLiveOrdersAsync(int campusId, int? outletId = null)
         {
             using var connection = _connectionFactory.CreateConnection();
             var parameters = new
             {
-                p_InstitutionId = institutionId,
+                p_CampusId = campusId,
                 p_OutletId = outletId ?? 0
             };
 
@@ -111,12 +111,12 @@ namespace CanteenManagement.API.Repositories.Implementations.Dashboard
             return orders;
         }
 
-        public async Task<IEnumerable<TopSellingItemDto>> GetTopSellingItemsAsync(int institutionId, int? outletId = null)
+        public async Task<IEnumerable<TopSellingItemDto>> GetTopSellingItemsAsync(int campusId, int? outletId = null)
         {
             using var connection = _connectionFactory.CreateConnection();
             var parameters = new
             {
-                p_InstitutionId = institutionId,
+                p_CampusId = campusId,
                 p_OutletId = outletId ?? 0
             };
 
@@ -126,12 +126,12 @@ namespace CanteenManagement.API.Repositories.Implementations.Dashboard
                 commandType: CommandType.StoredProcedure);
         }
 
-        public async Task<IEnumerable<StockAlertDto>> GetStockAlertsAsync(int institutionId)
+        public async Task<IEnumerable<StockAlertDto>> GetStockAlertsAsync(int campusId)
         {
             using var connection = _connectionFactory.CreateConnection();
             var parameters = new
             {
-                p_InstitutionId = institutionId
+                p_CampusId = campusId
             };
 
             return await connection.QueryAsync<StockAlertDto>(
@@ -140,12 +140,12 @@ namespace CanteenManagement.API.Repositories.Implementations.Dashboard
                 commandType: CommandType.StoredProcedure);
         }
 
-        public async Task<IEnumerable<OutletSalesDto>> GetOutletSalesAsync(int institutionId)
+        public async Task<IEnumerable<OutletSalesDto>> GetOutletSalesAsync(int campusId)
         {
             using var connection = _connectionFactory.CreateConnection();
             var parameters = new
             {
-                p_InstitutionId = institutionId
+                p_CampusId = campusId
             };
 
             return await connection.QueryAsync<OutletSalesDto>(

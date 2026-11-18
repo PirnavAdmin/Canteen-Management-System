@@ -23,26 +23,26 @@ namespace CanteenManagement.API.Controllers.V1
         [HttpGet("sales")]
         public async Task<IActionResult> GetSalesReport([FromQuery] ReportFilterDto filter)
         {
-            var institutionId = User.ResolveInstitutionId();
+            var campusId = User.ResolveCampusId();
             filter.ReportType = "sales_summary";
-            var result = await _reportService.GetReportDataAsync(institutionId, filter);
+            var result = await _reportService.GetReportDataAsync(campusId, filter);
             return Ok(ApiResponse<ReportResultDto>.SuccessResponse(result));
         }
 
         [HttpGet("items")]
         public async Task<IActionResult> GetItemWiseReport([FromQuery] ReportFilterDto filter)
         {
-            var institutionId = User.ResolveInstitutionId();
+            var campusId = User.ResolveCampusId();
             filter.ReportType = "item_wise";
-            var result = await _reportService.GetReportDataAsync(institutionId, filter);
+            var result = await _reportService.GetReportDataAsync(campusId, filter);
             return Ok(ApiResponse<ReportResultDto>.SuccessResponse(result));
         }
 
         [HttpGet("export")]
         public async Task<IActionResult> ExportReport([FromQuery] ReportFilterDto filter)
         {
-            var institutionId = User.ResolveInstitutionId();
-            var result = await _reportService.GetReportDataAsync(institutionId, filter);
+            var campusId = User.ResolveCampusId();
+            var result = await _reportService.GetReportDataAsync(campusId, filter);
 
             if (filter.Format?.ToLower() == "csv")
             {

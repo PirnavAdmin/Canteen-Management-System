@@ -15,7 +15,8 @@ export const ENV = {
   appVersion: getEnv('VITE_APP_VERSION', '1.1.0'),
   environment: getEnv('VITE_APP_ENV', 'development'),
   portalName: getEnv('VITE_PORTAL_NAME', 'SMS / CMS Integrated Institutional Portal'),
-  institutionId: getEnv('VITE_INSTITUTION_ID', 'INST-APEX-01'),
+  campusId: getEnv('VITE_CAMPUS_ID', getEnv('VITE_INSTITUTION_ID', 'CAMPUS-01')),
+  institutionId: getEnv('VITE_CAMPUS_ID', getEnv('VITE_INSTITUTION_ID', 'CAMPUS-01')),
 
   // API Config
   apiBaseUrl: getEnv('VITE_API_BASE_URL', 'http://localhost:5000'),

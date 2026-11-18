@@ -23,16 +23,16 @@ namespace CanteenManagement.API.Services.Implementations.Outlets
             _logger = logger;
         }
 
-        public async Task<ApiResponse<IEnumerable<CanteenOutletDto>>> GetAllAsync(int institutionId, string? status = null, string? search = null)
+        public async Task<ApiResponse<IEnumerable<CanteenOutletDto>>> GetAllAsync(int campusId, string? status = null, string? search = null)
         {
-            var outlets = await _repository.GetAllAsync(institutionId, status, search);
+            var outlets = await _repository.GetAllAsync(campusId, status, search);
             var dtos = outlets.Select(MapToDto);
             return ApiResponse<IEnumerable<CanteenOutletDto>>.Ok(dtos);
         }
 
-        public async Task<ApiResponse<CanteenOutletDto>> GetByIdAsync(int outletId, int institutionId)
+        public async Task<ApiResponse<CanteenOutletDto>> GetByIdAsync(int outletId, int campusId)
         {
-            var outlet = await _repository.GetByIdAsync(outletId, institutionId);
+            var outlet = await _repository.GetByIdAsync(outletId, campusId);
             if (outlet == null)
             {
                 return ApiResponse<CanteenOutletDto>.Fail("Canteen outlet not found.", statusCode: 404);
@@ -41,16 +41,16 @@ namespace CanteenManagement.API.Services.Implementations.Outlets
             return ApiResponse<CanteenOutletDto>.Ok(MapToDto(outlet));
         }
 
-        public async Task<ApiResponse<CanteenOutletDto>> CreateAsync(int institutionId, CreateCanteenOutletDto dto, int userId, string userName)
+        public async Task<ApiResponse<CanteenOutletDto>> CreateAsync(int campusId, CreateCanteenOutletDto dto, int userId, string userName)
         {
-            if (await _repository.ExistsByCodeAsync(dto.Code, institutionId))
+            if (await _repository.ExistsByCodeAsync(dto.Code, campusId))
             {
                 return ApiResponse<CanteenOutletDto>.Fail($"Outlet Code '{dto.Code}' already exists. Please choose a unique code.", statusCode: 400);
             }
 
             var outlet = new CanteenOutlet
             {
-                InstitutionId = institutionId,
+                CampusId = campusId,
                 Code = dto.Code.Trim().ToUpper(),
                 Name = dto.Name.Trim(),
                 Location = dto.Location?.Trim(),
@@ -86,14 +86,14 @@ namespace CanteenManagement.API.Services.Implementations.Outlets
                 details: $"Created outlet '{created.Name}' ({created.Code})",
                 userId: userId,
                 userName: userName,
-                institutionId: institutionId);
+                campusId: campusId);
 
             return ApiResponse<CanteenOutletDto>.Ok(MapToDto(created), "Canteen outlet created successfully.", statusCode: 201);
         }
 
-        public async Task<ApiResponse<CanteenOutletDto>> UpdateAsync(int outletId, int institutionId, UpdateCanteenOutletDto dto, int userId, string userName)
+        public async Task<ApiResponse<CanteenOutletDto>> UpdateAsync(int outletId, int campusId, UpdateCanteenOutletDto dto, int userId, string userName)
         {
-            var existing = await _repository.GetByIdAsync(outletId, institutionId);
+            var existing = await _repository.GetByIdAsync(outletId, campusId);
             if (existing == null)
             {
                 return ApiResponse<CanteenOutletDto>.Fail("Canteen outlet not found.", statusCode: 404);
@@ -121,14 +121,14 @@ namespace CanteenManagement.API.Services.Implementations.Outlets
                 details: $"Updated outlet '{existing.Name}' ({existing.Code})",
                 userId: userId,
                 userName: userName,
-                institutionId: institutionId);
+                campusId: campusId);
 
             return ApiResponse<CanteenOutletDto>.Ok(MapToDto(existing), "Canteen outlet updated successfully.");
         }
 
-        public async Task<ApiResponse<bool>> ToggleStatusAsync(int outletId, int institutionId, string status, int userId, string userName)
+        public async Task<ApiResponse<bool>> ToggleStatusAsync(int outletId, int campusId, string status, int userId, string userName)
         {
-            var existing = await _repository.GetByIdAsync(outletId, institutionId);
+            var existing = await _repository.GetByIdAsync(outletId, campusId);
             if (existing == null)
             {
                 return ApiResponse<bool>.Fail("Canteen outlet not found.", statusCode: 404);
@@ -149,20 +149,20 @@ namespace CanteenManagement.API.Services.Implementations.Outlets
                 details: $"Changed status from '{oldStatus}' to '{status}'",
                 userId: userId,
                 userName: userName,
-                institutionId: institutionId);
+                campusId: campusId);
 
             return ApiResponse<bool>.Ok(true, $"Outlet status changed to {status}.");
         }
 
-        public async Task<ApiResponse<bool>> DeleteAsync(int outletId, int institutionId, int userId, string userName)
+        public async Task<ApiResponse<bool>> DeleteAsync(int outletId, int campusId, int userId, string userName)
         {
-            var existing = await _repository.GetByIdAsync(outletId, institutionId);
+            var existing = await _repository.GetByIdAsync(outletId, campusId);
             if (existing == null)
             {
                 return ApiResponse<bool>.Fail("Canteen outlet not found.", statusCode: 404);
             }
 
-            var deleted = await _repository.DeleteAsync(outletId, institutionId);
+            var deleted = await _repository.DeleteAsync(outletId, campusId);
             if (deleted)
             {
                 await _auditLogger.LogAsync(
@@ -172,21 +172,21 @@ namespace CanteenManagement.API.Services.Implementations.Outlets
                     details: $"Deleted outlet '{existing.Name}' ({existing.Code})",
                     userId: userId,
                     userName: userName,
-                    institutionId: institutionId);
+                    campusId: campusId);
             }
 
             return ApiResponse<bool>.Ok(deleted, "Canteen outlet deleted successfully.");
         }
 
-        public async Task<ApiResponse<CanteenOutletStatsDto>> GetStatsAsync(int institutionId)
+        public async Task<ApiResponse<CanteenOutletStatsDto>> GetStatsAsync(int campusId)
         {
-            var stats = await _repository.GetStatsAsync(institutionId);
+            var stats = await _repository.GetStatsAsync(campusId);
             return ApiResponse<CanteenOutletStatsDto>.Ok(stats);
         }
 
-        public async Task<ApiResponse<CanteenOutletSettingDto>> GetSettingsAsync(int outletId, int institutionId)
+        public async Task<ApiResponse<CanteenOutletSettingDto>> GetSettingsAsync(int outletId, int campusId)
         {
-            var outlet = await _repository.GetByIdAsync(outletId, institutionId);
+            var outlet = await _repository.GetByIdAsync(outletId, campusId);
             if (outlet == null)
             {
                 return ApiResponse<CanteenOutletSettingDto>.Fail("Canteen outlet not found.", statusCode: 404);
@@ -196,9 +196,9 @@ namespace CanteenManagement.API.Services.Implementations.Outlets
             return ApiResponse<CanteenOutletSettingDto>.Ok(MapToSettingDto(settings));
         }
 
-        public async Task<ApiResponse<CanteenOutletSettingDto>> UpdateSettingsAsync(int outletId, int institutionId, UpdateOutletSettingsDto dto, int userId, string userName)
+        public async Task<ApiResponse<CanteenOutletSettingDto>> UpdateSettingsAsync(int outletId, int campusId, UpdateOutletSettingsDto dto, int userId, string userName)
         {
-            var outlet = await _repository.GetByIdAsync(outletId, institutionId);
+            var outlet = await _repository.GetByIdAsync(outletId, campusId);
             if (outlet == null)
             {
                 return ApiResponse<CanteenOutletSettingDto>.Fail("Canteen outlet not found.", statusCode: 404);
@@ -241,7 +241,7 @@ namespace CanteenManagement.API.Services.Implementations.Outlets
                 details: $"Updated operational settings for outlet '{outlet.Name}'",
                 userId: userId,
                 userName: userName,
-                institutionId: institutionId);
+                campusId: campusId);
 
             return ApiResponse<CanteenOutletSettingDto>.Ok(MapToSettingDto(settings), "Outlet settings updated successfully.");
         }
@@ -251,7 +251,7 @@ namespace CanteenManagement.API.Services.Implementations.Outlets
             return new CanteenOutletDto
             {
                 OutletId = outlet.OutletId,
-                InstitutionId = outlet.InstitutionId,
+                CampusId = outlet.CampusId,
                 Code = outlet.Code,
                 Name = outlet.Name,
                 Location = outlet.Location,

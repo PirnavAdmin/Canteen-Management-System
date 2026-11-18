@@ -22,16 +22,16 @@ namespace CanteenManagement.API.Controllers.V1
         [HttpGet]
         public async Task<IActionResult> GetAll([FromQuery] int? outletId, [FromQuery] string? status, [FromQuery] string? searchTerm)
         {
-            var institutionId = User.ResolveInstitutionId();
-            var orders = await _orderService.GetAllAsync(institutionId, outletId, status, searchTerm);
+            var campusId = User.ResolveCampusId();
+            var orders = await _orderService.GetAllAsync(campusId, outletId, status, searchTerm);
             return Ok(ApiResponse<IEnumerable<OrderDto>>.SuccessResponse(orders));
         }
 
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(string id)
         {
-            var institutionId = User.ResolveInstitutionId();
-            var order = await _orderService.GetByIdAsync(id, institutionId);
+            var campusId = User.ResolveCampusId();
+            var order = await _orderService.GetByIdAsync(id, campusId);
             if (order == null)
             {
                 return NotFound(ApiResponse<string>.ErrorResponse($"Order with ID {id} was not found."));
@@ -50,9 +50,9 @@ namespace CanteenManagement.API.Controllers.V1
 
             try
             {
-                var institutionId = User.ResolveInstitutionId();
+                var campusId = User.ResolveCampusId();
                 var userName = User.ResolveUserName();
-                var created = await _orderService.CreateAsync(dto, institutionId, userName);
+                var created = await _orderService.CreateAsync(dto, campusId, userName);
                 return CreatedAtAction(nameof(GetById), new { id = created.Id }, ApiResponse<OrderDto>.SuccessResponse(created, $"Order created with token {created.Token}."));
             }
             catch (KeyNotFoundException ex)
@@ -77,9 +77,9 @@ namespace CanteenManagement.API.Controllers.V1
 
             try
             {
-                var institutionId = User.ResolveInstitutionId();
+                var campusId = User.ResolveCampusId();
                 var userName = User.ResolveUserName();
-                var updated = await _orderService.UpdateStatusAsync(id, dto, institutionId, userName);
+                var updated = await _orderService.UpdateStatusAsync(id, dto, campusId, userName);
                 return Ok(ApiResponse<OrderDto>.SuccessResponse(updated, $"Order transitioned to {updated.Status}."));
             }
             catch (KeyNotFoundException ex)
@@ -103,9 +103,9 @@ namespace CanteenManagement.API.Controllers.V1
 
             try
             {
-                var institutionId = User.ResolveInstitutionId();
+                var campusId = User.ResolveCampusId();
                 var userName = User.ResolveUserName();
-                var updated = await _orderService.CancelOrderAsync(id, dto, institutionId, userName);
+                var updated = await _orderService.CancelOrderAsync(id, dto, campusId, userName);
                 return Ok(ApiResponse<OrderDto>.SuccessResponse(updated, "Order cancelled successfully."));
             }
             catch (KeyNotFoundException ex)
@@ -124,9 +124,9 @@ namespace CanteenManagement.API.Controllers.V1
         {
             try
             {
-                var institutionId = User.ResolveInstitutionId();
+                var campusId = User.ResolveCampusId();
                 var userName = User.ResolveUserName();
-                var updated = await _orderService.ProcessRefundAsync(id, institutionId, userName);
+                var updated = await _orderService.ProcessRefundAsync(id, campusId, userName);
                 return Ok(ApiResponse<OrderDto>.SuccessResponse(updated, $"Refund of ₹{updated.TotalAmount} processed successfully."));
             }
             catch (KeyNotFoundException ex)

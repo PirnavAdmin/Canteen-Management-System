@@ -22,16 +22,16 @@ namespace CanteenManagement.API.Controllers.V1
         [HttpGet]
         public async Task<IActionResult> GetAll([FromQuery] int? outletId, [FromQuery] string? status, [FromQuery] int? rating)
         {
-            var institutionId = User.ResolveInstitutionId();
-            var tickets = await _feedbackService.GetAllAsync(institutionId, outletId, status, rating);
+            var campusId = User.ResolveCampusId();
+            var tickets = await _feedbackService.GetAllAsync(campusId, outletId, status, rating);
             return Ok(ApiResponse<IEnumerable<FeedbackDto>>.SuccessResponse(tickets));
         }
 
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(string id)
         {
-            var institutionId = User.ResolveInstitutionId();
-            var ticket = await _feedbackService.GetByIdAsync(id, institutionId);
+            var campusId = User.ResolveCampusId();
+            var ticket = await _feedbackService.GetByIdAsync(id, campusId);
             if (ticket == null)
             {
                 return NotFound(ApiResponse<string>.ErrorResponse($"Ticket with ID {id} was not found."));
@@ -48,9 +48,9 @@ namespace CanteenManagement.API.Controllers.V1
                 return BadRequest(ApiResponse<string>.ErrorResponse("Validation failed.", errors));
             }
 
-            var institutionId = User.ResolveInstitutionId();
+            var campusId = User.ResolveCampusId();
             var userName = User.ResolveUserName();
-            var created = await _feedbackService.CreateAsync(dto, institutionId, userName);
+            var created = await _feedbackService.CreateAsync(dto, campusId, userName);
             return CreatedAtAction(nameof(GetById), new { id = created.Id }, ApiResponse<FeedbackDto>.SuccessResponse(created, "Feedback submitted successfully."));
         }
 
@@ -66,9 +66,9 @@ namespace CanteenManagement.API.Controllers.V1
 
             try
             {
-                var institutionId = User.ResolveInstitutionId();
+                var campusId = User.ResolveCampusId();
                 var userName = User.ResolveUserName();
-                var updated = await _feedbackService.ResolveTicketAsync(id, dto, institutionId, userName);
+                var updated = await _feedbackService.ResolveTicketAsync(id, dto, campusId, userName);
                 return Ok(ApiResponse<FeedbackDto>.SuccessResponse(updated, $"Ticket resolved with status {updated.Status}."));
             }
             catch (KeyNotFoundException ex)

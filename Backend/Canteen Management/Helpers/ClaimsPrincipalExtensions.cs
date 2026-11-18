@@ -32,17 +32,20 @@ namespace CanteenManagement.API.Helpers
                    ?? "Student";
         }
 
-        public static int ResolveInstitutionId(this ClaimsPrincipal user)
+        public static int ResolveCampusId(this ClaimsPrincipal user)
         {
-            var claim = user.FindFirst("InstitutionId")?.Value
+            var claim = user.FindFirst("CampusId")?.Value
+                        ?? user.FindFirst("campus_id")?.Value
+                        ?? user.FindFirst("InstitutionId")?.Value
                         ?? user.FindFirst("institution_id")?.Value;
 
-            if (int.TryParse(claim, out var instId) && instId > 0)
+            if (int.TryParse(claim, out var campusId) && campusId > 0)
             {
-                return instId;
+                return campusId;
             }
-            return 1; // Default tenant
+            return 1; // Default campus
         }
+
+        public static int ResolveInstitutionId(this ClaimsPrincipal user) => ResolveCampusId(user);
     }
 }
-

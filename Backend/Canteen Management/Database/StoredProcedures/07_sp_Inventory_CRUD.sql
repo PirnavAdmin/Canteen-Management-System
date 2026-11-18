@@ -7,12 +7,12 @@
 DROP PROCEDURE IF EXISTS sp_GetSuppliers;
 DELIMITER $$
 CREATE PROCEDURE sp_GetSuppliers(
-    IN p_InstitutionId INT
+    IN p_CampusId INT
 )
 BEGIN
-    SELECT SupplierId, InstitutionId, Name, ContactPerson, Phone, Email, Address, SuppliedCategories, Gstin, FssaiNumber, Status, CreatedAt
+    SELECT SupplierId, CampusId, Name, ContactPerson, Phone, Email, Address, SuppliedCategories, Gstin, FssaiNumber, Status, CreatedAt
     FROM Suppliers
-    WHERE InstitutionId = p_InstitutionId
+    WHERE CampusId = p_CampusId
     ORDER BY Name ASC;
 END $$
 DELIMITER ;
@@ -21,12 +21,12 @@ DROP PROCEDURE IF EXISTS sp_GetSupplierById;
 DELIMITER $$
 CREATE PROCEDURE sp_GetSupplierById(
     IN p_SupplierId INT,
-    IN p_InstitutionId INT
+    IN p_CampusId INT
 )
 BEGIN
-    SELECT SupplierId, InstitutionId, Name, ContactPerson, Phone, Email, Address, SuppliedCategories, Gstin, FssaiNumber, Status, CreatedAt
+    SELECT SupplierId, CampusId, Name, ContactPerson, Phone, Email, Address, SuppliedCategories, Gstin, FssaiNumber, Status, CreatedAt
     FROM Suppliers
-    WHERE SupplierId = p_SupplierId AND InstitutionId = p_InstitutionId
+    WHERE SupplierId = p_SupplierId AND CampusId = p_CampusId
     LIMIT 1;
 END $$
 DELIMITER ;
@@ -34,7 +34,7 @@ DELIMITER ;
 DROP PROCEDURE IF EXISTS sp_CreateSupplier;
 DELIMITER $$
 CREATE PROCEDURE sp_CreateSupplier(
-    IN p_InstitutionId INT,
+    IN p_CampusId INT,
     IN p_Name VARCHAR(100),
     IN p_ContactPerson VARCHAR(100),
     IN p_Phone VARCHAR(20),
@@ -44,10 +44,10 @@ CREATE PROCEDURE sp_CreateSupplier(
     IN p_Status VARCHAR(20)
 )
 BEGIN
-    INSERT INTO Suppliers (InstitutionId, Name, ContactPerson, Phone, Email, Address, SuppliedCategories, Status, CreatedAt)
-    VALUES (p_InstitutionId, p_Name, p_ContactPerson, p_Phone, p_Email, p_Address, p_SuppliedCategories, COALESCE(p_Status, 'Active'), UTC_TIMESTAMP());
+    INSERT INTO Suppliers (CampusId, Name, ContactPerson, Phone, Email, Address, SuppliedCategories, Status, CreatedAt)
+    VALUES (p_CampusId, p_Name, p_ContactPerson, p_Phone, p_Email, p_Address, p_SuppliedCategories, COALESCE(p_Status, 'Active'), UTC_TIMESTAMP());
     
-    SELECT SupplierId, InstitutionId, Name, ContactPerson, Phone, Email, Address, SuppliedCategories, Gstin, FssaiNumber, Status, CreatedAt
+    SELECT SupplierId, CampusId, Name, ContactPerson, Phone, Email, Address, SuppliedCategories, Gstin, FssaiNumber, Status, CreatedAt
     FROM Suppliers
     WHERE SupplierId = LAST_INSERT_ID();
 END $$
@@ -57,7 +57,7 @@ DROP PROCEDURE IF EXISTS sp_UpdateSupplier;
 DELIMITER $$
 CREATE PROCEDURE sp_UpdateSupplier(
     IN p_SupplierId INT,
-    IN p_InstitutionId INT,
+    IN p_CampusId INT,
     IN p_Name VARCHAR(100),
     IN p_ContactPerson VARCHAR(100),
     IN p_Phone VARCHAR(20),
@@ -79,11 +79,11 @@ BEGIN
         Gstin = CASE WHEN p_Gstin IS NOT NULL THEN p_Gstin ELSE Gstin END,
         FssaiNumber = CASE WHEN p_FssaiNumber IS NOT NULL THEN p_FssaiNumber ELSE FssaiNumber END,
         Status = COALESCE(p_Status, Status)
-    WHERE SupplierId = p_SupplierId AND InstitutionId = p_InstitutionId;
+    WHERE SupplierId = p_SupplierId AND CampusId = p_CampusId;
 
-    SELECT SupplierId, InstitutionId, Name, ContactPerson, Phone, Email, Address, SuppliedCategories, Gstin, FssaiNumber, Status, CreatedAt
+    SELECT SupplierId, CampusId, Name, ContactPerson, Phone, Email, Address, SuppliedCategories, Gstin, FssaiNumber, Status, CreatedAt
     FROM Suppliers
-    WHERE SupplierId = p_SupplierId AND InstitutionId = p_InstitutionId
+    WHERE SupplierId = p_SupplierId AND CampusId = p_CampusId
     LIMIT 1;
 END $$
 DELIMITER ;
@@ -92,24 +92,24 @@ DROP PROCEDURE IF EXISTS sp_DeleteSupplier;
 DELIMITER $$
 CREATE PROCEDURE sp_DeleteSupplier(
     IN p_SupplierId INT,
-    IN p_InstitutionId INT
+    IN p_CampusId INT
 )
 BEGIN
     DECLARE v_PoCount INT DEFAULT 0;
 
     SELECT COUNT(1) INTO v_PoCount
     FROM PurchaseOrders
-    WHERE SupplierId = p_SupplierId AND InstitutionId = p_InstitutionId;
+    WHERE SupplierId = p_SupplierId AND CampusId = p_CampusId;
 
     IF v_PoCount > 0 THEN
         UPDATE Suppliers
         SET Status = 'Inactive'
-        WHERE SupplierId = p_SupplierId AND InstitutionId = p_InstitutionId;
+        WHERE SupplierId = p_SupplierId AND CampusId = p_CampusId;
 
         SELECT 1 AS Success, 'SOFT_DELETED' AS ActionTaken, v_PoCount AS LinkedPOCount;
     ELSE
         DELETE FROM Suppliers
-        WHERE SupplierId = p_SupplierId AND InstitutionId = p_InstitutionId;
+        WHERE SupplierId = p_SupplierId AND CampusId = p_CampusId;
 
         SELECT 1 AS Success, 'HARD_DELETED' AS ActionTaken, 0 AS LinkedPOCount;
     END IF;
@@ -120,17 +120,17 @@ DROP PROCEDURE IF EXISTS sp_ToggleSupplierStatus;
 DELIMITER $$
 CREATE PROCEDURE sp_ToggleSupplierStatus(
     IN p_SupplierId INT,
-    IN p_InstitutionId INT,
+    IN p_CampusId INT,
     IN p_Status VARCHAR(20)
 )
 BEGIN
     UPDATE Suppliers
     SET Status = p_Status
-    WHERE SupplierId = p_SupplierId AND InstitutionId = p_InstitutionId;
+    WHERE SupplierId = p_SupplierId AND CampusId = p_CampusId;
 
-    SELECT SupplierId, InstitutionId, Name, ContactPerson, Phone, Email, Address, SuppliedCategories, Gstin, FssaiNumber, Status, CreatedAt
+    SELECT SupplierId, CampusId, Name, ContactPerson, Phone, Email, Address, SuppliedCategories, Gstin, FssaiNumber, Status, CreatedAt
     FROM Suppliers
-    WHERE SupplierId = p_SupplierId AND InstitutionId = p_InstitutionId
+    WHERE SupplierId = p_SupplierId AND CampusId = p_CampusId
     LIMIT 1;
 END $$
 DELIMITER ;
@@ -139,13 +139,13 @@ DELIMITER ;
 DROP PROCEDURE IF EXISTS sp_GetPurchaseOrders;
 DELIMITER $$
 CREATE PROCEDURE sp_GetPurchaseOrders(
-    IN p_InstitutionId INT,
+    IN p_CampusId INT,
     IN p_OutletId INT
 )
 BEGIN
     SELECT 
         po.PurchaseOrderId,
-        po.InstitutionId,
+        po.CampusId,
         po.OutletId,
         po.PoNumber,
         po.SupplierId,
@@ -159,7 +159,7 @@ BEGIN
         po.UpdatedAt
     FROM PurchaseOrders po
     LEFT JOIN Suppliers s ON po.SupplierId = s.SupplierId
-    WHERE po.InstitutionId = p_InstitutionId
+    WHERE po.CampusId = p_CampusId
       AND (p_OutletId IS NULL OR p_OutletId <= 0 OR po.OutletId = p_OutletId)
     ORDER BY po.OrderDate DESC, po.PurchaseOrderId DESC;
 END $$
@@ -169,12 +169,12 @@ DROP PROCEDURE IF EXISTS sp_GetPurchaseOrderById;
 DELIMITER $$
 CREATE PROCEDURE sp_GetPurchaseOrderById(
     IN p_PurchaseOrderId INT,
-    IN p_InstitutionId INT
+    IN p_CampusId INT
 )
 BEGIN
     SELECT 
         po.PurchaseOrderId,
-        po.InstitutionId,
+        po.CampusId,
         po.OutletId,
         po.PoNumber,
         po.SupplierId,
@@ -188,7 +188,7 @@ BEGIN
         po.UpdatedAt
     FROM PurchaseOrders po
     LEFT JOIN Suppliers s ON po.SupplierId = s.SupplierId
-    WHERE po.PurchaseOrderId = p_PurchaseOrderId AND po.InstitutionId = p_InstitutionId
+    WHERE po.PurchaseOrderId = p_PurchaseOrderId AND po.CampusId = p_CampusId
     LIMIT 1;
 END $$
 DELIMITER ;
@@ -196,7 +196,7 @@ DELIMITER ;
 DROP PROCEDURE IF EXISTS sp_CreatePurchaseOrder;
 DELIMITER $$
 CREATE PROCEDURE sp_CreatePurchaseOrder(
-    IN p_InstitutionId INT,
+    IN p_CampusId INT,
     IN p_OutletId INT,
     IN p_PoNumber VARCHAR(50),
     IN p_SupplierId INT,
@@ -208,12 +208,12 @@ CREATE PROCEDURE sp_CreatePurchaseOrder(
     IN p_ItemsJson TEXT
 )
 BEGIN
-    INSERT INTO PurchaseOrders (InstitutionId, OutletId, PoNumber, SupplierId, SupplierName, OrderDate, ExpectedDelivery, TotalAmount, Status, ItemsJson, CreatedAt)
-    VALUES (p_InstitutionId, p_OutletId, p_PoNumber, p_SupplierId, p_SupplierName, COALESCE(p_OrderDate, CURRENT_DATE), p_ExpectedDelivery, p_TotalAmount, COALESCE(p_Status, 'Submitted'), p_ItemsJson, UTC_TIMESTAMP());
+    INSERT INTO PurchaseOrders (CampusId, OutletId, PoNumber, SupplierId, SupplierName, OrderDate, ExpectedDelivery, TotalAmount, Status, ItemsJson, CreatedAt)
+    VALUES (p_CampusId, p_OutletId, p_PoNumber, p_SupplierId, p_SupplierName, COALESCE(p_OrderDate, CURRENT_DATE), p_ExpectedDelivery, p_TotalAmount, COALESCE(p_Status, 'Submitted'), p_ItemsJson, UTC_TIMESTAMP());
 
     SELECT 
         po.PurchaseOrderId,
-        po.InstitutionId,
+        po.CampusId,
         po.OutletId,
         po.PoNumber,
         po.SupplierId,
@@ -244,7 +244,7 @@ BEGIN
     
     SELECT 
         po.PurchaseOrderId,
-        po.InstitutionId,
+        po.CampusId,
         po.OutletId,
         po.PoNumber,
         po.SupplierId,
@@ -266,13 +266,13 @@ DELIMITER ;
 DROP PROCEDURE IF EXISTS sp_GetInventoryItems;
 DELIMITER $$
 CREATE PROCEDURE sp_GetInventoryItems(
-    IN p_InstitutionId INT,
+    IN p_CampusId INT,
     IN p_OutletId INT
 )
 BEGIN
     SELECT 
         i.ItemId,
-        i.InstitutionId,
+        i.CampusId,
         i.OutletId,
         i.IngredientName,
         i.Category,
@@ -289,7 +289,7 @@ BEGIN
         co.Name
     FROM InventoryItems i
     LEFT JOIN CanteenOutlets co ON i.OutletId = co.OutletId
-    WHERE i.InstitutionId = p_InstitutionId
+    WHERE i.CampusId = p_CampusId
       AND (p_OutletId IS NULL OR p_OutletId <= 0 OR i.OutletId = p_OutletId)
     ORDER BY i.IngredientName ASC;
 END $$
@@ -299,12 +299,12 @@ DROP PROCEDURE IF EXISTS sp_GetInventoryItemById;
 DELIMITER $$
 CREATE PROCEDURE sp_GetInventoryItemById(
     IN p_ItemId INT,
-    IN p_InstitutionId INT
+    IN p_CampusId INT
 )
 BEGIN
     SELECT 
         i.ItemId,
-        i.InstitutionId,
+        i.CampusId,
         i.OutletId,
         i.IngredientName,
         i.Category,
@@ -321,7 +321,7 @@ BEGIN
         co.Name
     FROM InventoryItems i
     LEFT JOIN CanteenOutlets co ON i.OutletId = co.OutletId
-    WHERE i.ItemId = p_ItemId AND i.InstitutionId = p_InstitutionId
+    WHERE i.ItemId = p_ItemId AND i.CampusId = p_CampusId
     LIMIT 1;
 END $$
 DELIMITER ;
@@ -329,7 +329,7 @@ DELIMITER ;
 DROP PROCEDURE IF EXISTS sp_AddInventoryItem;
 DELIMITER $$
 CREATE PROCEDURE sp_AddInventoryItem(
-    IN p_InstitutionId INT,
+    IN p_CampusId INT,
     IN p_OutletId INT,
     IN p_IngredientName VARCHAR(100),
     IN p_Category VARCHAR(50),
@@ -342,10 +342,10 @@ CREATE PROCEDURE sp_AddInventoryItem(
     IN p_Status VARCHAR(30)
 )
 BEGIN
-    INSERT INTO InventoryItems (InstitutionId, OutletId, IngredientName, Category, AvailableQuantity, Unit, ReorderLevel, CostPerUnit, BatchNumber, ExpiryDate, Status, CreatedAt)
-    VALUES (p_InstitutionId, p_OutletId, p_IngredientName, COALESCE(p_Category, 'Groceries'), p_AvailableQuantity, COALESCE(p_Unit, 'kg'), COALESCE(p_ReorderLevel, 10.00), COALESCE(p_CostPerUnit, 0.00), p_BatchNumber, p_ExpiryDate, COALESCE(p_Status, 'In Stock'), UTC_TIMESTAMP());
+    INSERT INTO InventoryItems (CampusId, OutletId, IngredientName, Category, AvailableQuantity, Unit, ReorderLevel, CostPerUnit, BatchNumber, ExpiryDate, Status, CreatedAt)
+    VALUES (p_CampusId, p_OutletId, p_IngredientName, COALESCE(p_Category, 'Groceries'), p_AvailableQuantity, COALESCE(p_Unit, 'kg'), COALESCE(p_ReorderLevel, 10.00), COALESCE(p_CostPerUnit, 0.00), p_BatchNumber, p_ExpiryDate, COALESCE(p_Status, 'In Stock'), UTC_TIMESTAMP());
     
-    SELECT ItemId, InstitutionId, OutletId, IngredientName, Category, AvailableQuantity, Unit, ReorderLevel, CostPerUnit, BatchNumber, ExpiryDate, Status, CreatedAt, UpdatedAt
+    SELECT ItemId, CampusId, OutletId, IngredientName, Category, AvailableQuantity, Unit, ReorderLevel, CostPerUnit, BatchNumber, ExpiryDate, Status, CreatedAt, UpdatedAt
     FROM InventoryItems
     WHERE ItemId = LAST_INSERT_ID();
 END $$
@@ -367,7 +367,7 @@ BEGIN
         UpdatedAt = UTC_TIMESTAMP()
     WHERE ItemId = p_ItemId;
 
-    SELECT ItemId, InstitutionId, OutletId, IngredientName, Category, AvailableQuantity, Unit, ReorderLevel, CostPerUnit, BatchNumber, ExpiryDate, Status, CreatedAt, UpdatedAt
+    SELECT ItemId, CampusId, OutletId, IngredientName, Category, AvailableQuantity, Unit, ReorderLevel, CostPerUnit, BatchNumber, ExpiryDate, Status, CreatedAt, UpdatedAt
     FROM InventoryItems
     WHERE ItemId = p_ItemId;
 END $$
@@ -399,7 +399,7 @@ DELIMITER ;
 DROP PROCEDURE IF EXISTS sp_GetStockLedger;
 DELIMITER $$
 CREATE PROCEDURE sp_GetStockLedger(
-    IN p_InstitutionId INT,
+    IN p_CampusId INT,
     IN p_OutletId INT
 )
 BEGIN
@@ -421,7 +421,7 @@ BEGIN
         i.Unit
     FROM StockMovements sm
     INNER JOIN InventoryItems i ON sm.ItemId = i.ItemId
-    WHERE i.InstitutionId = p_InstitutionId
+    WHERE i.CampusId = p_CampusId
       AND (p_OutletId IS NULL OR p_OutletId <= 0 OR i.OutletId = p_OutletId)
     ORDER BY sm.DateTime DESC, sm.MovementId DESC;
 END $$
