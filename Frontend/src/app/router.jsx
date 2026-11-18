@@ -30,8 +30,82 @@ import {
 } from '../modules/admin/categories';
 import { SettingsPage } from '../modules/admin/settings';
 
+// Customer / Student / Faculty Modules
+import {
+  CustomerLayout,
+  CustomerProtectedRoute,
+  CustomerLoginPage,
+  CustomerDashboardPage,
+  CustomerMenuPage,
+  ItemDetailsPage,
+  CartPage,
+  CheckoutPage,
+  PaymentPage,
+  MyOrdersPage,
+  OrderHistoryPage,
+  RateAndPrivacyPage
+} from '../modules/customer';
+
 export const router = createBrowserRouter([
-  // Public Authentication Routes
+  // Public Customer Authentication Route
+  {
+    path: '/customer/login',
+    element: <CustomerLoginPage />
+  },
+
+  // Protected Customer / Student / Faculty Dining Portal Routes
+  {
+    path: '/customer',
+    element: (
+      <CustomerProtectedRoute>
+        <CustomerLayout />
+      </CustomerProtectedRoute>
+    ),
+    children: [
+      {
+        index: true,
+        element: <Navigate to="/customer/dashboard" replace />
+      },
+      {
+        path: 'dashboard',
+        element: <CustomerDashboardPage />
+      },
+      {
+        path: 'menu',
+        element: <CustomerMenuPage />
+      },
+      {
+        path: 'item/:itemId',
+        element: <ItemDetailsPage />
+      },
+      {
+        path: 'cart',
+        element: <CartPage />
+      },
+      {
+        path: 'checkout',
+        element: <CheckoutPage />
+      },
+      {
+        path: 'payment',
+        element: <PaymentPage />
+      },
+      {
+        path: 'orders',
+        element: <MyOrdersPage />
+      },
+      {
+        path: 'order-history',
+        element: <OrderHistoryPage />
+      },
+      {
+        path: 'feedback',
+        element: <RateAndPrivacyPage />
+      }
+    ]
+  },
+
+  // Public Admin Authentication Routes
   {
     path: '/login',
     element: <LoginPage />
@@ -52,6 +126,10 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
+        element: <Navigate to="/admin/dashboard" replace />
+      },
+      {
+        path: 'dashboard',
         element: <Navigate to="/admin/dashboard" replace />
       },
       {

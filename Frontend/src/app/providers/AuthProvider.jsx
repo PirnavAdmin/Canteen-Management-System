@@ -34,12 +34,33 @@ const DEMO_USERS = [
     userId: 3,
     institutionId: 1,
     username: 'aarav',
-    email: 'aarav.student@git.edu',
+    email: 'aarav.mehta@students.apexinstitute.edu',
+    secondaryEmail: 'aarav.student@git.edu',
     password: 'Student@123',
-    fullName: 'Aarav (B.Tech 2nd Year)',
+    fullName: 'Aarav Mehta',
     role: 'Student',
     roleCode: ROLES.STUDENT,
-    phoneNumber: '+91 98765 43212',
+    phoneNumber: '+91 98765 43210',
+    rollNo: '2023-CSE-042',
+    department: 'Computer Science & Engineering',
+    balance: 850.00,
+    isActive: true,
+    createdAt: '2026-01-01T00:00:00.000Z'
+  },
+  {
+    userId: 4,
+    institutionId: 1,
+    username: 'sunita.rao',
+    email: 'sunita.rao@faculty.apexinstitute.edu',
+    secondaryEmail: 'sunita@faculty.edu',
+    password: 'Faculty@123',
+    fullName: 'Dr. Sunita Rao',
+    role: 'Faculty',
+    roleCode: ROLES.FACULTY,
+    phoneNumber: '+91 98450 11223',
+    rollNo: 'FAC-BIO-012',
+    department: 'Biotechnology & Bioengineering',
+    balance: 1420.00,
     isActive: true,
     createdAt: '2026-01-01T00:00:00.000Z'
   }
@@ -152,7 +173,7 @@ export const AuthProvider = ({ children }) => {
         err.raw?.code === 'ERR_NETWORK';
 
       if (!isNetworkError) {
-        throw new Error(err.message || 'Invalid username or password.');
+        throw new Error(err.message || 'Invalid username or password.', { cause: err });
       }
 
       // Backend API server is offline - Use offline demo authentication fallback
@@ -164,11 +185,15 @@ export const AuthProvider = ({ children }) => {
 
       const matchedUser = allUsers.find(u =>
         u.username.toLowerCase() === cleanInput ||
-        u.email.toLowerCase() === cleanInput
+        u.email.toLowerCase() === cleanInput ||
+        (u.secondaryEmail && u.secondaryEmail.toLowerCase() === cleanInput) ||
+        (u.rollNo && u.rollNo.toLowerCase() === cleanInput) ||
+        (cleanInput === 'faculty' && u.role === 'Faculty') ||
+        (cleanInput === 'student' && u.role === 'Student')
       );
 
       if (!matchedUser) {
-        throw new Error('Account not found. Please click one of the quick demo accounts below.');
+        throw new Error('Account not found. Please click one of the quick demo accounts below.', { cause: err });
       }
 
       // Validate password (allow exact match, lowercase match, or standard demo passwords)
@@ -178,6 +203,7 @@ export const AuthProvider = ({ children }) => {
         'admin@123',
         'staff@123',
         'student@123',
+        'faculty@123',
         'admin',
         '123456'
       ].filter(Boolean);
@@ -186,7 +212,7 @@ export const AuthProvider = ({ children }) => {
       const isPassValid = validPasswords.some(p => p.toLowerCase() === enteredPass.toLowerCase());
 
       if (!isPassValid) {
-        throw new Error('Incorrect password. For demo accounts, click the quick demo buttons below.');
+        throw new Error('Incorrect password. For demo accounts, click the quick demo buttons below.', { cause: err });
       }
 
       const { password: _, ...userProfile } = matchedUser;
@@ -229,7 +255,7 @@ export const AuthProvider = ({ children }) => {
         err.raw?.code === 'ERR_NETWORK';
 
       if (!isNetworkError) {
-        throw new Error(err.message || 'Registration failed.');
+        throw new Error(err.message || 'Registration failed.', { cause: err });
       }
 
       // Offline mock registration fallback
@@ -238,7 +264,7 @@ export const AuthProvider = ({ children }) => {
         DEMO_USERS.some(u => u.username.toLowerCase() === registrationData.username.trim().toLowerCase());
 
       if (usernameExists) {
-        throw new Error(`Username "${registrationData.username}" is already taken.`);
+        throw new Error(`Username "${registrationData.username}" is already taken.`, { cause: err });
       }
 
       const newUser = {

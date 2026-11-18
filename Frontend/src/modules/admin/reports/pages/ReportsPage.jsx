@@ -107,7 +107,7 @@ export const ReportsPage = () => {
               {activeReportConfig.label}
             </h3>
             <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
-              Classification: {activeReportConfig.category} • Institutional Verified Records
+              Classification: {typeof activeReportConfig.category === 'object' ? (activeReportConfig.category?.name || activeReportConfig.category?.id || '') : activeReportConfig.category} • Institutional Verified Records
             </span>
           </div>
 

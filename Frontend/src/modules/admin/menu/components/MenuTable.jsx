@@ -152,22 +152,25 @@ export const MenuTable = ({
       key: 'category',
       header: 'Category',
       width: '100px',
-      render: (val) => (
-        <span
-          title={`Category: ${val}`}
-          style={{
-            fontSize: '12px',
-            color: 'var(--text-secondary)',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            display: 'block',
-            maxWidth: '95px'
-          }}
-        >
-          {val}
-        </span>
-      )
+      render: (val) => {
+        const catStr = typeof val === 'object' ? (val?.name || val?.id || '') : String(val || '');
+        return (
+          <span
+            title={`Category: ${catStr}`}
+            style={{
+              fontSize: '12px',
+              color: 'var(--text-secondary)',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              display: 'block',
+              maxWidth: '95px'
+            }}
+          >
+            {catStr}
+          </span>
+        );
+      }
     },
     {
       key: 'price',

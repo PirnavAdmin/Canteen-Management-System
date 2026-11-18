@@ -14,6 +14,16 @@ export const DataTable = ({
   footer,
   style = {}
 }) => {
+  // Validate table column definitions before rendering
+  const validColumns = Array.isArray(columns)
+    ? columns.filter((col) => col && typeof col === 'object' && Boolean(col.key))
+    : [];
+
+  // Handle missing or null row data safely
+  const tableData = Array.isArray(data)
+    ? data.filter((row) => row != null)
+    : [];
+
   return (
     <div style={{
       backgroundColor: 'var(--bg-surface)',
@@ -31,13 +41,14 @@ export const DataTable = ({
               backgroundColor: 'var(--bg-app)',
               borderBottom: '1px solid var(--border-color)'
             }}>
-              {columns.map((col) => {
-                const isSorted = sortField === col.key;
-                const isSortable = col.sortable && onSort;
+              {validColumns.map((col, colIdx) => {
+                const isSorted = Boolean(sortField && sortField === col.key);
+                const isSortable = Boolean(col.sortable && onSort);
+                const headerText = col.header ?? col.label ?? col.title ?? '';
 
                 return (
                   <th
-                    key={col.key}
+                    key={col.key || `col-${colIdx}`}
                     scope="col"
                     onClick={() => isSortable && onSort(col.key)}
                     style={{
@@ -60,7 +71,7 @@ export const DataTable = ({
                       gap: '6px',
                       justifyContent: col.align === 'right' ? 'flex-end' : col.align === 'center' ? 'center' : 'flex-start'
                     }}>
-                      <span>{col.header}</span>
+                      <span>{headerText}</span>
                       {isSortable && (
                         <span style={{ color: isSorted ? 'var(--color-accent)' : 'var(--text-placeholder)' }}>
                           {isSorted ? (
@@ -79,7 +90,7 @@ export const DataTable = ({
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={columns.length} style={{ padding: '48px', textAlign: 'center' }}>
+                <td colSpan={validColumns.length || 1} style={{ padding: '48px', textAlign: 'center' }}>
                   <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', color: 'var(--text-secondary)' }}>
                     <span style={{
                       display: 'inline-block',
@@ -94,20 +105,20 @@ export const DataTable = ({
                   </div>
                 </td>
               </tr>
-            ) : data.length === 0 ? (
+            ) : tableData.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} style={{ padding: '32px' }}>
+                <td colSpan={validColumns.length || 1} style={{ padding: '32px' }}>
                   {emptyState || <EmptyState />}
                 </td>
               </tr>
             ) : (
-              data.map((row, index) => {
-                const rowKey = row[keyField] || index;
+              tableData.map((row, index) => {
+                const rowKey = (row && typeof row === 'object' && (row[keyField] ?? row.id ?? row._id ?? index)) ?? index;
                 return (
                   <tr
                     key={rowKey}
                     style={{
-                      borderBottom: index < data.length - 1 ? '1px solid var(--border-color-subtle)' : 'none',
+                      borderBottom: index < tableData.length - 1 ? '1px solid var(--border-color-subtle)' : 'none',
                       transition: 'background-color var(--transition-fast)'
                     }}
                     onMouseEnter={(e) => {
@@ -117,21 +128,42 @@ export const DataTable = ({
                       e.currentTarget.style.backgroundColor = 'transparent';
                     }}
                   >
-                    {columns.map((col) => (
-                      <td
-                        key={col.key}
-                        style={{
-                          padding: '8px 12px',
-                          fontSize: '13px',
-                          color: 'var(--text-primary)',
-                          textAlign: col.align || 'left',
-                          verticalAlign: 'middle',
-                          width: col.width || 'auto'
-                        }}
-                      >
-                        {col.render ? col.render(row[col.key], row, index) : row[col.key]}
-                      </td>
-                    ))}
+                    {validColumns.map((col, colIdx) => {
+                      const cellValue = row && typeof row === 'object' && col.key ? row[col.key] : undefined;
+                      let cellContent;
+
+                      if (typeof col.render === 'function') {
+                        try {
+                          cellContent = col.render(cellValue, row, index);
+                        } catch (renderError) {
+                          console.warn(`DataTable: error rendering column "${col.key}":`, renderError);
+                          cellContent = cellValue != null ? String(cellValue) : '—';
+                        }
+                      } else {
+                        cellContent = cellValue != null ? cellValue : '—';
+                      }
+
+                      // Defensive guard for React 19: prevent non-React element objects (e.g. { id, name }) from crashing rendering
+                      if (cellContent !== null && typeof cellContent === 'object' && !React.isValidElement(cellContent)) {
+                        cellContent = cellContent.name || cellContent.title || cellContent.label || cellContent.id || '—';
+                      }
+
+                      return (
+                        <td
+                          key={col.key || `cell-${colIdx}`}
+                          style={{
+                            padding: '8px 12px',
+                            fontSize: '13px',
+                            color: 'var(--text-primary)',
+                            textAlign: col.align || 'left',
+                            verticalAlign: 'middle',
+                            width: col.width || 'auto'
+                          }}
+                        >
+                          {cellContent}
+                        </td>
+                      );
+                    })}
                   </tr>
                 );
               })
@@ -144,3 +176,4 @@ export const DataTable = ({
   );
 };
 
+export default DataTable;

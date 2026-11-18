@@ -69,7 +69,7 @@ export const OrderDetailsModal = ({
               </h2>
             </div>
             <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>
-              Outlet: {order.outletName} • Pickup Slot: {order.slot?.timeWindow} ({order.slot?.session})
+              Outlet: {order.outletName || 'Central Dining Hall'} • Pickup Slot: {order.slot?.timeWindow || 'Standard Pickup'} ({order.slot?.session || 'Regular Service'})
             </p>
           </div>
 
@@ -106,19 +106,21 @@ export const OrderDetailsModal = ({
           }}>
             <div>
               <span style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>Customer</span>
-              <strong style={{ color: 'var(--text-primary)' }}>{order.customer?.name}</strong>
-              <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>{order.customer?.role} ({order.customer?.rollNo})</div>
+              <strong style={{ color: 'var(--text-primary)' }}>{order.customer?.name || order.customerName || 'Walk-in Customer'}</strong>
+              <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>
+                {order.customer?.role || 'Customer'} {order.customer?.rollNo ? `(${order.customer.rollNo})` : ''}
+              </div>
             </div>
 
             <div>
               <span style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>Department</span>
-              <strong style={{ color: 'var(--text-primary)' }}>{order.customer?.department}</strong>
+              <strong style={{ color: 'var(--text-primary)' }}>{order.customer?.department || 'General Campus'}</strong>
             </div>
 
             <div>
               <span style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>Contact Details</span>
-              <div style={{ color: 'var(--text-secondary)' }}>{order.customer?.phone}</div>
-              <div style={{ color: 'var(--text-muted)', fontSize: '11px' }}>{order.customer?.email}</div>
+              <div style={{ color: 'var(--text-secondary)' }}>{order.customer?.phone || 'On File'}</div>
+              <div style={{ color: 'var(--text-muted)', fontSize: '11px' }}>{order.customer?.email || 'N/A'}</div>
             </div>
           </div>
 
@@ -142,7 +144,11 @@ export const OrderDetailsModal = ({
                     <tr key={i} style={{ borderBottom: '1px solid var(--border-color-subtle)' }}>
                       <td style={{ padding: '8px 12px' }}>
                         <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{item.name}</div>
-                        {item.variant && <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{item.variant}</div>}
+                        {item.variant && (
+                          <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                            {typeof item.variant === 'object' ? (item.variant.name || item.variant.id) : item.variant}
+                          </div>
+                        )}
                       </td>
                       <td style={{ padding: '8px 12px', textAlign: 'right' }}>{formatCurrency(item.price)}</td>
                       <td style={{ padding: '8px 12px', textAlign: 'center' }}>{item.quantity}</td>
@@ -184,9 +190,9 @@ export const OrderDetailsModal = ({
                 <span>Payment Settlement</span>
               </div>
               <div style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                <div>Method: <strong>{order.payment?.method}</strong></div>
-                <div>Transaction Ref: <code>{order.payment?.transactionId}</code></div>
-                <div>Status: <strong style={{ color: order.payment?.status === 'Paid' ? 'var(--color-success)' : '#d97706' }}>{order.payment?.status}</strong></div>
+                <div>Method: <strong>{order.payment?.method || order.paymentMethod || 'Campus Wallet'}</strong></div>
+                <div>Transaction Ref: <code>{order.payment?.transactionId || (order.payment?.status === 'Paid' || order.paymentStatus === 'Paid' ? `TXN-CMS-${order.id}` : 'Pending')}</code></div>
+                <div>Status: <strong style={{ color: (order.payment?.status || order.paymentStatus) === 'Paid' ? 'var(--color-success)' : '#d97706' }}>{order.payment?.status || order.paymentStatus || 'Pending'}</strong></div>
               </div>
             </div>
 

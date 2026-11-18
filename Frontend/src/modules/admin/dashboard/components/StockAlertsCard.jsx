@@ -72,7 +72,7 @@ export const StockAlertsCard = ({ alerts = [] }) => {
                     {alert.ingredient}
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                    {alert.outlet} • Available: <strong>{alert.available}</strong> (Reorder at: {alert.reorderLevel})
+                    {typeof alert.outlet === 'object' ? (alert.outlet?.name || alert.outlet?.id || 'Central Dining Hall') : (alert.outlet || 'Central Dining Hall')} • Available: <strong>{alert.available}</strong> (Reorder at: {alert.reorderLevel})
                   </div>
                 </div>
 

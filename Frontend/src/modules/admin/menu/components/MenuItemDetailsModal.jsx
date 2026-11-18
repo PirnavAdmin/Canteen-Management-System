@@ -60,7 +60,7 @@ export const MenuItemDetailsModal = ({ isOpen, onClose, item }) => {
                 {item.name}
               </h2>
               <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                Code: {item.code} • {item.category}
+                Code: {item.code} • {typeof item.category === 'object' ? (item.category?.name || item.category?.id || '') : item.category}
               </span>
             </div>
           </div>

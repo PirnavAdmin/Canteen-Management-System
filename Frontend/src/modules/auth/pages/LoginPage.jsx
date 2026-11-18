@@ -15,6 +15,23 @@ export const LoginPage = () => {
 
   const from = location.state?.from?.pathname || '/admin/dashboard';
 
+  const getDestination = (loggedUser) => {
+    let userRole = loggedUser?.role || loggedUser?.roleCode || loggedUser?.userType;
+    if (!userRole) {
+      try {
+        const stored = JSON.parse(localStorage.getItem('auth_user') || '{}');
+        userRole = stored.role || stored.roleCode || stored.userType;
+      } catch {
+        userRole = '';
+      }
+    }
+    const roleStr = String(userRole || '').toUpperCase();
+    if (roleStr.includes('STUDENT') || roleStr.includes('FACULTY')) {
+      return '/customer/dashboard';
+    }
+    return from && from !== '/' && !from.startsWith('/customer') ? from : '/admin/dashboard';
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!usernameOrEmail.trim() || !password) {
@@ -25,8 +42,8 @@ export const LoginPage = () => {
     try {
       setLoading(true);
       setError('');
-      await login(usernameOrEmail.trim(), password);
-      navigate(from, { replace: true });
+      const authData = await login(usernameOrEmail.trim(), password);
+      navigate(getDestination(authData?.user), { replace: true });
     } catch (err) {
       setError(err.message || 'Invalid username or password. Please try again.');
     } finally {
@@ -40,8 +57,8 @@ export const LoginPage = () => {
     try {
       setLoading(true);
       setError('');
-      await login(roleUser, rolePass);
-      navigate(from, { replace: true });
+      const authData = await login(roleUser, rolePass);
+      navigate(getDestination(authData?.user), { replace: true });
     } catch (err) {
       setError(err.message || 'Invalid username or password. Please try again.');
     } finally {
@@ -256,11 +273,28 @@ export const LoginPage = () => {
               >
                 Student (Aarav)
               </button>
+              <button
+                type="button"
+                onClick={() => handleQuickLogin('sunita.rao', 'Faculty@123')}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  border: '1px solid #cbd5e1',
+                  backgroundColor: '#ffffff',
+                  color: '#334155',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontWeight: '500'
+                }}
+              >
+                Faculty (Dr. Sunita)
+              </button>
             </div>
             <div style={{ fontSize: '11px', color: '#64748b', lineHeight: '1.6', background: '#ffffff', padding: '8px 10px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
               <div>🔑 <strong>Admin:</strong> <code>admin</code> / <code>Admin@123</code> (Full Portal Access)</div>
               <div>🔑 <strong>Staff:</strong> <code>staff</code> / <code>Staff@123</code> (Orders, Kitchen & Menu)</div>
               <div>🔑 <strong>Student:</strong> <code>aarav</code> / <code>Student@123</code></div>
+              <div>🔑 <strong>Faculty:</strong> <code>sunita.rao</code> / <code>Faculty@123</code></div>
             </div>
           </div>
         </div>

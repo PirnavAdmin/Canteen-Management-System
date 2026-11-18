@@ -68,7 +68,7 @@ export const TopSellingItems = ({ items = [] }) => {
                     {item.name}
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                    {item.category}
+                    {typeof item.category === 'object' ? (item.category?.name || item.category?.id || '') : item.category}
                   </div>
                 </div>
               </div>

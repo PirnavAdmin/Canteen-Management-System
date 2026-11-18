@@ -1,0 +1,420 @@
+.dashboardContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+}
+
+/* Welcome Hero Banner */
+.welcomeHero {
+  background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 60%, #2563eb 100%);
+  border-radius: 20px;
+  color: #ffffff;
+  padding: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+  box-shadow: 0 10px 25px -5px rgba(30, 58, 138, 0.25);
+  flex-wrap: wrap;
+}
+
+.heroContent {
+  flex: 1;
+  min-width: 300px;
+}
+
+.roleBadgeHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.studentTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: rgba(59, 130, 246, 0.25);
+  border: 1px solid rgba(147, 197, 253, 0.4);
+  color: #93c5fd;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.facultyTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: rgba(245, 158, 11, 0.25);
+  border: 1px solid rgba(253, 230, 138, 0.4);
+  color: #fde68a;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.deptBadge {
+  font-size: 12px;
+  color: #cbd5e1;
+  background-color: rgba(255, 255, 255, 0.1);
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+.heroTitle {
+  font-size: 28px;
+  font-weight: 800;
+  margin: 0 0 10px 0;
+  letter-spacing: -0.02em;
+}
+
+.heroSubtitle {
+  font-size: 14px;
+  color: #bfdbfe;
+  line-height: 1.6;
+  margin: 0 0 24px 0;
+  max-width: 640px;
+}
+
+.heroStatsRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.statPill {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background-color: rgba(15, 23, 42, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 10px 16px;
+  border-radius: 12px;
+  backdrop-filter: blur(4px);
+}
+
+.statIcon {
+  color: #60a5fa;
+}
+
+.statLabel {
+  display: block;
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.statValue {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.heroActionArea {
+  display: flex;
+  align-items: center;
+}
+
+.primaryOrderBtn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background-color: #ffffff;
+  color: #1e3a8a;
+  text-decoration: none;
+  padding: 14px 24px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.primaryOrderBtn:hover {
+  transform: translateY(-2px);
+  background-color: #f8fafc;
+}
+
+/* Active Order Banner */
+.activeOrderBanner {
+  background: linear-gradient(135deg, #064e3b 0%, #047857 100%);
+  border-radius: 16px;
+  color: #ffffff;
+  padding: 18px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  box-shadow: 0 4px 15px rgba(6, 78, 59, 0.2);
+  flex-wrap: wrap;
+}
+
+.activeOrderLeft {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.pulseDot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: #34d399;
+  box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.35);
+  animation: pulse 1.5s infinite;
+  flex-shrink: 0;
+}
+
+@keyframes pulse {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(52, 211, 153, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
+}
+
+.activeOrderInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.activeOrderHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.activeOrderPill {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  background-color: rgba(255, 255, 255, 0.2);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.activeOrderId {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.tokenHighlight {
+  font-size: 12px;
+  font-weight: 800;
+  background-color: #fef08a;
+  color: #854d0e;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.activeOrderDetails {
+  margin: 0;
+  font-size: 13px;
+  color: #a7f3d0;
+}
+
+.statusLiveText {
+  color: #ffffff;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.trackOrderBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: #ffffff;
+  color: #065f46;
+  text-decoration: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  transition: background-color 0.15s ease;
+}
+
+.trackOrderBtn:hover {
+  background-color: #ecfdf5;
+}
+
+/* Sections */
+.sectionBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.sectionBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #2563eb;
+  background-color: #eff6ff;
+  padding: 3px 10px;
+  border-radius: 6px;
+  margin-bottom: 4px;
+}
+
+.popularBadge {
+  color: #ea580c;
+  background-color: #fff7ed;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.sectionDesc {
+  margin: 4px 0 0 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.viewAllLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #2563eb;
+  text-decoration: none;
+  padding: 6px 10px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.viewAllLink:hover {
+  background-color: #eff6ff;
+  color: #1d4ed8;
+}
+
+/* Canteen Grid */
+.canteenGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+.canteenCard {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.canteenCard:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.08);
+}
+
+.canteenCardHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.canteenAvatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background-color: #eff6ff;
+  color: #2563eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.canteenStatusTag {
+  font-size: 11px;
+  font-weight: 700;
+  color: #059669;
+}
+
+.canteenCardTitle {
+  margin: 2px 0 0 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.canteenCardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.canteenInfoRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.infoIcon {
+  color: #94a3b8;
+  flex-shrink: 0;
+}
+
+.canteenCardFooter {
+  padding-top: 16px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.viewMenuBtn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background-color: #f8fafc;
+  border: 1px solid #cbd5e1;
+  color: #1e293b;
+  padding: 10px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.viewMenuBtn:hover {
+  background-color: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+}
+
+/* Food Cards Grid in Dashboard */
+.foodCardsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 22px;
+}

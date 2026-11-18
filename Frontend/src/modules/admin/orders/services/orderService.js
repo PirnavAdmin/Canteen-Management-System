@@ -19,7 +19,14 @@ export const orderService = {
         storageService.setItem(STORAGE_KEY, INITIAL_ORDERS);
         return [...INITIAL_ORDERS];
       }
-      return saved;
+      // Normalize optional configuration objects to guarantee safe rendering across all modules
+      return saved.map(o => ({
+        ...o,
+        slot: o.slot || {
+          timeWindow: typeof o.pickupSlot === 'string' ? o.pickupSlot : '12:30 PM - 01:00 PM',
+          session: 'Lunch'
+        }
+      }));
     }
   },
 

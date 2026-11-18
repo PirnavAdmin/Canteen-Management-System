@@ -91,10 +91,10 @@ export const LiveOrderQueue = ({ orders = [] }) => {
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {ord.customer}
+                      {typeof ord.customer === 'object' ? (ord.customer?.name || ord.customer?.fullName || ord.customer?.id || 'Campus Diner') : (ord.customer || 'Campus Diner')}
                     </span>
                     <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                      • {ord.customerRole}
+                      • {typeof ord.customerRole === 'object' ? (ord.customerRole?.name || ord.customerRole?.id || 'Customer') : (ord.customerRole || ord.customer?.role || 'Customer')}
                     </span>
                   </div>
                   <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>

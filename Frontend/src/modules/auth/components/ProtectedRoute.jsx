@@ -1,11 +1,12 @@
 import React from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../../app/providers/AuthProvider';
 import { ShieldAlert } from 'lucide-react';
 
 export const ProtectedRoute = ({ allowedRoles = null, children }) => {
-  const { isAuthenticated, user, role, loading } = useAuth();
+  const { isAuthenticated, user, role, loading, logout } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
 
   if (loading) {
     return (
@@ -45,9 +46,19 @@ export const ProtectedRoute = ({ allowedRoles = null, children }) => {
   // Role Guard Check
   if (allowedRoles && allowedRoles.length > 0) {
     const userRole = role || user?.role || 'Student';
+    const isCustomer = userRole.toLowerCase() === 'student' || userRole.toLowerCase() === 'faculty';
+
+    // If a Customer (Student or Faculty) arrives at any administrative route,
+    // seamlessly and immediately route them to their dedicated Customer Dashboard.
+    if (isCustomer) {
+      return <Navigate to="/customer/dashboard" replace />;
+    }
+
     const hasRole = allowedRoles.some(r => r.toLowerCase() === userRole.toLowerCase());
 
     if (!hasRole) {
+      const dashboardTarget = isCustomer ? '/customer/dashboard' : '/admin/dashboard';
+
       return (
         <div style={{
           minHeight: '80vh',
@@ -82,21 +93,43 @@ export const ProtectedRoute = ({ allowedRoles = null, children }) => {
             <p style={{ fontSize: '14px', color: '#64748b', lineHeight: '1.5', margin: '0 0 24px 0' }}>
               Your current account role (<strong>{userRole}</strong>) does not have sufficient permissions to access this administrative module.
             </p>
-            <a
-              href="/admin/dashboard"
-              style={{
-                display: 'inline-block',
-                padding: '10px 20px',
-                borderRadius: '8px',
-                backgroundColor: '#2563eb',
-                color: '#ffffff',
-                textDecoration: 'none',
-                fontWeight: '600',
-                fontSize: '14px'
-              }}
-            >
-              Return to Dashboard
-            </a>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <Link
+                to={dashboardTarget}
+                style={{
+                  display: 'inline-block',
+                  padding: '10px 20px',
+                  borderRadius: '8px',
+                  backgroundColor: '#2563eb',
+                  color: '#ffffff',
+                  textDecoration: 'none',
+                  fontWeight: '600',
+                  fontSize: '14px'
+                }}
+              >
+                Return to Dashboard
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  logout();
+                  navigate('/login');
+                }}
+                style={{
+                  display: 'inline-block',
+                  padding: '10px 18px',
+                  borderRadius: '8px',
+                  backgroundColor: '#f1f5f9',
+                  color: '#334155',
+                  border: '1px solid #cbd5e1',
+                  fontWeight: '600',
+                  fontSize: '14px',
+                  cursor: 'pointer'
+                }}
+              >
+                Sign In as Admin
+              </button>
+            </div>
           </div>
         </div>
       );
