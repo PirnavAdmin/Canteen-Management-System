@@ -14,7 +14,7 @@ BEGIN
     SELECT CONCAT('T-', 100 + COUNT(1) + 1) AS NextToken
     FROM Orders 
     WHERE OutletId = p_OutletId 
-      AND DATE(OrderDate) = p_OrderDate;
+      AND DATE(CONVERT_TZ(OrderDate, '+00:00', '+05:30')) = p_OrderDate;
 END $$
 DELIMITER ;
 

@@ -158,8 +158,9 @@ namespace CanteenManagement.API.Controllers.V1
         }
 
         [HttpPost("upload-image")]
+        [Consumes("multipart/form-data")]
         [RequestSizeLimit(10 * 1024 * 1024)]
-        public async Task<IActionResult> UploadImage([FromForm] IFormFile? file)
+        public async Task<IActionResult> UploadImage(IFormFile? file)
         {
             var uploadedFile = file;
             if (uploadedFile == null && Request.HasFormContentType && Request.Form.Files.Count > 0)

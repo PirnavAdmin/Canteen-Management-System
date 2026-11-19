@@ -4,6 +4,7 @@ import { useAuth } from '../../../../app/providers/AuthProvider';
 import { useCart } from '../../cart/hooks/useCart';
 import { customerOrderService } from '../../orders/services/customerOrderService';
 import { ORDER_STATUS } from '../../../../constants/appConstants';
+import { formatDate, formatDateTime, formatTimeIST } from '../../../../utils/formatters';
 import { PageHeader } from '../../../../components/common/PageHeader';
 import { Card } from '../../../../components/common/Card';
 import { Button } from '../../../../components/common/Button';
@@ -381,9 +382,9 @@ export const OrderHistoryPage = () => {
 
                       {/* Date */}
                       <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>
-                        {new Date(order.createdAt || order.orderDate).toLocaleDateString()}
+                        {formatDate(order.createdAt || order.orderDate)}
                         <span style={{ fontSize: '11.5px', color: 'var(--text-muted)', display: 'block' }}>
-                          {new Date(order.createdAt || order.orderDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {formatTimeIST(order.createdAt || order.orderDate)}
                         </span>
                       </td>
 
@@ -733,7 +734,7 @@ export const OrderHistoryPage = () => {
               <div>
                 <span style={{ color: 'var(--text-muted)' }}>Order Date: </span>
                 <span style={{ color: 'var(--text-primary)', display: 'block' }}>
-                  {new Date(receiptModalOrder.createdAt || receiptModalOrder.orderDate).toLocaleString()}
+                  {formatDateTime(receiptModalOrder.createdAt || receiptModalOrder.orderDate)}
                 </span>
               </div>
             </div>
@@ -880,7 +881,7 @@ export const OrderHistoryPage = () => {
               <div>
                 <span style={{ color: 'var(--text-muted)', display: 'block' }}>Processed Timestamp:</span>
                 <span style={{ color: 'var(--text-primary)' }}>
-                  {new Date(refundAdviceOrder.refundDetails.processedAt).toLocaleString()}
+                  {formatDateTime(refundAdviceOrder.refundDetails.processedAt)}
                 </span>
               </div>
               <div style={{ gridColumn: 'span 2' }}>

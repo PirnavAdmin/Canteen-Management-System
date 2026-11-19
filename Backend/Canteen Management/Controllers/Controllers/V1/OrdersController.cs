@@ -20,10 +20,14 @@ namespace CanteenManagement.API.Controllers.V1
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAll([FromQuery] int? outletId, [FromQuery] string? status, [FromQuery] string? searchTerm)
+        public async Task<IActionResult> GetAll(
+            [FromQuery] int? outletId,
+            [FromQuery] string? status,
+            [FromQuery] string? searchTerm,
+            [FromQuery] string? dateFilter)
         {
             var campusId = User.ResolveCampusId();
-            var orders = await _orderService.GetAllAsync(campusId, outletId, status, searchTerm);
+            var orders = await _orderService.GetAllAsync(campusId, outletId, status, searchTerm, dateFilter);
             return Ok(ApiResponse<IEnumerable<OrderDto>>.SuccessResponse(orders));
         }
 

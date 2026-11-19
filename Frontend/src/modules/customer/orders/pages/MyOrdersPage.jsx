@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../../../app/providers/AuthProvider';
 import { customerOrderService } from '../services/customerOrderService';
 import { ORDER_STATUS } from '../../../../constants/appConstants';
+import { formatDateTime } from '../../../../utils/formatters';
 import { PageHeader } from '../../../../components/common/PageHeader';
 import { Card } from '../../../../components/common/Card';
 import { Button } from '../../../../components/common/Button';
@@ -311,7 +312,7 @@ export const MyOrdersPage = () => {
               <Card
                 key={order.id}
                 title={`Order #${order.id}`}
-                subtitle={`Placed: ${new Date(order.createdAt || order.orderDate).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })} • ${order.outletName || 'Central Dining Hall'}`}
+                subtitle={`Placed: ${formatDateTime(order.createdAt || order.orderDate)} • ${order.outletName || 'Central Dining Hall'}`}
                 actions={
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                     <StatusBadge status={order.status} />
@@ -955,7 +956,7 @@ export const MyOrdersPage = () => {
 
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: 'var(--text-muted)' }}>Settlement Timestamp:</span>
-                <span>{new Date(refundModalOrder.refundDetails.processedAt).toLocaleString()}</span>
+                <span>{formatDateTime(refundModalOrder.refundDetails.processedAt)}</span>
               </div>
             </div>
 

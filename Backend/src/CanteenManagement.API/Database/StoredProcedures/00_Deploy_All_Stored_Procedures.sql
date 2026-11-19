@@ -17,7 +17,7 @@ CREATE PROCEDURE sp_GetDashboardSummary(
 BEGIN
     SELECT 
         COUNT(1) AS TotalOrders,
-        COALESCE(SUM(CASE WHEN DATE(OrderDate) = CURRENT_DATE AND Status != 'Cancelled' THEN TotalAmount ELSE 0 END), 0) AS TodayRevenue,
+        COALESCE(SUM(CASE WHEN DATE(CONVERT_TZ(OrderDate, '+00:00', '+05:30')) = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '+05:30')) AND Status != 'Cancelled' THEN TotalAmount ELSE 0 END), 0) AS TodayRevenue,
         COALESCE(SUM(CASE WHEN Status != 'Cancelled' THEN TotalAmount ELSE 0 END), 0) AS TotalSales,
         COALESCE(SUM(CASE WHEN Status IN ('Placed', 'Accepted', 'Preparing', 'Ready for Pickup') THEN 1 ELSE 0 END), 0) AS ActiveOrders,
         COALESCE(SUM(CASE WHEN Status = 'Placed' THEN 1 ELSE 0 END), 0) AS PendingOrders,
@@ -41,15 +41,15 @@ CREATE PROCEDURE sp_GetHourlySales(
 )
 BEGIN
     SELECT 
-        DATE_FORMAT(OrderDate, '%H:00') AS Hour,
+        DATE_FORMAT(CONVERT_TZ(OrderDate, '+00:00', '+05:30'), '%H:00') AS Hour,
         COALESCE(SUM(TotalAmount), 0) AS Sales,
         COUNT(1) AS Orders
     FROM Orders
     WHERE CampusId = p_CampusId 
-      AND DATE(OrderDate) = CURRENT_DATE 
+      AND DATE(CONVERT_TZ(OrderDate, '+00:00', '+05:30')) = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '+05:30')) 
       AND Status != 'Cancelled'
       AND (p_OutletId IS NULL OR p_OutletId <= 0 OR OutletId = p_OutletId)
-    GROUP BY DATE_FORMAT(OrderDate, '%H:00')
+    GROUP BY DATE_FORMAT(CONVERT_TZ(OrderDate, '+00:00', '+05:30'), '%H:00')
     ORDER BY Hour ASC;
 END $$
 DELIMITER ;
@@ -74,9 +74,9 @@ BEGIN
         o.TotalAmount,
         o.TotalAmount AS Total,
         o.Status,
-        CONCAT(TIMESTAMPDIFF(MINUTE, o.OrderDate, NOW()), 'm') AS ElapsedTime,
-        CONCAT(TIMESTAMPDIFF(MINUTE, o.OrderDate, NOW()), 'm') AS Slot,
-        DATE_FORMAT(o.OrderDate, '%h:%i %p') AS OrderTime
+        CONCAT(TIMESTAMPDIFF(MINUTE, o.OrderDate, UTC_TIMESTAMP()), 'm') AS ElapsedTime,
+        CONCAT(TIMESTAMPDIFF(MINUTE, o.OrderDate, UTC_TIMESTAMP()), 'm') AS Slot,
+        DATE_FORMAT(CONVERT_TZ(o.OrderDate, '+00:00', '+05:30'), '%h:%i %p') AS OrderTime
     FROM Orders o
     INNER JOIN CanteenOutlets co ON o.OutletId = co.OutletId
     WHERE o.CampusId = p_CampusId 
@@ -174,7 +174,7 @@ BEGIN
         100 AS Percentage
     FROM CanteenOutlets co
     LEFT JOIN Orders o ON co.OutletId = o.OutletId 
-                       AND DATE(o.OrderDate) = CURRENT_DATE 
+                       AND DATE(CONVERT_TZ(o.OrderDate, '+00:00', '+05:30')) = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '+05:30')) 
                        AND o.Status != 'Cancelled'
     WHERE co.CampusId = p_CampusId
     GROUP BY co.OutletId, co.Name
@@ -233,7 +233,7 @@ CREATE PROCEDURE sp_GetReportSalesSummary(
 )
 BEGIN
     SELECT 
-        DATE_FORMAT(o.OrderDate, '%Y-%m-%d') AS date,
+        DATE_FORMAT(CONVERT_TZ(o.OrderDate, '+00:00', '+05:30'), '%Y-%m-%d') AS date,
         co.Name AS outlet,
         COUNT(o.OrderId) AS orders,
         COALESCE(SUM(o.Subtotal), 0) AS grossSales,
@@ -251,7 +251,7 @@ BEGIN
                SELECT 1 FROM PaymentTransactions pt 
                WHERE pt.OrderId = o.OrderId AND pt.Method = p_PaymentMethod
            ))
-    GROUP BY DATE_FORMAT(o.OrderDate, '%Y-%m-%d'), co.Name
+    GROUP BY DATE_FORMAT(CONVERT_TZ(o.OrderDate, '+00:00', '+05:30'), '%Y-%m-%d'), co.Name
     ORDER BY date DESC, grossSales DESC;
 END $$
 DELIMITER ;
@@ -322,7 +322,7 @@ BEGIN
     SELECT CONCAT('T-', 100 + COUNT(1) + 1) AS NextToken
     FROM Orders 
     WHERE OutletId = p_OutletId 
-      AND DATE(OrderDate) = p_OrderDate;
+      AND DATE(CONVERT_TZ(OrderDate, '+00:00', '+05:30')) = p_OrderDate;
 END $$
 DELIMITER ;
 

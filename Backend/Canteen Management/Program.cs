@@ -162,6 +162,8 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString;
         options.JsonSerializerOptions.Converters.Add(new FlexibleIntConverter());
         options.JsonSerializerOptions.Converters.Add(new FlexibleNullableIntConverter());
+        options.JsonSerializerOptions.Converters.Add(new UtcDateTimeJsonConverter());
+        options.JsonSerializerOptions.Converters.Add(new NullableUtcDateTimeJsonConverter());
     });
 
 // 6. Configure API Versioning

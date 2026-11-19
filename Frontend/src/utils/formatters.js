@@ -85,36 +85,107 @@ export const formatWorkingDays = (days = []) => {
   return days.map(d => shortMap[d] || d).join(', ');
 };
 
+export const parseUtcDate = (dateVal) => {
+  if (!dateVal) return null;
+  if (dateVal instanceof Date) return isNaN(dateVal.getTime()) ? null : dateVal;
+  let str = String(dateVal).trim();
+  if (!str) return null;
+
+  // Date-only string (e.g. "2026-11-19") -> construct safe midday date to avoid boundary shifts
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+    const [y, m, d] = str.split('-').map(Number);
+    return new Date(y, m - 1, d, 12, 0, 0);
+  }
+
+  // ISO timestamp missing timezone suffix (e.g. "2026-11-19T04:51:42") -> append 'Z' (UTC)
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?$/.test(str)) {
+    str += 'Z';
+  }
+
+  const d = new Date(str);
+  return isNaN(d.getTime()) ? null : d;
+};
+
 export const formatDate = (dateString) => {
   if (!dateString) return '--';
   try {
-    const d = new Date(dateString);
-    if (isNaN(d.getTime())) return dateString;
-    return d.toLocaleDateString('en-US', {
+    const d = parseUtcDate(dateString);
+    if (!d) return String(dateString);
+    return d.toLocaleDateString('en-IN', {
+      timeZone: 'Asia/Kolkata',
       year: 'numeric',
       month: 'short',
       day: 'numeric'
     });
   } catch {
-    return dateString;
+    return String(dateString);
   }
 };
 
 export const formatDateTime = (dateString) => {
   if (!dateString) return '--';
   try {
-    const d = new Date(dateString);
-    if (isNaN(d.getTime())) return dateString;
-    return d.toLocaleDateString('en-US', {
+    const d = parseUtcDate(dateString);
+    if (!d) return String(dateString);
+    return d.toLocaleDateString('en-IN', {
+      timeZone: 'Asia/Kolkata',
       year: 'numeric',
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
+      hour12: true
     });
   } catch {
-    return dateString;
+    return String(dateString);
   }
+};
+
+export const formatTimeIST = (dateString) => {
+  if (!dateString) return '--:--';
+  try {
+    const d = parseUtcDate(dateString);
+    if (!d) return String(dateString);
+    return d.toLocaleTimeString('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+  } catch {
+    return String(dateString);
+  }
+};
+
+export const getIstDateString = (dateVal = new Date()) => {
+  const d = parseUtcDate(dateVal) || new Date();
+  return d.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+};
+
+export const isSameIstDate = (dateVal1, dateVal2 = new Date()) => {
+  const d1 = getIstDateString(dateVal1);
+  const d2 = getIstDateString(dateVal2);
+  return Boolean(d1 && d2 && d1 === d2);
+};
+
+export const isYesterdayIST = (dateVal) => {
+  const dateStr = getIstDateString(dateVal);
+  if (!dateStr) return false;
+  const orderTime = new Date(dateStr + 'T00:00:00+05:30').getTime();
+  const todayStr = getIstDateString(new Date());
+  const todayTime = new Date(todayStr + 'T00:00:00+05:30').getTime();
+  const diffDays = Math.round((todayTime - orderTime) / (1000 * 60 * 60 * 24));
+  return diffDays === 1;
+};
+
+export const isWithinDaysIST = (dateVal, days = 7) => {
+  const dateStr = getIstDateString(dateVal);
+  if (!dateStr) return false;
+  const orderTime = new Date(dateStr + 'T00:00:00+05:30').getTime();
+  const todayStr = getIstDateString(new Date());
+  const todayTime = new Date(todayStr + 'T00:00:00+05:30').getTime();
+  const diffDays = (todayTime - orderTime) / (1000 * 60 * 60 * 24);
+  return diffDays >= 0 && diffDays <= days;
 };
 
 export const appendNgrokBypass = (url) => {

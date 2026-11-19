@@ -760,7 +760,7 @@ export const MenuModal = ({
                     fontWeight: 600,
                     gap: '6px'
                   }}>
-                    <Loader2 size={18} className="animate-spin" />
+                    <Loader2 size={18} className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} />
                     <span>Uploading...</span>
                   </div>
                 )}

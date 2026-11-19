@@ -1,3 +1,4 @@
+using CanteenManagement.API.Helpers;
 using CanteenManagement.API.Services.Interfaces.Menu;
 
 namespace CanteenManagement.API.Services.Background
@@ -37,8 +38,8 @@ namespace CanteenManagement.API.Services.Background
             {
                 try
                 {
-                    var now = DateTime.Now; // local time (IST)
-                    var nextMidnight = now.Date.AddDays(1); // exactly 00:00:00 tomorrow
+                    var now = IndianTime.Now; // Indian Standard Time (IST)
+                    var nextMidnight = now.Date.AddDays(1); // exactly 00:00:00 tomorrow IST
                     var delay = nextMidnight - now;
 
                     // Add a tiny buffer (e.g. 2 seconds) so we are securely past midnight

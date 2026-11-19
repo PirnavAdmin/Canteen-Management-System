@@ -53,7 +53,7 @@ CREATE PROCEDURE sp_GetReportSalesSummary(
 )
 BEGIN
     SELECT 
-        DATE_FORMAT(o.OrderDate, '%Y-%m-%d') AS date,
+        DATE_FORMAT(CONVERT_TZ(o.OrderDate, '+00:00', '+05:30'), '%Y-%m-%d') AS date,
         co.Name AS outlet,
         COUNT(o.OrderId) AS orders,
         COALESCE(SUM(o.Subtotal), 0) AS grossSales,
@@ -71,7 +71,7 @@ BEGIN
                SELECT 1 FROM PaymentTransactions pt 
                WHERE pt.OrderId = o.OrderId AND pt.Method = p_PaymentMethod
            ))
-    GROUP BY DATE_FORMAT(o.OrderDate, '%Y-%m-%d'), co.Name
+    GROUP BY DATE_FORMAT(CONVERT_TZ(o.OrderDate, '+00:00', '+05:30'), '%Y-%m-%d'), co.Name
     ORDER BY date DESC, grossSales DESC;
 END $$
 DELIMITER ;

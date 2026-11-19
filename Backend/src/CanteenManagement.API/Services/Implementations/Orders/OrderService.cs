@@ -1,4 +1,5 @@
 using CanteenManagement.API.DTOs.Orders;
+using CanteenManagement.API.Helpers;
 using CanteenManagement.API.Models.Orders;
 using CanteenManagement.API.Repositories.Interfaces.Menu;
 using CanteenManagement.API.Repositories.Interfaces.Orders;
@@ -34,9 +35,25 @@ namespace CanteenManagement.API.Services.Implementations.Orders
             _auditService = auditService;
         }
 
-        public async Task<IEnumerable<OrderDto>> GetAllAsync(int campusId, int? outletId = null, string? status = null, string? searchTerm = null)
+        public async Task<IEnumerable<OrderDto>> GetAllAsync(int campusId, int? outletId = null, string? status = null, string? searchTerm = null, string? dateFilter = null)
         {
             var orders = await _repository.GetAllAsync(campusId, outletId, status, searchTerm);
+            if (!string.IsNullOrWhiteSpace(dateFilter))
+            {
+                var todayIst = IndianTime.Today;
+                if (dateFilter.Equals("today", StringComparison.OrdinalIgnoreCase))
+                {
+                    orders = orders.Where(o => IndianTime.ToIst(o.OrderDate).Date == todayIst);
+                }
+                else if (dateFilter.Equals("yesterday", StringComparison.OrdinalIgnoreCase))
+                {
+                    orders = orders.Where(o => IndianTime.ToIst(o.OrderDate).Date == todayIst.AddDays(-1));
+                }
+                else if (dateFilter.Equals("last7days", StringComparison.OrdinalIgnoreCase))
+                {
+                    orders = orders.Where(o => IndianTime.ToIst(o.OrderDate).Date >= todayIst.AddDays(-7));
+                }
+            }
             return orders.Select(MapToDto).ToList();
         }
 
@@ -50,7 +67,7 @@ namespace CanteenManagement.API.Services.Implementations.Orders
         {
             var now = DateTime.UtcNow;
             var orderId = $"ORD-{now:yyyy}-{Random.Shared.Next(1000, 9999)}";
-            var token = await _repository.GenerateNextDailyTokenAsync(dto.OutletId, now);
+            var token = await _repository.GenerateNextDailyTokenAsync(dto.OutletId, IndianTime.Today);
 
             decimal subtotal = 0;
             var orderItems = new List<OrderItem>();
@@ -349,7 +366,7 @@ namespace CanteenManagement.API.Services.Implementations.Orders
                 Timeline = o.Timeline.Select(t => new TimelineEntryDto
                 {
                     Status = t.Status,
-                    Timestamp = t.Timestamp.ToString("hh:mm tt"),
+                    Timestamp = IndianTime.ToIst(t.Timestamp).ToString("hh:mm tt"),
                     Note = t.Note
                 }).ToList()
             };
