@@ -17,7 +17,7 @@ import { canteenService } from '../../outlets/services/canteenService';
 import { useCanteens } from '../../outlets/hooks/useCanteens';
 
 export const InventoryPage = () => {
-  const { selectedOutlet } = useCanteens();
+  const { canteens: outlets = [], selectedOutlet = 'ALL', setSelectedOutlet } = useCanteens();
 
   const {
     items,

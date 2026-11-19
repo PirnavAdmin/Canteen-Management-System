@@ -129,9 +129,9 @@ namespace CanteenManagement.API.Controllers.V1
         /// </summary>
         [HttpPatch("{id:int}/status")]
         [Authorize(Roles = "Admin")]
-        [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ApiResponse<CanteenOutletDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<CanteenOutletDto>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse<CanteenOutletDto>), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> ToggleStatus([FromRoute] int id, [FromBody] ToggleOutletStatusDto dto)
         {
             var campusId = User.ResolveCampusId();

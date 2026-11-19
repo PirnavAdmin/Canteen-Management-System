@@ -1,34 +1,29 @@
 import React, { useState } from 'react';
-import { Store, CreditCard, Clock, ShieldCheck } from 'lucide-react';
+import { CreditCard, Clock } from 'lucide-react';
 import { PageHeader } from '../../../../components/common/PageHeader';
 import { useSettings } from '../hooks/useSettings';
-import { OutletSettingsTab } from '../components/OutletSettingsTab';
 import { PaymentSettingsTab } from '../components/PaymentSettingsTab';
 import { OrderRulesTab } from '../components/OrderRulesTab';
-import { PrivacyDsarTab } from '../components/PrivacyDsarTab';
 
 export const SettingsPage = () => {
   const {
     settings,
     loading,
-    updateOutlet,
     updatePayments,
-    updateRules,
-    updatePrivacy,
-    updateDsar
+    updateRules
   } = useSettings();
 
-  const [activeTab, setActiveTab] = useState('outlet');
+  const [activeTab, setActiveTab] = useState('payments');
 
   if (loading || !settings) {
     return (
       <div>
         <PageHeader
-          title="Settings & Privacy Governance"
+          title="Settings & System Governance"
           description="Loading system configuration..."
           breadcrumbItems={[
             { label: 'Admin' },
-            { label: 'Settings & Privacy' }
+            { label: 'Settings' }
           ]}
         />
         <div style={{ textAlign: 'center', padding: '48px', color: 'var(--text-secondary)' }}>
@@ -41,11 +36,11 @@ export const SettingsPage = () => {
   return (
     <div>
       <PageHeader
-        title="Settings & Privacy Governance"
-        description="Configure institutional dining hall operating rules, UPI and payment gateways, automated cancellation thresholds, and DPDP Act compliance."
+        title="Settings & System Governance"
+        description="Configure institutional dining hall operating rules, UPI and payment gateways, and automated cancellation thresholds."
         breadcrumbItems={[
           { label: 'Admin' },
-          { label: 'Settings & Privacy' }
+          { label: 'Settings' }
         ]}
       />
 
@@ -57,30 +52,6 @@ export const SettingsPage = () => {
         gap: '6px',
         overflowX: 'auto'
       }}>
-        <button
-          type="button"
-          onClick={() => setActiveTab('outlet')}
-          style={{
-            padding: '10px 16px',
-            fontSize: '13px',
-            fontWeight: activeTab === 'outlet' ? 600 : 500,
-            color: activeTab === 'outlet' ? 'var(--color-primary)' : 'var(--text-secondary)',
-            borderBottom: activeTab === 'outlet' ? '2.5px solid var(--color-primary)' : '2.5px solid transparent',
-            background: 'none',
-            borderTop: 'none',
-            borderLeft: 'none',
-            borderRight: 'none',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            whiteSpace: 'nowrap'
-          }}
-        >
-          <Store size={15} />
-          <span>Outlet Profile & FSSAI</span>
-        </button>
-
         <button
           type="button"
           onClick={() => setActiveTab('payments')}
@@ -128,40 +99,9 @@ export const SettingsPage = () => {
           <Clock size={15} />
           <span>Order Rules & Holding</span>
         </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('privacy')}
-          style={{
-            padding: '10px 16px',
-            fontSize: '13px',
-            fontWeight: activeTab === 'privacy' ? 600 : 500,
-            color: activeTab === 'privacy' ? 'var(--color-primary)' : 'var(--text-secondary)',
-            borderBottom: activeTab === 'privacy' ? '2.5px solid var(--color-primary)' : '2.5px solid transparent',
-            background: 'none',
-            borderTop: 'none',
-            borderLeft: 'none',
-            borderRight: 'none',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            whiteSpace: 'nowrap'
-          }}
-        >
-          <ShieldCheck size={15} />
-          <span>Privacy & Data Protection (DSAR)</span>
-        </button>
       </div>
 
       {/* Tab Panels */}
-      {activeTab === 'outlet' && (
-        <OutletSettingsTab
-          initialData={settings.outlet}
-          onSave={updateOutlet}
-        />
-      )}
-
       {activeTab === 'payments' && (
         <PaymentSettingsTab
           initialData={settings.payments}
@@ -173,14 +113,6 @@ export const SettingsPage = () => {
         <OrderRulesTab
           initialData={settings.orderRules}
           onSave={updateRules}
-        />
-      )}
-
-      {activeTab === 'privacy' && (
-        <PrivacyDsarTab
-          initialData={settings.privacy}
-          onSavePrivacy={updatePrivacy}
-          onUpdateDsar={updateDsar}
         />
       )}
     </div>

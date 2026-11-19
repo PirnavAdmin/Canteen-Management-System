@@ -32,6 +32,7 @@ export const CanteenListPage = () => {
 
   // Status toggle confirmation modal
   const [canteenToToggle, setCanteenToToggle] = useState(null);
+  const [isToggling, setIsToggling] = useState(false);
 
   // Filter canteens
   const filteredCanteens = useMemo(() => {
@@ -86,9 +87,15 @@ export const CanteenListPage = () => {
   };
 
   const handleConfirmToggle = async () => {
-    if (canteenToToggle) {
+    if (!canteenToToggle || isToggling) return;
+    try {
+      setIsToggling(true);
       await toggleCanteenStatus(canteenToToggle.id);
       setCanteenToToggle(null);
+    } catch (err) {
+      console.error('Failed to toggle canteen status:', err);
+    } finally {
+      setIsToggling(false);
     }
   };
 
@@ -147,8 +154,9 @@ export const CanteenListPage = () => {
       {canteenToToggle && (
         <ConfirmationModal
           isOpen={Boolean(canteenToToggle)}
-          onClose={() => setCanteenToToggle(null)}
+          onClose={() => !isToggling && setCanteenToToggle(null)}
           onConfirm={handleConfirmToggle}
+          loading={isToggling}
           title={canteenToToggle.status === 'Active' ? 'Deactivate Canteen Outlet' : 'Activate Canteen Outlet'}
           variant={canteenToToggle.status === 'Active' ? 'warning' : 'primary'}
           message={

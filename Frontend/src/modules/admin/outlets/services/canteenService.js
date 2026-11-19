@@ -42,6 +42,7 @@ const normalizeCanteen = (dto) => {
     contactPhone: dto.contactNumber || dto.contactPhone || '',
     contactEmail: dto.contactEmail || admin?.email || '',
     fssaiLicenseNumber: dto.fssaiLicenseNo || dto.fssaiLicenseNumber || '',
+    fssaiValidTill: dto.fssaiValidTill ? String(dto.fssaiValidTill).split('T')[0] : '',
     status: dto.status || 'Active',
     isOrderAcceptanceEnabled: dto.isOrderAcceptanceEnabled !== false,
     workingDays: workingDays,
@@ -85,7 +86,8 @@ export const canteenService = {
       location: data.location || data.campus || 'Main Campus',
       openTime: data.openingTime || '08:00',
       closeTime: data.closingTime || '16:30',
-      fssaiLicenseNo: data.fssaiLicenseNumber || '10022044000123',
+      fssaiLicenseNo: data.fssaiLicenseNumber || null,
+      fssaiValidTill: data.fssaiValidTill || null,
       contactNumber: data.contactPhone || null,
       status: data.status || 'Active',
       isOrderAcceptanceEnabled: data.isOrderAcceptanceEnabled !== false,
@@ -93,8 +95,8 @@ export const canteenService = {
       adminContactJson: JSON.stringify(data.assignedAdministrator || {
         name: 'Mrs. Sunitha',
         role: 'Outlet Administrator',
-        email: 'admin@canteen.edu',
-        phone: '+91 98765 43210'
+        email: data.contactEmail || 'admin@canteen.edu',
+        phone: data.contactPhone || '+91 98765 43210'
       })
     };
 
@@ -111,11 +113,17 @@ export const canteenService = {
       openTime: data.openingTime || '08:00',
       closeTime: data.closingTime || '16:30',
       fssaiLicenseNo: data.fssaiLicenseNumber || null,
+      fssaiValidTill: data.fssaiValidTill || null,
       contactNumber: data.contactPhone || null,
       status: data.status || 'Active',
       isOrderAcceptanceEnabled: data.isOrderAcceptanceEnabled !== false,
       workingDays: Array.isArray(data.workingDays) ? data.workingDays.join(',') : data.workingDays,
-      adminContactJson: JSON.stringify(data.assignedAdministrator || {})
+      adminContactJson: JSON.stringify(data.assignedAdministrator || {
+        name: 'Mrs. Sunitha',
+        role: 'Outlet Administrator',
+        email: data.contactEmail || 'admin@canteen.edu',
+        phone: data.contactPhone || '+91 98765 43210'
+      })
     };
 
     const response = await apiClient.put(API_ENDPOINTS.OUTLETS.BY_ID(numericId), payload);
@@ -130,7 +138,16 @@ export const canteenService = {
 
     const response = await apiClient.patch(API_ENDPOINTS.OUTLETS.TOGGLE_STATUS(numericId), { status: newStatus });
     const toggled = response?.data ?? response;
-    return normalizeCanteen(toggled);
+
+    if (toggled && typeof toggled === 'object' && (toggled.outletId || toggled.name)) {
+      return normalizeCanteen(toggled);
+    }
+
+    return normalizeCanteen({
+      ...existing,
+      status: newStatus,
+      isOrderAcceptanceEnabled: newStatus === 'Active'
+    });
   },
 
   getStats: async () => {

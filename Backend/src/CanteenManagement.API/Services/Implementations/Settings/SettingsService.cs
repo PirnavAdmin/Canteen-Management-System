@@ -20,64 +20,17 @@ namespace CanteenManagement.API.Services.Implementations.Settings
 
         public async Task<SystemSettingsResponseDto> GetSettingsAsync(int campusId)
         {
-            var outletJson = await _repository.GetSettingAsync(campusId, "Outlet", "General");
             var paymentJson = await _repository.GetSettingAsync(campusId, "Payment", "General");
             var rulesJson = await _repository.GetSettingAsync(campusId, "OrderRules", "General");
-            var privacyJson = await _repository.GetSettingAsync(campusId, "Privacy", "General");
-            var dsarList = await _repository.GetDsarRequestsAsync(campusId);
 
-            var outlet = outletJson != null ? JsonSerializer.Deserialize<OutletSettingsDto>(outletJson.SettingValueJson) : new();
             var payment = paymentJson != null ? JsonSerializer.Deserialize<PaymentSettingsDto>(paymentJson.SettingValueJson) : new();
             var rules = rulesJson != null ? JsonSerializer.Deserialize<OrderRulesDto>(rulesJson.SettingValueJson) : new();
-            var privacy = privacyJson != null ? JsonSerializer.Deserialize<PrivacySettingsDto>(privacyJson.SettingValueJson) : new();
-
-            privacy ??= new PrivacySettingsDto();
-            privacy.DsarRequests = dsarList.Select(d => new DsarRequestDto
-            {
-                Id = d.RequestId,
-                UserName = d.UserName,
-                UserRole = d.UserRole,
-                Email = d.Email,
-                RequestType = d.RequestType,
-                Status = d.Status,
-                Notes = d.Notes,
-                RequestedAt = d.RequestedAt,
-                FulfilledAt = d.FulfilledAt
-            }).ToList();
 
             return new SystemSettingsResponseDto
             {
-                Outlet = outlet ?? new(),
                 Payments = payment ?? new(),
-                OrderRules = rules ?? new(),
-                Privacy = privacy
+                OrderRules = rules ?? new()
             };
-        }
-
-        public async Task<OutletSettingsDto> UpdateOutletSettingsAsync(OutletSettingsDto dto, int campusId, string performedBy)
-        {
-            var setting = new SystemSetting
-            {
-                CampusId = campusId,
-                Category = "Outlet",
-                SettingKey = "General",
-                SettingValueJson = JsonSerializer.Serialize(dto),
-                UpdatedAt = DateTime.UtcNow
-            };
-
-            await _repository.SaveSettingAsync(setting);
-
-            await _auditService.LogActionAsync(
-                campusId,
-                null,
-                performedBy,
-                "UPDATE_OUTLET_SETTINGS",
-                "SystemSetting",
-                "Outlet.General",
-                "Updated outlet operational settings."
-            );
-
-            return dto;
         }
 
         public async Task<PaymentSettingsDto> UpdatePaymentSettingsAsync(PaymentSettingsDto dto, int campusId, string performedBy)
@@ -130,79 +83,6 @@ namespace CanteenManagement.API.Services.Implementations.Settings
             );
 
             return dto;
-        }
-
-        public async Task<PrivacySettingsDto> UpdatePrivacySettingsAsync(PrivacySettingsDto dto, int campusId, string performedBy)
-        {
-            var setting = new SystemSetting
-            {
-                CampusId = campusId,
-                Category = "Privacy",
-                SettingKey = "General",
-                SettingValueJson = JsonSerializer.Serialize(dto),
-                UpdatedAt = DateTime.UtcNow
-            };
-
-            await _repository.SaveSettingAsync(setting);
-
-            await _auditService.LogActionAsync(
-                campusId,
-                null,
-                performedBy,
-                "UPDATE_PRIVACY_SETTINGS",
-                "SystemSetting",
-                "Privacy.General",
-                "Updated DPDP privacy retention policies."
-            );
-
-            return dto;
-        }
-
-        public async Task<DsarRequestDto> UpdateDsarStatusAsync(string requestId, UpdateDsarStatusDto dto, int campusId, string performedBy)
-        {
-            var request = await _repository.GetDsarRequestByIdAsync(requestId, campusId);
-            if (request == null)
-            {
-                throw new KeyNotFoundException($"DSAR request {requestId} was not found.");
-            }
-
-            request.Status = dto.Status;
-            request.Notes = dto.Notes;
-            if (dto.Status == "Fulfilled")
-            {
-                request.FulfilledAt = DateTime.UtcNow;
-
-                // DPDP Section Rule: Erasure anonymizes personal identity while statutory financial audit trails remain
-                if (request.RequestType.Contains("Erasure"))
-                {
-                    request.Notes = $"{request.Notes} (DPDP Act Compliance: Personal credentials and identity anonymized. Financial invoices and order audit trails preserved under statutory 7-year retention)";
-                }
-            }
-
-            var updated = await _repository.UpdateDsarRequestAsync(request);
-
-            await _auditService.LogActionAsync(
-                campusId,
-                null,
-                performedBy,
-                "UPDATE_DSAR_STATUS",
-                "DsarRequest",
-                updated.RequestId,
-                $"DSAR request {updated.RequestId} status updated to {updated.Status}."
-            );
-
-            return new DsarRequestDto
-            {
-                Id = updated.RequestId,
-                UserName = updated.UserName,
-                UserRole = updated.UserRole,
-                Email = updated.Email,
-                RequestType = updated.RequestType,
-                Status = updated.Status,
-                Notes = updated.Notes,
-                RequestedAt = updated.RequestedAt,
-                FulfilledAt = updated.FulfilledAt
-            };
         }
     }
 }

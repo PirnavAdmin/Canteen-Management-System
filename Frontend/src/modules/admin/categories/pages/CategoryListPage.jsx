@@ -28,6 +28,7 @@ export const CategoryListPage = () => {
 
   // Status toggle confirmation modal
   const [categoryToToggle, setCategoryToToggle] = useState(null);
+  const [isToggling, setIsToggling] = useState(false);
 
   // Sorting handler
   const handleSort = (field) => {
@@ -91,8 +92,13 @@ export const CategoryListPage = () => {
 
   const handleConfirmToggle = async () => {
     if (categoryToToggle) {
-      await toggleCategoryStatus(categoryToToggle.id);
-      setCategoryToToggle(null);
+      try {
+        setIsToggling(true);
+        await toggleCategoryStatus(categoryToToggle.id);
+        setCategoryToToggle(null);
+      } finally {
+        setIsToggling(false);
+      }
     }
   };
 
@@ -152,8 +158,9 @@ export const CategoryListPage = () => {
       {categoryToToggle && (
         <ConfirmationModal
           isOpen={Boolean(categoryToToggle)}
-          onClose={() => setCategoryToToggle(null)}
+          onClose={() => !isToggling && setCategoryToToggle(null)}
           onConfirm={handleConfirmToggle}
+          loading={isToggling}
           title={categoryToToggle.status === 'Active' ? 'Deactivate Food Category' : 'Activate Food Category'}
           variant={categoryToToggle.status === 'Active' ? 'warning' : 'primary'}
           message={

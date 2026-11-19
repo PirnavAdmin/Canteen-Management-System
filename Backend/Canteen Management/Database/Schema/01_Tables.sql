@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS CanteenOutlets (
     OpenTime VARCHAR(10) NOT NULL DEFAULT '08:00',
     CloseTime VARCHAR(10) NOT NULL DEFAULT '16:30',
     FssaiLicenseNo VARCHAR(50) NULL,
+    FssaiValidTill DATE NULL,
     ContactNumber VARCHAR(20) NULL,
     Status VARCHAR(20) NOT NULL DEFAULT 'Active',
     IsOrderAcceptanceEnabled TINYINT(1) NOT NULL DEFAULT 1,
@@ -297,7 +298,7 @@ CREATE TABLE IF NOT EXISTS FeedbackHistories (
     CONSTRAINT fk_history_ticket FOREIGN KEY (TicketId) REFERENCES FeedbackTickets (TicketId) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 12. SystemSettings & DsarRequests
+-- 12. SystemSettings
 CREATE TABLE IF NOT EXISTS SystemSettings (
     SettingId INT AUTO_INCREMENT PRIMARY KEY,
     CampusId INT NOT NULL DEFAULT 1,
@@ -306,18 +307,5 @@ CREATE TABLE IF NOT EXISTS SystemSettings (
     SettingValueJson TEXT NOT NULL,
     UpdatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uq_campus_cat_key (CampusId, Category, SettingKey)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS DsarRequests (
-    RequestId VARCHAR(50) PRIMARY KEY,
-    CampusId INT NOT NULL DEFAULT 1,
-    UserName VARCHAR(100) NOT NULL,
-    UserRole VARCHAR(50) NULL,
-    Email VARCHAR(100) NOT NULL,
-    RequestType VARCHAR(100) NOT NULL,
-    Status VARCHAR(30) NOT NULL DEFAULT 'Pending',
-    Notes TEXT NULL,
-    RequestedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FulfilledAt DATETIME NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

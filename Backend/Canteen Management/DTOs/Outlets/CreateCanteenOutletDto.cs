@@ -26,6 +26,8 @@ namespace CanteenManagement.API.DTOs.Outlets
         [MaxLength(50)]
         public string? FssaiLicenseNo { get; set; }
 
+        public DateTime? FssaiValidTill { get; set; }
+
         [Phone(ErrorMessage = "Invalid contact phone number.")]
         public string? ContactNumber { get; set; }
 
@@ -59,6 +61,8 @@ namespace CanteenManagement.API.DTOs.Outlets
 
         [MaxLength(50)]
         public string? FssaiLicenseNo { get; set; }
+
+        public DateTime? FssaiValidTill { get; set; }
 
         [Phone(ErrorMessage = "Invalid contact phone number.")]
         public string? ContactNumber { get; set; }

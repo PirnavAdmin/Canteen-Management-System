@@ -37,7 +37,6 @@ namespace CanteenManagement.API.Data
         public DbSet<FeedbackTicket> FeedbackTickets => Set<FeedbackTicket>();
         public DbSet<FeedbackHistory> FeedbackHistories => Set<FeedbackHistory>();
         public DbSet<SystemSetting> SystemSettings => Set<SystemSetting>();
-        public DbSet<DsarRequest> DsarRequests => Set<DsarRequest>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

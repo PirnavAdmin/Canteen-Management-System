@@ -26,6 +26,7 @@ export const CategoryDetailsPage = () => {
   const { getCategory, toggleCategoryStatus, loading } = useCategories();
 
   const [isToggleModalOpen, setIsToggleModalOpen] = useState(false);
+  const [isToggling, setIsToggling] = useState(false);
 
   const category = useMemo(() => getCategory(id), [getCategory, id]);
 
@@ -64,8 +65,13 @@ export const CategoryDetailsPage = () => {
   const isActive = category.status === 'Active';
 
   const handleConfirmToggle = async () => {
-    await toggleCategoryStatus(category.id);
-    setIsToggleModalOpen(false);
+    try {
+      setIsToggling(true);
+      await toggleCategoryStatus(category.id);
+      setIsToggleModalOpen(false);
+    } finally {
+      setIsToggling(false);
+    }
   };
 
   return (
@@ -255,8 +261,9 @@ export const CategoryDetailsPage = () => {
       {/* Confirmation Modal */}
       <ConfirmationModal
         isOpen={isToggleModalOpen}
-        onClose={() => setIsToggleModalOpen(false)}
+        onClose={() => !isToggling && setIsToggleModalOpen(false)}
         onConfirm={handleConfirmToggle}
+        loading={isToggling}
         title={isActive ? 'Deactivate Food Category' : 'Activate Food Category'}
         variant={isActive ? 'warning' : 'primary'}
         message={

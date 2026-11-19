@@ -98,7 +98,9 @@ export const CanteenProvider = ({ children }) => {
   const toggleCanteenStatus = useCallback(async (id) => {
     try {
       const updated = await canteenService.toggleStatus(id);
-      setCanteens(prev => prev.map(c => c.id === id ? updated : c));
+      setCanteens(prev => prev.map(c => 
+        (String(c.id) === String(id) || String(c.outletId) === String(id)) ? updated : c
+      ));
       const statusText = updated.status === 'Active' ? 'Activated' : 'Deactivated';
       info(`Status Changed`, `Outlet "${updated.name}" is now ${statusText}.`);
       return updated;

@@ -38,35 +38,6 @@ namespace CanteenManagement.API.Repositories.Implementations.Settings
             await _dbContext.SaveChangesAsync();
             return setting;
         }
-
-        public async Task<IEnumerable<DsarRequest>> GetDsarRequestsAsync(int campusId)
-        {
-            return await _dbContext.DsarRequests
-                .Where(r => r.CampusId == campusId)
-                .OrderByDescending(r => r.RequestedAt)
-                .AsNoTracking()
-                .ToListAsync();
-        }
-
-        public async Task<DsarRequest?> GetDsarRequestByIdAsync(string id, int campusId)
-        {
-            return await _dbContext.DsarRequests
-                .FirstOrDefaultAsync(r => r.RequestId == id && r.CampusId == campusId);
-        }
-
-        public async Task<DsarRequest> CreateDsarRequestAsync(DsarRequest request)
-        {
-            await _dbContext.DsarRequests.AddAsync(request);
-            await _dbContext.SaveChangesAsync();
-            return request;
-        }
-
-        public async Task<DsarRequest> UpdateDsarRequestAsync(DsarRequest request)
-        {
-            _dbContext.DsarRequests.Update(request);
-            await _dbContext.SaveChangesAsync();
-            return request;
-        }
     }
 }
 

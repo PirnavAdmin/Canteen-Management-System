@@ -10,6 +10,7 @@ namespace CanteenManagement.API.DTOs.Outlets
         public string OpenTime { get; set; } = "08:00";
         public string CloseTime { get; set; } = "16:30";
         public string? FssaiLicenseNo { get; set; }
+        public DateTime? FssaiValidTill { get; set; }
         public string? ContactNumber { get; set; }
         public string Status { get; set; } = "Active";
         public bool IsOrderAcceptanceEnabled { get; set; } = true;

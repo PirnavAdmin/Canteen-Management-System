@@ -49,8 +49,7 @@ export const PERMISSIONS = {
 
   // Settings & Privacy
   SETTINGS_VIEW: 'settings:view',
-  SETTINGS_MANAGE: 'settings:manage',
-  PRIVACY_DSAR_MANAGE: 'privacy:dsar_manage'
+  SETTINGS_MANAGE: 'settings:manage'
 };
 
 // Default role permission mapping
@@ -78,8 +77,7 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.FEEDBACK_VIEW,
     PERMISSIONS.FEEDBACK_RESOLVE,
     PERMISSIONS.SETTINGS_VIEW,
-    PERMISSIONS.SETTINGS_MANAGE,
-    PERMISSIONS.PRIVACY_DSAR_MANAGE
+    PERMISSIONS.SETTINGS_MANAGE
   ],
   [ROLES.CANTEEN_STAFF]: [
     PERMISSIONS.ORDERS_VIEW,
