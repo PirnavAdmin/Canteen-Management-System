@@ -29,6 +29,9 @@ export const LoginPage = () => {
     if (roleStr.includes('STUDENT') || roleStr.includes('FACULTY')) {
       return '/customer/dashboard';
     }
+    if (roleStr.includes('STAFF')) {
+      return '/staff/dashboard';
+    }
     return from && from !== '/' && !from.startsWith('/customer') ? from : '/admin/dashboard';
   };
 

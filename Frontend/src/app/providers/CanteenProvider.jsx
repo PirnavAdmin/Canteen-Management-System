@@ -24,7 +24,9 @@ export const CanteenProvider = ({ children }) => {
     setSelectedOutletState(val);
     try {
       localStorage.setItem('cms_selected_outlet', val);
-    } catch {}
+    } catch {
+      // Backend not running, skip
+    }
   }, []);
 
   const selectedOutletObj = useMemo(() => {

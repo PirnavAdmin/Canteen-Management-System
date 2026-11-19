@@ -1,74 +1,56 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
-  LayoutDashboard,
-  Flame,
-  ClipboardList,
-  QrCode,
+  Utensils,
   X,
-  UtensilsCrossed,
-  ChefHat
+  LayoutDashboard,
+  ClipboardList,
+  Flame,
+  Boxes,
+  AlertTriangle
 } from 'lucide-react';
-import styles from '../styles/staff.module.css';
-import { STAFF_NAV_CONFIG, STAFF_APP_CONFIG } from '../constants/staffNavigation';
+import styles from '../../../styles/layout.module.css';
+import { STAFF_NAV_CONFIG } from '../constants/staffNavigation';
 
 const ICON_MAP = {
   LayoutDashboard,
-  Flame,
   ClipboardList,
-  QrCode
+  Flame,
+  Package: Boxes,
+  Boxes,
+  AlertTriangle
 };
 
 export const StaffSidebar = ({ isOpen, onClose }) => {
   return (
     <>
-      {isOpen && (
-        <div
-          onClick={onClose}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(15, 23, 42, 0.5)',
-            backdropFilter: 'blur(2px)',
-            zIndex: 45
-          }}
-        />
-      )}
+      {isOpen && <div className={styles.backdrop} onClick={onClose} />}
 
-      <aside className={`${styles.staffSidebar} ${isOpen ? styles.staffSidebarOpen : ''}`} aria-label="Staff Navigation">
-        {/* Brand Header */}
-        <div className={styles.staffSidebarHeader}>
+      <aside className={`${styles.sidebar} ${isOpen ? styles.sidebarOpen : ''}`} aria-label="Staff Navigation">
+        {/* Brand Header matching Admin */}
+        <div className={styles.sidebarHeader}>
           <div className={styles.brandLogo}>
-            <ChefHat size={20} />
+            <Utensils size={18} />
           </div>
           <div className={styles.brandInfo}>
-            <span className={styles.brandTitle} title={STAFF_APP_CONFIG.portalName}>
-              {STAFF_APP_CONFIG.portalName}
-            </span>
-            <span className={styles.brandSubtitle}>
-              {STAFF_APP_CONFIG.counterName}
+            <span className={styles.brandTitle} title="Apex Institute of Technology & Sciences">
+              Apex Institute of Technology & Sciences
             </span>
           </div>
           <button
             onClick={onClose}
-            style={{
-              marginLeft: 'auto',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              color: 'var(--text-muted)',
-              display: 'none'
-            }}
-            className="mobileOnly"
+            className={styles.mobileMenuBtn}
+            style={{ marginLeft: 'auto' }}
+            title="Close menu"
           >
             <X size={18} />
           </button>
         </div>
 
-        {/* Navigation links */}
-        <nav className={styles.staffNav}>
-          {STAFF_NAV_CONFIG.map((group) => (
-            <div key={group.group} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        {/* Navigation links matching Admin */}
+        <nav className={styles.sidebarNav}>
+          {STAFF_NAV_CONFIG.filter((group) => group.items && group.items.length > 0).map((group) => (
+            <div key={group.group} className={styles.navGroup}>
               <div className={styles.navGroupLabel}>{group.group}</div>
               {group.items.map((item) => {
                 const IconComponent = ICON_MAP[item.icon] || ClipboardList;
@@ -81,9 +63,22 @@ export const StaffSidebar = ({ isOpen, onClose }) => {
                     className={({ isActive }) =>
                       `${styles.navItem} ${isActive ? styles.navItemActive : ''}`
                     }
+                    title={item.description}
                   >
-                    <IconComponent size={18} />
-                    <span>{item.label}</span>
+                    <IconComponent className={styles.navIcon} />
+                    <span style={{ flex: 1 }}>{item.label}</span>
+                    {item.badge && (
+                      <span style={{
+                        fontSize: '10px',
+                        padding: '1px 6px',
+                        borderRadius: '9999px',
+                        fontWeight: 700,
+                        backgroundColor: item.badge === 'Live' ? '#10b981' : '#f97316',
+                        color: '#ffffff'
+                      }}>
+                        {item.badge}
+                      </span>
+                    )}
                   </NavLink>
                 );
               })}
@@ -91,19 +86,15 @@ export const StaffSidebar = ({ isOpen, onClose }) => {
           ))}
         </nav>
 
-        {/* Footer station status */}
-        <div style={{
-          padding: '14px 18px',
-          borderTop: '1px solid var(--border-color)',
-          fontSize: '11.5px',
-          backgroundColor: 'var(--bg-app)',
-          color: 'var(--text-muted)'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, color: 'var(--color-success)', marginBottom: '2px' }}>
-            <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: '#10b981' }} />
-            Kitchen Display Active
+        {/* Institutional Footer */}
+        <div className={styles.sidebarFooter}>
+          <div className={styles.institutionBadge}>
+            <span className={styles.institutionName}>Central Dining Hall</span>
+            <span className={styles.institutionStatus}>
+              <span className={styles.statusDot} />
+              Counter 02 Online
+            </span>
           </div>
-          <div>Terminal: Station 02 (Cook Line)</div>
         </div>
       </aside>
     </>
