@@ -47,7 +47,118 @@ import {
   RateAndPrivacyPage
 } from '../modules/customer';
 
+// Canteen Staff Operations Modules
+import {
+  StaffLayout,
+  StaffProtectedRoute,
+  StaffDashboardPage,
+  StaffOrderBoardPage,
+  KitchenDisplayPage,
+  VerifyPickupPage,
+  StaffInventoryPage,
+  StaffStockDetailsPage,
+  StaffExpiryTrackingPage,
+  StaffStockAlertsPage,
+  StaffProfilePage,
+  StaffLoginPage
+} from '../modules/canteen-staff';
+
 export const router = createBrowserRouter([
+  // Public Staff Authentication Route
+  {
+    path: '/staff/login',
+    element: <StaffLoginPage />
+  },
+
+  // Protected Canteen Staff Operations Portal Routes
+  {
+    path: '/staff',
+    element: (
+      <StaffProtectedRoute>
+        <StaffLayout />
+      </StaffProtectedRoute>
+    ),
+    children: [
+      {
+        index: true,
+        element: <Navigate to="/staff/dashboard" replace />
+      },
+      {
+        path: 'dashboard',
+        element: <StaffDashboardPage />
+      },
+      {
+        path: 'board',
+        element: <StaffOrderBoardPage />
+      },
+      {
+        path: 'order-board',
+        element: <Navigate to="/staff/board" replace />
+      },
+      {
+        path: 'kitchen',
+        element: <KitchenDisplayPage />
+      },
+      {
+        path: 'kitchen-display',
+        element: <Navigate to="/staff/kitchen" replace />
+      },
+      {
+        path: 'verify',
+        element: <VerifyPickupPage />
+      },
+      {
+        path: 'verify-pickup',
+        element: <Navigate to="/staff/verify" replace />
+      },
+      {
+        path: 'inventory',
+        element: <StaffInventoryPage />
+      },
+      {
+        path: 'inventory/:itemId',
+        element: <StaffStockDetailsPage />
+      },
+      {
+        path: 'inventory/expiry',
+        element: <StaffExpiryTrackingPage />
+      },
+      {
+        path: 'expiry',
+        element: <Navigate to="/staff/inventory/expiry" replace />
+      },
+      {
+        path: 'alerts',
+        element: <StaffStockAlertsPage />
+      },
+      {
+        path: 'inventory/alerts',
+        element: <Navigate to="/staff/alerts" replace />
+      },
+      {
+        path: 'stock-requests',
+        element: <Navigate to="/staff/inventory?view=request" replace />
+      },
+      {
+        path: 'stock-requests/history',
+        element: <Navigate to="/staff/inventory?view=history" replace />
+      },
+      {
+        path: 'profile',
+        element: <StaffProfilePage />
+      }
+    ]
+  },
+
+  // Compatibility redirect for /canteen-staff
+  {
+    path: '/canteen-staff',
+    element: <Navigate to="/staff/dashboard" replace />
+  },
+  {
+    path: '/canteen-staff/*',
+    element: <Navigate to="/staff/dashboard" replace />
+  },
   // Public Customer Authentication Route
   {
     path: '/customer/login',

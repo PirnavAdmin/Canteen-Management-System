@@ -4,42 +4,69 @@
 
 export const STAFF_NAV_CONFIG = [
   {
-    group: 'Kitchen & Counter Operations',
+    group: 'OVERVIEW',
     items: [
       {
         id: 'staff-dashboard',
-        label: 'Staff Dashboard',
-        path: '/canteen-staff/dashboard',
+        label: 'Dashboard',
+        path: '/staff/dashboard',
         icon: 'LayoutDashboard',
+        badge: null,
         description: "Today's queue, live kitchen metrics & order status summary"
+      }
+    ]
+  },
+  {
+    group: 'OPERATIONS',
+    items: [
+      {
+        id: 'order-board',
+        label: 'Order Management',
+        path: '/staff/board',
+        icon: 'ClipboardList',
+        badge: 'Live',
+        description: 'Visual Kanban order workflow, acceptance & stage transitions'
       },
       {
         id: 'kitchen-display',
         label: 'Kitchen Display (KDS)',
-        path: '/canteen-staff/kitchen-display',
+        path: '/staff/kitchen',
         icon: 'Flame',
-        description: 'Live chef cooking cards, order prep timers & station routing'
+        badge: null,
+        description: 'Touch-friendly cooking cards, prep timers & station routing'
+      }
+    ]
+  },
+  {
+    group: 'INVENTORY & STOCK',
+    items: [
+      {
+        id: 'inventory-overview',
+        label: 'Inventory Management',
+        path: '/staff/inventory',
+        icon: 'Boxes',
+        badge: null,
+        description: 'Canteen raw materials, ingredients & stock balance'
       },
       {
-        id: 'order-board',
-        label: 'Order Board',
-        path: '/canteen-staff/order-board',
-        icon: 'ClipboardList',
-        description: 'Full order transactions, search, filter & status advancement'
-      },
-      {
-        id: 'verify-pickup',
-        label: 'Verify Pickup',
-        path: '/canteen-staff/verify-pickup',
-        icon: 'QrCode',
-        description: 'Scan or enter token, verify order & confirm handovers'
+        id: 'expiry-tracking',
+        label: 'Expiry Tracking',
+        path: '/staff/inventory/expiry',
+        icon: 'AlertTriangle',
+        badge: null,
+        description: 'Track expiring batches, waste reporting & safety checks'
       }
     ]
   }
 ];
 
 export const STAFF_APP_CONFIG = {
-  portalName: 'Canteen Staff Operations',
+  portalName: 'Canteen Staff Portal',
+  campusName: 'Apex Institute of Technology & Sciences',
   canteenOutlet: 'Central Dining Hall',
-  counterName: 'Express Pickup Counter 02'
+  outletId: 'canteen-001',
+  counterName: 'Counter 02 (Express Pickup)',
+  activeStation: 'Hot Meals & Express Counter'
 };
+
+export default STAFF_NAV_CONFIG;

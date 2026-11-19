@@ -35,6 +35,12 @@ export const API_ENDPOINTS = {
     TOGGLE_PUBLISH: (id) => `/canteen-menu/${id}/publish`
   },
 
+  // Slots
+  SLOTS: {
+    BASE: '/canteen-slots',
+    BY_ID: (id) => `/canteen-slots/${id}`
+  },
+
   // Orders
   ORDERS: {
     BASE: '/canteen-orders',
