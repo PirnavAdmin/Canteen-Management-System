@@ -34,10 +34,9 @@ export const useCustomerMenu = (initialCanteenId = null) => {
           const match = safeCanteens.find(c => c && c.id === initialCanteenId);
           setSelectedOutlet(match);
         } else {
-          setSelectedOutlet(prev => {
-            if (!prev && safeCanteens.length > 0) return safeCanteens[0];
-            return prev;
-          });
+          if (!selectedOutlet && safeCanteens.length > 0) {
+            setSelectedOutlet(safeCanteens[0]);
+          }
         }
       } catch (err) {
         console.error('Failed to load menu data:', err);
@@ -57,7 +56,7 @@ export const useCustomerMenu = (initialCanteenId = null) => {
     return () => {
       isMounted = false;
     };
-  }, [initialCanteenId, setSelectedOutlet]);
+  }, [initialCanteenId, selectedOutlet, setSelectedOutlet]);
 
   const filteredItems = useMemo(() => {
     if (!Array.isArray(foodItems)) return [];
