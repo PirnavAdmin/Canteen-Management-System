@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Clock,
@@ -10,6 +10,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { useStaffOrders } from '../hooks/useStaffOrders';
+import { staffOrderService } from '../services/staffOrderService';
 import { ORDER_STATUS } from '../../../constants/appConstants';
 import { KITCHEN_STATIONS, ORDER_URGENCY_MINUTES } from '../constants/staffConstants';
 import { PageHeader } from '../../../components/common/PageHeader';
@@ -22,39 +23,77 @@ export const KitchenDisplayPage = () => {
     markReadyForPickup
   } = useStaffOrders();
 
+  const [stations, setStations] = useState(KITCHEN_STATIONS);
+  const [kdsOrders, setKdsOrders] = useState([]);
   const [selectedStation, setSelectedStation] = useState('all');
   const [checkedItems, setCheckedItems] = useState({});
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [kdsToast, setKdsToast] = useState('');
 
+  const loadKdsData = useCallback(async () => {
+    try {
+      const [kdsList, stationsList] = await Promise.all([
+        staffOrderService.getKdsOrders(),
+        staffOrderService.getKitchenStations()
+      ]);
+      if (Array.isArray(kdsList)) {
+        setKdsOrders(kdsList);
+      }
+      if (Array.isArray(stationsList) && stationsList.length > 0) {
+        setStations(stationsList);
+      }
+    } catch (err) {
+      console.warn('Error loading KDS orders / stations:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadKdsData();
+  }, [loadKdsData]);
+
+  useEffect(() => {
+    const handleOrderEvent = () => {
+      loadKdsData();
+    };
+    window.addEventListener('cms:order_status_updated', handleOrderEvent);
+    return () => {
+      window.removeEventListener('cms:order_status_updated', handleOrderEvent);
+    };
+  }, [loadKdsData]);
+
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 10000);
     return () => clearInterval(timer);
   }, []);
 
-  const cookingOrders = orders.filter(o => {
+  const handleRefreshTickets = async () => {
+    await Promise.all([refreshOrders(), loadKdsData()]);
+  };
+
+  const sourceOrders = kdsOrders.length > 0 ? kdsOrders : orders;
+  const cookingOrders = sourceOrders.filter((o) => {
     const isCooking = o.status === ORDER_STATUS.PREPARING || o.status === ORDER_STATUS.ACCEPTED;
     if (!isCooking) return false;
     if (selectedStation === 'all') return true;
 
     if (o.stationId === selectedStation) return true;
-    if (Array.isArray(o.items) && o.items.some(item => item.stationId === selectedStation)) return true;
+    if (Array.isArray(o.items) && o.items.some((item) => item.stationId === selectedStation)) return true;
 
     if (selectedStation === 'station-1') {
-      return Array.isArray(o.items) && o.items.some(i => {
+      return Array.isArray(o.items) && o.items.some((i) => {
         const cat = (i.category || i.name || '').toLowerCase();
         return cat.includes('curry') || cat.includes('biryani') || cat.includes('dosa') || cat.includes('meal') || cat.includes('chole') || cat.includes('noodles') || cat.includes('rice') || cat.includes('main');
       });
     }
     if (selectedStation === 'station-2') {
-      return Array.isArray(o.items) && o.items.some(i => {
+      return Array.isArray(o.items) && o.items.some((i) => {
         const cat = (i.category || i.name || '').toLowerCase();
         return cat.includes('snack') || cat.includes('roll') || cat.includes('samosa') || cat.includes('sandwich') || cat.includes('bites');
       });
     }
     if (selectedStation === 'station-3') {
-      return Array.isArray(o.items) && o.items.some(i => {
+      return Array.isArray(o.items) && o.items.some((i) => {
         const cat = (i.category || i.name || '').toLowerCase();
         return cat.includes('coffee') || cat.includes('tea') || cat.includes('lemonade') || cat.includes('lassi') || cat.includes('shake') || cat.includes('juice') || cat.includes('beverage');
       });
@@ -119,7 +158,7 @@ export const KitchenDisplayPage = () => {
             <Button
               variant="secondary"
               icon={RefreshCw}
-              onClick={() => refreshOrders()}
+              onClick={handleRefreshTickets}
             >
               Refresh Tickets ({cookingOrders.length})
             </Button>
@@ -148,7 +187,7 @@ export const KitchenDisplayPage = () => {
 
       {/* Station Filter Tabs */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-        {KITCHEN_STATIONS.map((station) => (
+        {stations.map((station) => (
           <button
             key={station.id}
             onClick={() => setSelectedStation(station.id)}

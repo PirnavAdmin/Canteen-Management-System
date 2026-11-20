@@ -17,13 +17,13 @@ export const CategoryProvider = ({ children }) => {
       setCategories(data);
       setError(null);
     } catch (err) {
-      console.error('Failed to load categories:', err);
+      console.warn('Failed to load categories from backend API:', err.message);
       setError(err.message || 'Failed to load categories');
-      toastError('Load Error', 'Unable to retrieve food categories.');
+      setCategories([]);
     } finally {
       setLoading(false);
     }
-  }, [toastError]);
+  }, []);
 
   useEffect(() => {
     loadCategories();

@@ -28,7 +28,14 @@ export const StaffExpiryTrackingPage = () => {
       return;
     }
     try {
-      await recordWaste(selectedBatchForWaste.id || selectedBatchForWaste.itemCode, Number(wasteQty), 'Expired batch discarded');
+      const targetId = selectedBatchForWaste.ingredientId || selectedBatchForWaste.id || selectedBatchForWaste.itemCode;
+      await recordWaste(
+        targetId,
+        Number(wasteQty),
+        'Expired batch discarded',
+        'Staff Attendant',
+        selectedBatchForWaste.batchNumber
+      );
       setSelectedBatchForWaste(null);
       setWasteQty('');
       setFeedbackMsg('Expired batch disposal recorded and inventory updated.');

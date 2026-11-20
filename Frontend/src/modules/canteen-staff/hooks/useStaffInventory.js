@@ -15,12 +15,12 @@ export const useStaffInventory = (outletId = 'canteen-001') => {
     try {
       setLoading(true);
       setError(null);
-      const [items, low, expiring, requests] = await Promise.all([
+      const [items, requests] = await Promise.all([
         staffInventoryService.getAllInventory(outletId),
-        staffInventoryService.getLowStockItems(outletId),
-        staffInventoryService.getExpiringItems(7, outletId),
         staffInventoryService.getStockRequests(outletId)
       ]);
+      const low = await staffInventoryService.getLowStockItems(outletId, items);
+      const expiring = await staffInventoryService.getExpiringItems(7, outletId, items);
       setInventory(items);
       setLowStockItems(low);
       setExpiringItems(expiring);
@@ -67,9 +67,9 @@ export const useStaffInventory = (outletId = 'canteen-001') => {
     }
   }, [user, outletId, loadData]);
 
-  const recordWaste = useCallback(async (itemId, quantity, reason) => {
+  const recordWaste = useCallback(async (itemId, quantity, reason, operator, batchNumber) => {
     try {
-      const updated = await staffInventoryService.recordWaste(itemId, quantity, reason);
+      const updated = await staffInventoryService.recordWaste(itemId, quantity, reason, operator, batchNumber);
       await loadData();
       return updated;
     } catch (err) {

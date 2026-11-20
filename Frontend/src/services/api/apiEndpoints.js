@@ -45,6 +45,9 @@ export const API_ENDPOINTS = {
   ORDERS: {
     BASE: '/canteen-orders',
     BY_ID: (id) => `/canteen-orders/${id}`,
+    VERIFY_PICKUP: '/canteen-orders/verify-pickup',
+    STATIONS: '/canteen-orders/stations',
+    KDS: '/canteen-orders/kds',
     UPDATE_STATUS: (id) => `/canteen-orders/${id}/status`,
     CANCEL: (id) => `/canteen-orders/${id}/cancel`,
     REFUND: (id) => `/canteen-orders/${id}/refund`,
@@ -64,8 +67,12 @@ export const API_ENDPOINTS = {
   // Inventory
   INVENTORY: {
     ITEMS: '/canteen-inventory/items',
+    BATCHES: '/canteen-inventory/batches',
     STOCK_MOVEMENT: '/canteen-inventory/movements',
     LEDGER: '/canteen-inventory/ledger',
+    STOCK_REQUESTS: '/canteen-inventory/stock-requests',
+    STOCK_REQUEST_BY_ID: (id) => `/canteen-inventory/stock-requests/${id}`,
+    STOCK_REQUEST_RECEIVED: (id) => `/canteen-inventory/stock-requests/${id}/received`,
     PURCHASE_ORDERS: '/canteen-inventory/purchase-orders',
     PO_UPDATE_STATUS: (id) => `/canteen-inventory/purchase-orders/${id}/status`,
     SUPPLIERS: '/canteen-inventory/suppliers',
