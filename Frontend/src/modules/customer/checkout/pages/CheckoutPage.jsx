@@ -66,6 +66,7 @@ export const CheckoutPage = () => {
         id: item.id,
         name: item.name,
         price: item.price,
+        imageUrl: item.imageUrl,
         quantity: item.quantity,
         variant: typeof item.variant === 'object' ? (item.variant?.name || item.variant?.id) : (item.variant || null),
         addOns: (item.selectedAddOns || []).map(a => a.name)

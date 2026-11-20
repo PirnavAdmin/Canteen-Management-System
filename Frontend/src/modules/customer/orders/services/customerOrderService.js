@@ -14,30 +14,40 @@ export const customerOrderService = {
    * Get all orders belonging exclusively to the authenticated user
    */
   getCustomerOrders: async (user) => {
+    if (!user) return [];
+
+    const userEmail = (user.email || '').trim().toLowerCase();
+    const userName = (user.fullName || user.username || '').trim().toLowerCase();
+    const userRollNo = (user.rollNo || user.facultyId || user.studentId || '').trim().toLowerCase();
+    const belongsToCurrentUser = (order) => {
+      const cust = order?.customer || {};
+      const custEmail = (cust.email || '').trim().toLowerCase();
+      const custName = (cust.name || '').trim().toLowerCase();
+      const custRoll = (cust.rollNo || '').trim().toLowerCase();
+      return (userEmail && custEmail === userEmail) ||
+        (userName && custName === userName) ||
+        (userRollNo && custRoll === userRollNo);
+    };
+
+    // Checkout currently persists immediately to local storage. Keep that order visible
+    // while the live API is unavailable or before it has returned the new record.
+    const locallySaved = storageService.getItem(ORDERS_STORAGE_KEY, []);
+    let remoteOrders = [];
     try {
-      const allOrders = await orderService.getAll();
-      if (!user) return [];
-
-      const userEmail = (user.email || '').trim().toLowerCase();
-      const userName = (user.fullName || user.username || '').trim().toLowerCase();
-      const userRollNo = (user.rollNo || user.facultyId || user.studentId || '').trim().toLowerCase();
-
-      return (allOrders || []).filter((order) => {
-        const cust = order.customer || {};
-        const custEmail = (cust.email || '').trim().toLowerCase();
-        const custName = (cust.name || '').trim().toLowerCase();
-        const custRoll = (cust.rollNo || '').trim().toLowerCase();
-
-        return (
-          (userEmail && custEmail === userEmail) ||
-          (userName && custName === userName) ||
-          (userRollNo && custRoll === userRollNo)
-        );
-      });
+      const response = await orderService.getAll();
+      remoteOrders = Array.isArray(response) ? response : [];
     } catch (err) {
-      console.error('Failed to retrieve customer orders:', err);
-      return [];
+      console.warn('Live order list unavailable; using locally saved customer orders.', err);
     }
+
+    const uniqueOrders = new Map();
+    [...remoteOrders, ...(Array.isArray(locallySaved) ? locallySaved : [])]
+      .filter(belongsToCurrentUser)
+      .forEach((order) => uniqueOrders.set(String(order.id || order.orderId), order));
+
+    return [...uniqueOrders.values()].sort((a, b) =>
+      new Date(b.orderDate || b.createdAt || 0) - new Date(a.orderDate || a.createdAt || 0)
+    );
   },
 
   /**
