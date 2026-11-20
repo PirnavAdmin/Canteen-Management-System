@@ -83,8 +83,8 @@ export const CheckoutPage = () => {
       createdAt: new Date().toISOString()
     };
 
-    sessionStorage.setItem('cms_customer_draft_order', JSON.stringify(draftOrder));
-    navigate('/customer/payment');
+    window.__cms_customer_draft_order = draftOrder;
+    navigate('/customer/payment', { state: { draftOrder } });
   };
 
   if (safeCartItems.length === 0) {

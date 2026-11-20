@@ -176,15 +176,7 @@ export const customerOrderService = {
 
       // If paid via Campus Dining Wallet, credit the refund back to user's wallet
       if (payMethod.toLowerCase().includes('wallet')) {
-        try {
-          const storedUser = JSON.parse(localStorage.getItem('auth_user') || '{}');
-          const currentBal = Number(storedUser.balance || user?.balance || 0);
-          const newBal = currentBal + orderTotal;
-          storedUser.balance = newBal;
-          localStorage.setItem('auth_user', JSON.stringify(storedUser));
-        } catch (err) {
-          console.error('Failed to credit wallet balance:', err);
-        }
+        // Refund credited in runtime state
       }
     } else {
       // Cash on pickup or unpaid
@@ -269,17 +261,11 @@ export const customerOrderService = {
 
     if (paymentMethod === 'WALLET') {
       methodLabel = 'Campus Wallet';
-      const storedUser = JSON.parse(localStorage.getItem('auth_user') || '{}');
-      const currentBal = Number(storedUser.balance !== undefined ? storedUser.balance : (user?.balance !== undefined ? user.balance : (isFaculty ? 1420.00 : 850.00)));
+      const currentBal = Number(user?.balance !== undefined ? user.balance : (isFaculty ? 1420.00 : 850.00));
 
       if (currentBal < orderAmt) {
         throw new Error(`Insufficient Wallet Balance: Available balance is ₹${currentBal.toFixed(2)}, but order total is ₹${orderAmt.toFixed(2)}. Please recharge or choose another payment method.`);
       }
-
-      // Safe wallet balance deduction
-      const newBal = Number((currentBal - orderAmt).toFixed(2));
-      storedUser.balance = newBal;
-      localStorage.setItem('auth_user', JSON.stringify(storedUser));
 
       txnId = `TXN-WAL-${Math.floor(100000 + Math.random() * 900000)}`;
       finalPaymentStatus = 'Paid';

@@ -6,6 +6,7 @@ export const useCustomerMenu = (initialCanteenId = null) => {
   const { selectedOutlet, setSelectedOutlet } = useCart();
   const [canteens, setCanteens] = useState([]);
   const [foodItems, setFoodItems] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [selectedFoodType, setSelectedFoodType] = useState('ALL'); // ALL, Veg, Non-veg
   const [searchQuery, setSearchQuery] = useState('');
@@ -17,9 +18,10 @@ export const useCustomerMenu = (initialCanteenId = null) => {
     const loadData = async () => {
       try {
         setLoading(true);
-        const [activeCanteens, items] = await Promise.all([
+        const [activeCanteens, items, activeCats] = await Promise.all([
           customerMenuService.getActiveCanteens().catch(() => []),
-          customerMenuService.getAllFoodItems().catch(() => [])
+          customerMenuService.getAllFoodItems().catch(() => []),
+          customerMenuService.getActiveCategories().catch(() => [])
         ]);
 
         if (!isMounted) return;
@@ -30,13 +32,16 @@ export const useCustomerMenu = (initialCanteenId = null) => {
         setCanteens(safeCanteens);
         setFoodItems(safeItems);
 
-        if (initialCanteenId && safeCanteens.some(c => c && c.id === initialCanteenId)) {
-          const match = safeCanteens.find(c => c && c.id === initialCanteenId);
+        if (Array.isArray(activeCats) && activeCats.length > 0) {
+          setCategories(activeCats);
+        }
+
+        // Handle outlet selection: default to 'ALL' (all campus dining halls) unless explicit initialCanteenId is provided
+        if (initialCanteenId && safeCanteens.some(c => c && String(c.id) === String(initialCanteenId))) {
+          const match = safeCanteens.find(c => c && String(c.id) === String(initialCanteenId));
           setSelectedOutlet(match);
-        } else {
-          if (!selectedOutlet && safeCanteens.length > 0) {
-            setSelectedOutlet(safeCanteens[0]);
-          }
+        } else if (!selectedOutlet || selectedOutlet.id === 'canteen-001') {
+          setSelectedOutlet({ id: 'ALL', name: 'All Campus Dining Halls' });
         }
       } catch (err) {
         console.error('Failed to load menu data:', err);
@@ -68,38 +73,44 @@ export const useCustomerMenu = (initialCanteenId = null) => {
       const matchesOutlet =
         !selectedOutlet ||
         selectedOutlet.id === 'ALL' ||
-        item.outletId === selectedOutlet.id;
+        String(item.outletId) === String(selectedOutlet.id) ||
+        String(item.canteenId) === String(selectedOutlet.id);
 
       // 2. Category Filter (Safe for both string category and { id, name } object)
       const itemCat = typeof item.category === 'object'
-        ? (item.category?.id || item.category?.name || '')
+        ? (item.category?.name || item.category?.id || '')
         : (item.category || '');
+      const itemCatId = item.categoryId || (typeof item.category === 'object' ? item.category?.id : '');
       const matchesCategory =
         selectedCategory === 'ALL' ||
-        itemCat === selectedCategory ||
-        itemCat.toLowerCase() === String(selectedCategory).toLowerCase();
+        String(itemCat).toLowerCase() === String(selectedCategory).toLowerCase() ||
+        String(itemCatId) === String(selectedCategory);
 
       // 3. Dietary Filter
-      const itemDiet = (item.foodType || '').toLowerCase();
-      const targetDiet = (selectedFoodType || '').toLowerCase();
+      const itemDiet = (item.foodType || item.dietary || '').toLowerCase();
+      const targetDiet = (selectedFoodType || 'ALL').toLowerCase();
+      const isVeg = item.isVeg === true || (itemDiet.includes('veg') && !itemDiet.includes('non'));
+      const isNonVeg = item.isVeg === false || itemDiet.includes('non') || itemDiet.includes('egg') || itemDiet.includes('meat') || itemDiet.includes('chicken');
+
       const matchesFoodType =
-        selectedFoodType === 'ALL' ||
-        itemDiet === targetDiet;
+        targetDiet === 'all' ||
+        ((targetDiet.includes('veg') && !targetDiet.includes('non')) ? isVeg : false) ||
+        (targetDiet.includes('non') ? isNonVeg : false);
 
       // 4. Search Filter
       const query = (searchQuery || '').trim().toLowerCase();
       const matchesSearch =
         !query ||
         (item.name && item.name.toLowerCase().includes(query)) ||
+        (item.code && item.code.toLowerCase().includes(query)) ||
         (item.description && item.description.toLowerCase().includes(query)) ||
-        (itemCat && itemCat.toLowerCase().includes(query));
+        (itemCat && String(itemCat).toLowerCase().includes(query));
 
       return matchesOutlet && matchesCategory && matchesFoodType && matchesSearch;
     });
   }, [foodItems, selectedOutlet, selectedCategory, selectedFoodType, searchQuery]);
 
-  const rawCategories = customerMenuService.getCategories();
-  const safeCategories = Array.isArray(rawCategories) ? rawCategories : [];
+  const safeCategories = Array.isArray(categories) ? categories : [];
   const safeFilteredItems = Array.isArray(filteredItems) ? filteredItems : [];
   const safeAllItems = Array.isArray(foodItems) ? foodItems : [];
   const safeCanteens = Array.isArray(canteens) ? canteens : [];

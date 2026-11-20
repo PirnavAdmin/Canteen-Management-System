@@ -38,18 +38,13 @@ export const PaymentPage = () => {
   const userRole = isFaculty ? 'Faculty' : 'Student';
 
   useEffect(() => {
-    const raw = sessionStorage.getItem('cms_customer_draft_order');
+    const raw = location.state?.draftOrder || window.__cms_customer_draft_order;
     if (!raw) {
-      navigate('/customer/menu');
+      navigate('/customer/dashboard');
       return;
     }
-    try {
-      const parsed = JSON.parse(raw);
-      setDraftOrder(parsed);
-    } catch {
-      navigate('/customer/menu');
-    }
-  }, [navigate]);
+    setDraftOrder(raw);
+  }, [location.state, navigate]);
 
   if (!draftOrder) {
     return (
@@ -92,7 +87,7 @@ export const PaymentPage = () => {
 
       // Clear active cart & draft session
       clearCart();
-      sessionStorage.removeItem('cms_customer_draft_order');
+      window.__cms_customer_draft_order = null;
 
       // Navigate to My Orders page with token and ID confirmation
       navigate('/customer/orders', {

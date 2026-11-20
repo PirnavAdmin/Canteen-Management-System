@@ -1,46 +1,41 @@
 /**
  * Customer Cart Service
- * Manages active cart items in localStorage with outlet consistency guards.
+ * Pure in-memory cart service with zero localStorage / sessionStorage dependencies.
  */
 
-import { storageService } from '../../../../services/storageService';
-import { CART_STORAGE_KEY, SELECTED_OUTLET_KEY, TAX_RATE, PACKAGING_FEE } from '../constants/cartConstants';
+import { TAX_RATE, PACKAGING_FEE } from '../constants/cartConstants';
+
+const inMemoryCarts = {};
+let inMemorySelectedOutlet = {
+  id: 'ALL',
+  name: 'All Campus Dining Halls'
+};
 
 export const cartService = {
-  getCartKey: (userId = 'guest') => {
-    const cleanId = String(userId || 'guest').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '_');
-    return `${CART_STORAGE_KEY}_${cleanId}`;
-  },
-
   getCart: (userId = 'guest') => {
-    const key = cartService.getCartKey(userId);
-    return storageService.getItem(key, []);
+    const cleanId = String(userId || 'guest').trim().toLowerCase();
+    return Array.isArray(inMemoryCarts[cleanId]) ? [...inMemoryCarts[cleanId]] : [];
   },
 
   saveCart: (items, userId = 'guest') => {
-    const key = cartService.getCartKey(userId);
-    storageService.setItem(key, items);
-    return items;
+    const cleanId = String(userId || 'guest').trim().toLowerCase();
+    inMemoryCarts[cleanId] = Array.isArray(items) ? [...items] : [];
+    return inMemoryCarts[cleanId];
   },
 
   clearCart: (userId = 'guest') => {
-    const key = cartService.getCartKey(userId);
-    storageService.removeItem(key);
+    const cleanId = String(userId || 'guest').trim().toLowerCase();
+    inMemoryCarts[cleanId] = [];
     return [];
   },
 
   getSelectedOutlet: () => {
-    return storageService.getItem(SELECTED_OUTLET_KEY, {
-      id: 'canteen-001',
-      name: 'Central Dining Hall',
-      campus: 'Main Campus',
-      location: 'Ground Floor, Campus Central Building'
-    });
+    return inMemorySelectedOutlet;
   },
 
   setSelectedOutlet: (outlet) => {
-    storageService.setItem(SELECTED_OUTLET_KEY, outlet);
-    return outlet;
+    inMemorySelectedOutlet = outlet || { id: 'ALL', name: 'All Campus Dining Halls' };
+    return inMemorySelectedOutlet;
   },
 
   calculateTotals: (items) => {

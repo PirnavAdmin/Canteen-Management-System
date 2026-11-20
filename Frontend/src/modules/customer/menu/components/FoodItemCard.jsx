@@ -1,9 +1,11 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../../cart/hooks/useCart';
-import { Plus, Minus, Clock, Star } from 'lucide-react';
+import { Plus, Minus, Clock, Star, Utensils, Zap } from 'lucide-react';
+import { SafeImage } from '../../../../components/common/SafeImage';
 
 export const FoodItemCard = ({ item }) => {
+  const navigate = useNavigate();
   const { cartItems, addToCart, updateQuantity } = useCart();
 
   // Check if item is already in cart
@@ -37,6 +39,14 @@ export const FoodItemCard = ({ item }) => {
     }
   };
 
+  const handleBuyNow = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isAvailable) return;
+    addToCart(item, 1);
+    navigate('/customer/checkout');
+  };
+
   return (
     <div style={{
       backgroundColor: 'var(--bg-surface)',
@@ -50,7 +60,7 @@ export const FoodItemCard = ({ item }) => {
     }}>
       {/* Food Image Container */}
       <Link to={`/customer/item/${item.id}`} style={{ position: 'relative', display: 'block', textDecoration: 'none' }}>
-        <img
+        <SafeImage
           src={item.imageUrl}
           alt={item.name}
           style={{
@@ -59,7 +69,19 @@ export const FoodItemCard = ({ item }) => {
             objectFit: 'cover',
             display: 'block'
           }}
-          loading="lazy"
+          fallback={
+            <div style={{
+              width: '100%',
+              height: '160px',
+              backgroundColor: 'var(--bg-muted)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--text-muted)'
+            }}>
+              <Utensils size={32} />
+            </div>
+          }
         />
 
         {/* Dietary veg/nonveg indicator */}
@@ -191,78 +213,107 @@ export const FoodItemCard = ({ item }) => {
             }}>
               Out of Stock
             </span>
-          ) : qty > 0 ? (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              backgroundColor: 'var(--color-primary-light)',
-              border: '1px solid var(--color-primary-border)',
-              borderRadius: 'var(--border-radius-md)',
-              padding: '2px 4px'
-            }}>
-              <button
-                type="button"
-                onClick={handleDecrement}
-                style={{
-                  width: '26px',
-                  height: '26px',
-                  border: 'none',
-                  backgroundColor: 'transparent',
-                  color: 'var(--color-accent)',
-                  cursor: 'pointer',
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              {qty > 0 ? (
+                <div style={{
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-                title="Decrease quantity"
-              >
-                <Minus size={13} />
-              </button>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-accent)', minWidth: '18px', textAlign: 'center' }}>
-                {qty}
-              </span>
+                  gap: '4px',
+                  backgroundColor: 'var(--color-primary-light)',
+                  border: '1px solid var(--color-primary-border)',
+                  borderRadius: 'var(--border-radius-md)',
+                  padding: '2px 4px'
+                }}>
+                  <button
+                    type="button"
+                    onClick={handleDecrement}
+                    style={{
+                      width: '26px',
+                      height: '26px',
+                      border: 'none',
+                      backgroundColor: 'transparent',
+                      color: 'var(--color-accent)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                    title="Decrease quantity"
+                  >
+                    <Minus size={13} />
+                  </button>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-accent)', minWidth: '18px', textAlign: 'center' }}>
+                    {qty}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleIncrement}
+                    style={{
+                      width: '26px',
+                      height: '26px',
+                      border: 'none',
+                      backgroundColor: 'transparent',
+                      color: 'var(--color-accent)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                    title="Increase quantity"
+                  >
+                    <Plus size={13} />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleAdd}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '3px',
+                    padding: '5px 10px',
+                    backgroundColor: 'var(--color-accent)',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: 'var(--border-radius-sm)',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'background-color var(--transition-fast)'
+                  }}
+                  title="Add to cart"
+                >
+                  <Plus size={12} strokeWidth={3} />
+                  <span>+Cart</span>
+                </button>
+              )}
+
               <button
                 type="button"
-                onClick={handleIncrement}
+                onClick={handleBuyNow}
                 style={{
-                  width: '26px',
-                  height: '26px',
-                  border: 'none',
-                  backgroundColor: 'transparent',
-                  color: 'var(--color-accent)',
-                  cursor: 'pointer',
-                  display: 'flex',
+                  display: 'inline-flex',
                   alignItems: 'center',
-                  justifyContent: 'center'
+                  gap: '3px',
+                  padding: '5px 10px',
+                  backgroundColor: '#f59e0b',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: 'var(--border-radius-sm)',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  boxShadow: '0 1px 3px rgba(245, 158, 11, 0.25)',
+                  transition: 'background-color var(--transition-fast)'
                 }}
-                title="Increase quantity"
+                title="Buy now and proceed straight to checkout"
               >
-                <Plus size={13} />
+                <Zap size={12} fill="#ffffff" />
+                <span>Buy</span>
               </button>
             </div>
-          ) : (
-            <button
-              type="button"
-              onClick={handleAdd}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '7px 14px',
-                backgroundColor: 'var(--color-accent)',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: 'var(--border-radius-md)',
-                fontSize: '13px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'background-color var(--transition-fast)'
-              }}
-            >
-              <Plus size={14} />
-              <span>Add to Tray</span>
-            </button>
           )}
         </div>
       </div>

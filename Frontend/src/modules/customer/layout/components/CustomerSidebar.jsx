@@ -23,10 +23,6 @@ export const CustomerSidebar = ({ isOpen, onClose }) => {
             <span className={styles.brandTitle} title={APP_CONFIG.institutionName}>
               {APP_CONFIG.institutionName}
             </span>
-            <span className={styles.brandSubtitle} style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '2px' }}>
-              <span className={styles.statusDot} />
-              Campus Dining
-            </span>
           </div>
           <button
             onClick={onClose}
@@ -70,17 +66,6 @@ export const CustomerSidebar = ({ isOpen, onClose }) => {
             </div>
           ))}
         </nav>
-
-        {/* Sidebar Footer */}
-        <div className={styles.sidebarFooter}>
-          <div className={styles.institutionBadge}>
-            <span className={styles.institutionName}>{APP_CONFIG.institutionName}</span>
-            <span className={styles.institutionStatus}>
-              <span className={styles.statusDot} />
-              Canteens Operational
-            </span>
-          </div>
-        </div>
       </aside>
     </>
   );
