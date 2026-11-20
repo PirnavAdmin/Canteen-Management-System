@@ -6,6 +6,8 @@ import { canteenService } from '../../outlets/services/canteenService';
 export const OrderFilters = ({
   searchTerm = '',
   onSearchChange,
+  selectedDate = 'TODAY',
+  onDateChange,
   selectedStatus = 'ALL',
   onStatusChange,
   selectedPayment = 'ALL',
@@ -72,6 +74,29 @@ export const OrderFilters = ({
           }}
         />
       </div>
+
+      {/* Date Filter */}
+      <select
+        value={selectedDate}
+        onChange={(e) => onDateChange && onDateChange(e.target.value)}
+        title="Filter by Order Date"
+        style={{
+          height: '34px',
+          padding: '0 8px',
+          fontSize: '12.5px',
+          fontWeight: 600,
+          border: '1px solid var(--border-color)',
+          borderRadius: 'var(--border-radius-md)',
+          backgroundColor: 'var(--bg-surface)',
+          color: selectedDate === 'TODAY' ? 'var(--color-primary)' : 'var(--text-secondary)',
+          flexShrink: 0
+        }}
+      >
+        <option value="TODAY">Today (IST)</option>
+        <option value="YESTERDAY">Yesterday</option>
+        <option value="LAST_7_DAYS">Last 7 Days</option>
+        <option value="ALL">All Orders</option>
+      </select>
 
       {/* Order Status */}
       <select

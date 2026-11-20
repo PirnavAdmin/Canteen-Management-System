@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using CanteenManagement.API.Data;
 using CanteenManagement.API.DTOs.Reports;
+using CanteenManagement.API.Helpers;
 using CanteenManagement.API.Repositories.Interfaces.Reports;
 using Dapper;
 
@@ -124,7 +125,9 @@ namespace CanteenManagement.API.Repositories.Implementations.Reports
         {
             if (customStart.HasValue && customEnd.HasValue)
             {
-                return (customStart.Value.Date, customEnd.Value.Date.AddDays(1).AddTicks(-1));
+                var startIst = customStart.Value.Date;
+                var endIst = customEnd.Value.Date.AddDays(1).AddTicks(-1);
+                return (IndianTime.ToUtc(startIst), IndianTime.ToUtc(endIst));
             }
 
             if (string.IsNullOrWhiteSpace(dateRange))
@@ -132,32 +135,34 @@ namespace CanteenManagement.API.Repositories.Implementations.Reports
                 return (null, null);
             }
 
-            var today = DateTime.UtcNow.Date;
+            var todayIst = IndianTime.Today;
 
             switch (dateRange.Trim().ToLower())
             {
                 case "today":
-                    return (today, today.AddDays(1).AddTicks(-1));
+                    return (IndianTime.ToUtc(todayIst), IndianTime.ToUtc(todayIst.AddDays(1).AddTicks(-1)));
                 case "yesterday":
-                    return (today.AddDays(-1), today.AddTicks(-1));
+                    return (IndianTime.ToUtc(todayIst.AddDays(-1)), IndianTime.ToUtc(todayIst.AddTicks(-1)));
                 case "last_7_days":
                 case "7days":
-                    return (today.AddDays(-6), today.AddDays(1).AddTicks(-1));
+                    return (IndianTime.ToUtc(todayIst.AddDays(-6)), IndianTime.ToUtc(todayIst.AddDays(1).AddTicks(-1)));
                 case "month_to_date":
                 case "mtd":
                 case "this_month":
-                    return (new DateTime(today.Year, today.Month, 1), today.AddDays(1).AddTicks(-1));
+                    var startOfMonth = new DateTime(todayIst.Year, todayIst.Month, 1);
+                    return (IndianTime.ToUtc(startOfMonth), IndianTime.ToUtc(todayIst.AddDays(1).AddTicks(-1)));
                 case "quarter_to_date":
                 case "qtd":
                 case "this_quarter":
-                    return (today.AddDays(-90), today.AddDays(1).AddTicks(-1));
+                    return (IndianTime.ToUtc(todayIst.AddDays(-90)), IndianTime.ToUtc(todayIst.AddDays(1).AddTicks(-1)));
                 case "all":
                 case "any":
                     return (null, null);
                 default:
                     if (DateTime.TryParse(dateRange, out var parsedDate))
                     {
-                        return (parsedDate.Date, parsedDate.Date.AddDays(1).AddTicks(-1));
+                        var parsedIst = parsedDate.Date;
+                        return (IndianTime.ToUtc(parsedIst), IndianTime.ToUtc(parsedIst.AddDays(1).AddTicks(-1)));
                     }
                     return (null, null);
             }

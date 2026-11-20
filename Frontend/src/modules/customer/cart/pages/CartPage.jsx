@@ -63,7 +63,7 @@ export const CartPage = () => {
           <Button
             variant="primary"
             icon={UtensilsCrossed}
-            onClick={() => navigate('/customer/menu')}
+            onClick={() => navigate('/customer/dashboard')}
           >
             Browse Campus Menus
           </Button>
@@ -279,7 +279,7 @@ export const CartPage = () => {
               borderTop: '1px solid var(--border-color)',
               backgroundColor: 'var(--bg-app)'
             }}>
-              <Link to="/customer/menu" style={{ textDecoration: 'none' }}>
+              <Link to="/customer/dashboard" style={{ textDecoration: 'none' }}>
                 <Button variant="secondary" icon={UtensilsCrossed}>
                   Add More Dishes
                 </Button>

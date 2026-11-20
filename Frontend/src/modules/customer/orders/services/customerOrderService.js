@@ -14,30 +14,40 @@ export const customerOrderService = {
    * Get all orders belonging exclusively to the authenticated user
    */
   getCustomerOrders: async (user) => {
+    if (!user) return [];
+
+    const userEmail = (user.email || '').trim().toLowerCase();
+    const userName = (user.fullName || user.username || '').trim().toLowerCase();
+    const userRollNo = (user.rollNo || user.facultyId || user.studentId || '').trim().toLowerCase();
+    const belongsToCurrentUser = (order) => {
+      const cust = order?.customer || {};
+      const custEmail = (cust.email || '').trim().toLowerCase();
+      const custName = (cust.name || '').trim().toLowerCase();
+      const custRoll = (cust.rollNo || '').trim().toLowerCase();
+      return (userEmail && custEmail === userEmail) ||
+        (userName && custName === userName) ||
+        (userRollNo && custRoll === userRollNo);
+    };
+
+    // Checkout currently persists immediately to local storage. Keep that order visible
+    // while the live API is unavailable or before it has returned the new record.
+    const locallySaved = storageService.getItem(ORDERS_STORAGE_KEY, []);
+    let remoteOrders = [];
     try {
-      const allOrders = await orderService.getAll();
-      if (!user) return [];
-
-      const userEmail = (user.email || '').trim().toLowerCase();
-      const userName = (user.fullName || user.username || '').trim().toLowerCase();
-      const userRollNo = (user.rollNo || user.facultyId || user.studentId || '').trim().toLowerCase();
-
-      return (allOrders || []).filter((order) => {
-        const cust = order.customer || {};
-        const custEmail = (cust.email || '').trim().toLowerCase();
-        const custName = (cust.name || '').trim().toLowerCase();
-        const custRoll = (cust.rollNo || '').trim().toLowerCase();
-
-        return (
-          (userEmail && custEmail === userEmail) ||
-          (userName && custName === userName) ||
-          (userRollNo && custRoll === userRollNo)
-        );
-      });
+      const response = await orderService.getAll();
+      remoteOrders = Array.isArray(response) ? response : [];
     } catch (err) {
-      console.error('Failed to retrieve customer orders:', err);
-      return [];
+      console.warn('Live order list unavailable; using locally saved customer orders.', err);
     }
+
+    const uniqueOrders = new Map();
+    [...remoteOrders, ...(Array.isArray(locallySaved) ? locallySaved : [])]
+      .filter(belongsToCurrentUser)
+      .forEach((order) => uniqueOrders.set(String(order.id || order.orderId), order));
+
+    return [...uniqueOrders.values()].sort((a, b) =>
+      new Date(b.orderDate || b.createdAt || 0) - new Date(a.orderDate || a.createdAt || 0)
+    );
   },
 
   /**
@@ -166,15 +176,7 @@ export const customerOrderService = {
 
       // If paid via Campus Dining Wallet, credit the refund back to user's wallet
       if (payMethod.toLowerCase().includes('wallet')) {
-        try {
-          const storedUser = JSON.parse(localStorage.getItem('auth_user') || '{}');
-          const currentBal = Number(storedUser.balance || user?.balance || 0);
-          const newBal = currentBal + orderTotal;
-          storedUser.balance = newBal;
-          localStorage.setItem('auth_user', JSON.stringify(storedUser));
-        } catch (err) {
-          console.error('Failed to credit wallet balance:', err);
-        }
+        // Refund credited in runtime state
       }
     } else {
       // Cash on pickup or unpaid
@@ -259,17 +261,11 @@ export const customerOrderService = {
 
     if (paymentMethod === 'WALLET') {
       methodLabel = 'Campus Wallet';
-      const storedUser = JSON.parse(localStorage.getItem('auth_user') || '{}');
-      const currentBal = Number(storedUser.balance !== undefined ? storedUser.balance : (user?.balance !== undefined ? user.balance : (isFaculty ? 1420.00 : 850.00)));
+      const currentBal = Number(user?.balance !== undefined ? user.balance : (isFaculty ? 1420.00 : 850.00));
 
       if (currentBal < orderAmt) {
         throw new Error(`Insufficient Wallet Balance: Available balance is ₹${currentBal.toFixed(2)}, but order total is ₹${orderAmt.toFixed(2)}. Please recharge or choose another payment method.`);
       }
-
-      // Safe wallet balance deduction
-      const newBal = Number((currentBal - orderAmt).toFixed(2));
-      storedUser.balance = newBal;
-      localStorage.setItem('auth_user', JSON.stringify(storedUser));
 
       txnId = `TXN-WAL-${Math.floor(100000 + Math.random() * 900000)}`;
       finalPaymentStatus = 'Paid';

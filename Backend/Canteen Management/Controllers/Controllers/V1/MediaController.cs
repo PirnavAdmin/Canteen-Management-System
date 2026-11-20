@@ -5,6 +5,12 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CanteenManagement.API.Controllers.V1
 {
+    public class MediaUploadRequest
+    {
+        public IFormFile? File { get; set; }
+        public string Folder { get; set; } = "menu";
+    }
+
     [ApiController]
     [ApiVersion("1.0")]
     [Route("api/v{version:apiVersion}/media")]
@@ -20,10 +26,11 @@ namespace CanteenManagement.API.Controllers.V1
         }
 
         [HttpPost("upload")]
+        [Consumes("multipart/form-data")]
         [RequestSizeLimit(10 * 1024 * 1024)]
-        public async Task<IActionResult> Upload([FromForm] IFormFile? file, [FromForm] string folder = "menu")
+        public async Task<IActionResult> Upload([FromForm] MediaUploadRequest request)
         {
-            var uploadedFile = file;
+            var uploadedFile = request?.File;
             if (uploadedFile == null && Request.HasFormContentType && Request.Form.Files.Count > 0)
             {
                 uploadedFile = Request.Form.Files["file"]
@@ -39,6 +46,7 @@ namespace CanteenManagement.API.Controllers.V1
 
             try
             {
+                var folder = request?.Folder;
                 var targetFolder = string.IsNullOrWhiteSpace(folder) ? (Request.Query["folder"].ToString() ?? "menu") : folder;
                 var relativePath = await _mediaStorageService.SaveImageAsync(uploadedFile, targetFolder);
                 var result = new

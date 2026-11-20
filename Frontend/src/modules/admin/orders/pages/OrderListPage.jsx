@@ -10,6 +10,7 @@ import { OrderDetailsModal } from '../components/OrderDetailsModal';
 import { CancelOrderModal } from '../components/CancelOrderModal';
 import { PlaceOrderCatalog } from '../components/PlaceOrderCatalog';
 import { useCanteens } from '../../outlets/hooks/useCanteens';
+import { isSameIstDate, isYesterdayIST, isWithinDaysIST } from '../../../../utils/formatters';
 
 export const OrderListPage = () => {
   const {
@@ -28,6 +29,7 @@ export const OrderListPage = () => {
 
   // Filters state for Today's Orders (syncs with global navbar outlet)
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedDate, setSelectedDate] = useState('TODAY');
   const [selectedStatus, setSelectedStatus] = useState('ALL');
   const [selectedPayment, setSelectedPayment] = useState('ALL');
   const [selectedOutlet, setSelectedOutlet] = useState(globalOutlet || 'ALL');
@@ -35,6 +37,11 @@ export const OrderListPage = () => {
   useEffect(() => {
     setSelectedOutlet(globalOutlet || 'ALL');
   }, [globalOutlet]);
+
+  // Count of orders specifically placed today in IST
+  const todaysOrdersCount = useMemo(() => {
+    return orders.filter(o => isSameIstDate(o.orderDate || o.createdAt)).length;
+  }, [orders]);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -49,6 +56,12 @@ export const OrderListPage = () => {
   // Filtered orders
   const filteredOrders = useMemo(() => {
     return orders.filter(order => {
+      // Date filter (IST)
+      const ordDate = order.orderDate || order.createdAt;
+      if (selectedDate === 'TODAY' && !isSameIstDate(ordDate)) return false;
+      if (selectedDate === 'YESTERDAY' && !isYesterdayIST(ordDate)) return false;
+      if (selectedDate === 'LAST_7_DAYS' && !isWithinDaysIST(ordDate, 7)) return false;
+
       if (searchTerm) {
         const q = searchTerm.toLowerCase();
         const matchesToken = order.token?.toLowerCase().includes(q);
@@ -62,7 +75,7 @@ export const OrderListPage = () => {
       if (selectedOutlet !== 'ALL' && String(order.outletId ?? order.canteenId ?? '') !== String(selectedOutlet)) return false;
       return true;
     });
-  }, [orders, searchTerm, selectedStatus, selectedPayment, selectedOutlet]);
+  }, [orders, selectedDate, searchTerm, selectedStatus, selectedPayment, selectedOutlet]);
 
   // Paginated records
   const paginatedOrders = useMemo(() => {
@@ -72,6 +85,7 @@ export const OrderListPage = () => {
 
   const handleResetFilters = () => {
     setSearchTerm('');
+    setSelectedDate('TODAY');
     setSelectedStatus('ALL');
     setSelectedPayment('ALL');
     setSelectedOutlet('ALL');
@@ -197,7 +211,7 @@ export const OrderListPage = () => {
         >
           <Clock size={16} />
           <span>Today's Orders</span>
-          {orders.length > 0 && (
+          {todaysOrdersCount > 0 && (
             <span
               style={{
                 padding: '2px 7px',
@@ -208,7 +222,7 @@ export const OrderListPage = () => {
                 color: activeTab === 'TODAYS_ORDERS' ? '#ffffff' : 'var(--text-primary)'
               }}
             >
-              {orders.length}
+              {todaysOrdersCount}
             </span>
           )}
         </button>
@@ -226,6 +240,8 @@ export const OrderListPage = () => {
           <OrderFilters
             searchTerm={searchTerm}
             onSearchChange={(v) => { setSearchTerm(v); setCurrentPage(1); }}
+            selectedDate={selectedDate}
+            onDateChange={(v) => { setSelectedDate(v); setCurrentPage(1); }}
             selectedStatus={selectedStatus}
             onStatusChange={(v) => { setSelectedStatus(v); setCurrentPage(1); }}
             selectedPayment={selectedPayment}

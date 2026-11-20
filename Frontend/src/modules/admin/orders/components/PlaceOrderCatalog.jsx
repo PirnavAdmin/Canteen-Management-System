@@ -403,7 +403,7 @@ export const PlaceOrderCatalog = ({ onOrderPlaced }) => {
           }}
         >
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', color: 'var(--text-muted)' }}>
-            <RefreshCw size={24} className="spin" />
+            <RefreshCw size={24} className="spin" style={{ animation: 'spin 1s linear infinite' }} />
             <span style={{ fontSize: '13px' }}>Loading menu catalog...</span>
           </div>
         </div>

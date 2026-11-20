@@ -2,7 +2,7 @@ import React from 'react';
 import { Eye, CheckCircle, ChefHat, BellRing, CheckCheck, ArrowRight, Loader2 } from 'lucide-react';
 import { DataTable } from '../../../../components/tables/DataTable';
 import { StatusBadge } from '../../../../components/common/StatusBadge';
-import { formatCurrency } from '../../../../utils/formatters';
+import { formatCurrency, formatTimeIST, formatDate, isSameIstDate } from '../../../../utils/formatters';
 import { ORDER_STATUS, ORDER_LIFECYCLE_NEXT_STEPS } from '../../../../constants/appConstants';
 
 const getStepIcon = (nextStatus) => {
@@ -52,6 +52,13 @@ export const OrderTable = ({
           <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
             {row.id}
           </span>
+          {(row.orderDate || row.createdAt) && (
+            <span style={{ fontSize: '10px', color: 'var(--text-secondary)', marginTop: '1px' }}>
+              {isSameIstDate(row.orderDate || row.createdAt)
+                ? formatTimeIST(row.orderDate || row.createdAt)
+                : `${formatDate(row.orderDate || row.createdAt)}, ${formatTimeIST(row.orderDate || row.createdAt)}`}
+            </span>
+          )}
         </div>
       )
     },

@@ -10,8 +10,10 @@ import { useCanteens } from '../hooks/useCanteens';
 import { validateCanteenForm } from '../utils/canteenValidators';
 import { Save, Building, MapPin, Phone, Mail, Hash, ShieldCheck, Clock, FileCheck } from 'lucide-react';
 
+const EMPTY_INITIAL_VALUES = {};
+
 export const CanteenForm = ({
-  initialValues = {},
+  initialValues = EMPTY_INITIAL_VALUES,
   onSubmit,
   isEdit = false,
   allCanteens = []
@@ -55,11 +57,14 @@ export const CanteenForm = ({
         status: initialValues.status || 'Active',
         isOrderAcceptanceEnabled: initialValues.isOrderAcceptanceEnabled ?? true
       });
-      if (initialValues.campus) {
+      if (initialValues.campus && initialValues.campus !== selectedCampus) {
         setSelectedCampus(initialValues.campus);
       }
     } else if (!isEdit && selectedCampus) {
-      setFormData(prev => ({ ...prev, campus: selectedCampus }));
+      setFormData(prev => {
+        if (prev.campus === selectedCampus) return prev;
+        return { ...prev, campus: selectedCampus };
+      });
     }
   }, [initialValues, isEdit, selectedCampus, setSelectedCampus]);
 

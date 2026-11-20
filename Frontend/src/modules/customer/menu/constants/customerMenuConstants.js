@@ -138,13 +138,13 @@ export const CUSTOMER_FOOD_ITEMS = [
   {
     id: 'food-05',
     code: 'PNR-05',
-    name: 'Tandoori Paneer Kathi Roll',
+    name: 'Paneer Roll',
     description: 'Char-grilled cottage cheese cubes tossed in spicy tandoori marinade, shredded onions, bell peppers, mint chutney rolled in a soft paratha.',
     category: 'Snacks',
     outletId: 'canteen-003',
     outletName: 'Engineering Block Kiosk',
     foodType: 'Veg',
-    price: 75.00,
+    price: 90.00,
     dailyCapacity: 100,
     remainingCapacity: 22,
     availability: 'Available',
@@ -158,8 +158,8 @@ export const CUSTOMER_FOOD_ITEMS = [
     isPopular: true,
     allergens: ['Dairy / Milk', 'Gluten / Wheat'],
     variants: [
-      { id: 'v1', name: 'Single Paneer Roll', price: 75.00 },
-      { id: 'v2', name: 'Double Paneer & Cheese Roll', price: 95.00 }
+      { id: 'v1', name: 'Single Paneer Roll', price: 90.00 },
+      { id: 'v2', name: 'Double Paneer & Cheese Roll', price: 110.00 }
     ],
     addOns: [
       { id: 'a1', name: 'Extra Mint Mayo Dip', price: 15.00 }
@@ -168,13 +168,13 @@ export const CUSTOMER_FOOD_ITEMS = [
   {
     id: 'food-06',
     code: 'SMS-06',
-    name: 'Crispy Punjabi Samosa (2 pcs)',
+    name: 'Samosa',
     description: 'Crispy flaky pastry crust filled with aromatic cumin-spiced potatoes and green peas, served with sweet date-tamarind chutney and spicy mint dip.',
     category: 'Snacks',
     outletId: 'canteen-003',
     outletName: 'Engineering Block Kiosk',
     foodType: 'Veg',
-    price: 30.00,
+    price: 40.00,
     dailyCapacity: 200,
     remainingCapacity: 52,
     availability: 'Available',
@@ -188,12 +188,9 @@ export const CUSTOMER_FOOD_ITEMS = [
     isPopular: true,
     allergens: ['Gluten / Wheat'],
     variants: [
-      { id: 'v1', name: 'Pair of Samosas (2 pcs)', price: 30.00 },
-      { id: 'v2', name: 'Samosa Chaat (Crushed with Chole & Dahi)', price: 60.00 }
+      { id: 'v1', name: 'Pair of Samosas (2 pcs)', price: 40.00 }
     ],
-    addOns: [
-      { id: 'a1', name: 'Extra Sweet Chutney', price: 5.00 }
-    ]
+    addOns: []
   },
   {
     id: 'food-07',
@@ -254,13 +251,13 @@ export const CUSTOMER_FOOD_ITEMS = [
   {
     id: 'food-09',
     code: 'CKB-09',
-    name: 'Hyderabadi Chicken Dum Biryani',
+    name: 'Chicken Biryani',
     description: 'Dum-cooked aromatic spiced long-grain basmati rice layered with marinated tender chicken pieces, saffron, served with mirchi ka salan and cucumber raita.',
     category: 'Meals',
     outletId: 'canteen-002',
     outletName: 'North Campus Food Court',
     foodType: 'Non-veg',
-    price: 150.00,
+    price: 120.00,
     dailyCapacity: 80,
     remainingCapacity: 14,
     availability: 'Available',
@@ -274,12 +271,72 @@ export const CUSTOMER_FOOD_ITEMS = [
     isPopular: true,
     allergens: ['Dairy / Milk'],
     variants: [
-      { id: 'v1', name: 'Regular Chicken Biryani', price: 150.00 },
-      { id: 'v2', name: 'Special Biryani (Extra Chicken + Egg)', price: 190.00 }
+      { id: 'v1', name: 'Regular Chicken Biryani', price: 120.00 },
+      { id: 'v2', name: 'Special Biryani (Extra Chicken + Egg)', price: 160.00 }
     ],
     addOns: [
       { id: 'a1', name: 'Boiled Egg (1 pc)', price: 15.00 },
       { id: 'a2', name: 'Extra Salan Gravy', price: 20.00 }
+    ]
+  },
+  {
+    id: 'food-13',
+    code: 'VBG-13',
+    name: 'Veg Burger',
+    description: 'Crispy seasoned spiced vegetable patty topped with fresh lettuce, juicy tomato slices, creamy mayo, and melted cheese in a toasted sesame bun.',
+    category: 'Snacks',
+    outletId: 'canteen-003',
+    outletName: 'Engineering Block Kiosk',
+    foodType: 'Veg',
+    price: 70.00,
+    dailyCapacity: 120,
+    remainingCapacity: 45,
+    availability: 'Available',
+    rating: 4.8,
+    ratingCount: 210,
+    prepTime: '5-7 mins',
+    servingSize: '1 Burger (200g)',
+    calories: '340 kcal',
+    imageUrl: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=600&q=80',
+    isFeatured: true,
+    isPopular: true,
+    allergens: ['Gluten / Wheat', 'Dairy / Milk'],
+    variants: [
+      { id: 'v1', name: 'Classic Veg Burger', price: 70.00 },
+      { id: 'v2', name: 'Double Cheese Veg Burger', price: 95.00 }
+    ],
+    addOns: [
+      { id: 'a1', name: 'Extra Cheese Slice', price: 15.00 }
+    ]
+  },
+  {
+    id: 'food-14',
+    code: 'CCF-14',
+    name: 'Cold Coffee',
+    description: 'Thick, creamy chilled espresso coffee blended with rich whole milk, vanilla ice cream swirl, and chocolate drizzle.',
+    category: 'Beverages',
+    outletId: 'canteen-001',
+    outletName: 'Central Dining Hall',
+    foodType: 'Veg',
+    price: 60.00,
+    dailyCapacity: 150,
+    remainingCapacity: 60,
+    availability: 'Available',
+    rating: 4.9,
+    ratingCount: 340,
+    prepTime: '3 mins',
+    servingSize: '300 ml Glass',
+    calories: '180 kcal',
+    imageUrl: 'https://images.unsplash.com/photo-1517701550927-30cf4ba1dba5?auto=format&fit=crop&w=600&q=80',
+    isFeatured: true,
+    isPopular: true,
+    allergens: ['Dairy / Milk'],
+    variants: [
+      { id: 'v1', name: 'Classic Chilled Cold Coffee', price: 60.00 },
+      { id: 'v2', name: 'Cold Coffee with Ice Cream', price: 80.00 }
+    ],
+    addOns: [
+      { id: 'a1', name: 'Extra Chocolate Syrup', price: 10.00 }
     ]
   },
   {

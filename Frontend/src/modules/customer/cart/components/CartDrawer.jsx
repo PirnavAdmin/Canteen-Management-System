@@ -65,7 +65,7 @@ export const CartDrawer = () => {
                 className={styles.browseBtn}
                 onClick={() => {
                   setIsDrawerOpen(false);
-                  navigate('/customer/menu');
+                  navigate('/customer/dashboard');
                 }}
               >
                 Browse Canteen Menu
