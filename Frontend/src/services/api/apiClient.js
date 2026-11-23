@@ -9,19 +9,28 @@ import { ENV } from '../../config/env';
 
 const resolveBaseUrl = () => {
   const envBase = import.meta.env.VITE_API_BASE_URL;
-  if (typeof window !== 'undefined' && window.location) {
-    const host = window.location.hostname;
-    const isNgrok = /ngrok/i.test(host);
-    const isLocalConfig = !envBase || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(envBase);
 
-    // If accessing through an ngrok domain and config is local, use current origin (proxied via Vite)
-    if (isNgrok && isLocalConfig) {
-      return `${window.location.origin}/api/v1`;
+  // 1. If explicit API base URL is configured in .env (e.g., https://whiff-lyrics-debug.ngrok-free.dev)
+  if (envBase && typeof envBase === 'string' && envBase.trim()) {
+    const trimmed = envBase.trim();
+    if (typeof window !== 'undefined' && window.location) {
+      const host = window.location.hostname;
+      const isNgrok = /ngrok/i.test(host);
+      const isLocalConfig = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(trimmed);
+      if (isNgrok && isLocalConfig) {
+        return `${window.location.origin}/api/v1`;
+      }
     }
+    return trimmed.includes('/api/v') ? trimmed : `${trimmed.replace(/\/+$/, '')}/api/v1`;
   }
 
-  const rawBase = envBase || 'http://localhost:5000/api/v1';
-  return rawBase.includes('/api/v') ? rawBase : `${rawBase.replace(/\/+$/, '')}/api/v1`;
+  // 2. In browser dev server (e.g., localhost:5173/5174), route through Vite's dev proxy '/api/v1'
+  if (typeof window !== 'undefined' && window.location) {
+    return '/api/v1';
+  }
+
+  // 3. Fallback default
+  return 'https://whiff-lyrics-debug.ngrok-free.dev/api/v1';
 };
 
 const BASE_URL = resolveBaseUrl();
@@ -72,15 +81,30 @@ axiosInstance.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response Interceptor: Standardize Response format and handle 401s
+// Response Interceptor: Standardize Response format, handle 401s, and fallback /api/v1 -> /api on 404
 axiosInstance.interceptors.response.use(
   (response) => {
     // Backend returns { success: true/false, message: "...", data: ... }
     return response.data;
   },
-  (error) => {
+  async (error) => {
+    const config = error.config;
     const status = error.response ? error.response.status : null;
     const responseData = error.response ? error.response.data : null;
+
+    // Smart 404 Route Fallback:
+    // If backend controller is mapped at /api/[controller] instead of /api/v1/[controller], retry once with /api
+    if (status === 404 && config && !config._retry404) {
+      config._retry404 = true;
+      if (config.baseURL && config.baseURL.includes('/api/v1')) {
+        config.baseURL = config.baseURL.replace('/api/v1', '/api');
+        return axiosInstance(config);
+      }
+      if (config.url && config.url.includes('/api/v1/')) {
+        config.url = config.url.replace('/api/v1/', '/api/');
+        return axiosInstance(config);
+      }
+    }
 
     if (status === 401) {
       localStorage.removeItem('token');

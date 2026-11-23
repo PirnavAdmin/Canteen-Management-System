@@ -52,13 +52,13 @@ export const CanteenProvider = ({ children }) => {
       setCanteens(data);
       setError(null);
     } catch (err) {
-      console.error('Failed to load canteens:', err);
+      console.warn('Failed to load canteens from backend API:', err.message);
       setError(err.message || 'Failed to load canteens');
-      toastError('Load Error', 'Unable to retrieve canteens master list.');
+      setCanteens([]);
     } finally {
       setLoading(false);
     }
-  }, [toastError]);
+  }, []);
 
   useEffect(() => {
     loadCanteens();
