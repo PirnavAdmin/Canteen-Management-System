@@ -435,7 +435,7 @@ export const PaymentPage = () => {
                 <span style={{ fontWeight: 600 }}>₹{Number(draftOrder.pricing?.subtotal || 0).toFixed(2)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>GST (5%):</span>
+                <span style={{ color: 'var(--text-secondary)' }}>GST ({draftOrder.pricing?.gstPercent || 5}%):</span>
                 <span style={{ fontWeight: 600 }}>₹{Number(draftOrder.pricing?.taxAmount || 0).toFixed(2)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>

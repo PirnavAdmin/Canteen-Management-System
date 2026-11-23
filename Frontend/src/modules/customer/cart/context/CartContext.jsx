@@ -14,6 +14,19 @@ export const CartProvider = ({ children }) => {
   const [selectedOutlet, setSelectedOutletState] = useState(() => cartService.getSelectedOutlet());
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
+  // Load live system settings for GST and packaging fee
+  useEffect(() => {
+    import('../../../admin/settings/services/settingsService')
+      .then(m => m.settingsService.getSettings())
+      .then(settings => {
+        if (settings) {
+          cartService.setSettings(settings);
+          setCartItems(prev => [...prev]);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Sync / reload cart when the authenticated user changes (Student vs Faculty isolation)
   useEffect(() => {
     setCartItems(cartService.getCart(userId));
@@ -45,7 +58,11 @@ export const CartProvider = ({ children }) => {
         return updated;
       }
 
-      const effectivePrice = variant?.price ? Number(variant.price) : Number(item.price);
+      const discount = Number(item.discountPercent || 0);
+      let effectivePrice = variant?.price ? Number(variant.price) : Number(item.price);
+      if (discount > 0 && !variant?.price) {
+        effectivePrice = Math.round(effectivePrice * (1 - discount / 100) * 100) / 100;
+      }
 
       const newItem = {
         cartKey,
@@ -55,6 +72,7 @@ export const CartProvider = ({ children }) => {
         foodType: item.foodType || 'Veg',
         price: effectivePrice,
         basePrice: Number(item.price),
+        discountPercent: discount,
         imageUrl: item.imageUrl,
         category: item.category,
         outletId: item.outletId || selectedOutlet?.id || 'canteen-001',

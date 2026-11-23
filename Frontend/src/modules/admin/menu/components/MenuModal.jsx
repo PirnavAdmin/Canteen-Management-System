@@ -36,6 +36,7 @@ export const MenuModal = ({
     outletId: 1,
     foodType: FOOD_TYPES.VEG,
     price: '',
+    discountPercent: 0,
     dailyCapacity: '',
     servingSize: '',
     calories: '',
@@ -107,6 +108,7 @@ export const MenuModal = ({
         outletId: Number(initialData.outletId) || 1,
         foodType: initType,
         price: initialData.price || '',
+        discountPercent: initialData.discountPercent !== undefined ? initialData.discountPercent : 0,
         dailyCapacity: initialData.dailyCapacity || '',
         servingSize: initialData.servingSize || '',
         calories: initialData.calories || '',
@@ -265,6 +267,7 @@ export const MenuModal = ({
       outletId: numericOutletId,
       categoryId: numericCategoryId,
       price: Number(formData.price),
+      discountPercent: Number(formData.discountPercent) || 0,
       dailyCapacity: Number(formData.dailyCapacity) || 100,
       code: formData.code?.trim() || `MI-${Date.now().toString().slice(-4)}`
     });
@@ -605,6 +608,36 @@ export const MenuModal = ({
                 }}
               />
               {errors.price && <span style={{ fontSize: '11px', color: 'var(--color-danger)' }}>{errors.price}</span>}
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, marginBottom: '4px', color: 'var(--text-primary)' }}>
+                Discount (%)
+              </label>
+              <input
+                type="number"
+                step="1"
+                min="0"
+                max="100"
+                value={formData.discountPercent ?? 0}
+                onChange={(e) => setFormData({ ...formData, discountPercent: Math.max(0, Math.min(100, Number(e.target.value) || 0)) })}
+                placeholder="0"
+                style={{
+                  width: '100%',
+                  height: '36px',
+                  padding: '0 10px',
+                  fontSize: '13px',
+                  backgroundColor: 'var(--bg-surface)',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: 'var(--border-radius-md)'
+                }}
+              />
+              {formData.discountPercent > 0 && formData.price > 0 && (
+                <span style={{ fontSize: '11px', color: '#16a34a', display: 'block', marginTop: '2px', fontWeight: 600 }}>
+                  Effective: ₹{(formData.price * (1 - formData.discountPercent / 100)).toFixed(2)}
+                </span>
+              )}
             </div>
           </div>
 
