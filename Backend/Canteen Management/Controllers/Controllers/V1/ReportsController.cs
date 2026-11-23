@@ -10,7 +10,7 @@ namespace CanteenManagement.API.Controllers.V1
     [ApiController]
     [ApiVersion("1.0")]
     [Route("api/v{version:apiVersion}/canteen-reports")]
-    [Authorize(Policy = "RequireAdmin")]
+    [Authorize(Policy = "RequireReportsAccess")]
     public class ReportsController : ControllerBase
     {
         private readonly IReportService _reportService;

@@ -13,6 +13,10 @@ SELECT 1, 'staff', 'ravi.staff@canteen.edu', '$2a$11$s1QyE9z0L.V.vF2H7Wl.wO0ZJ8n
 WHERE NOT EXISTS (SELECT 1 FROM Users WHERE Username = 'staff');
 
 INSERT INTO Users (CampusId, Username, Email, PasswordHash, FullName, Role, PhoneNumber, IsActive, CreatedAt)
+SELECT 1, 'cashier', 'cashier@canteen.edu', '$2a$11$s1QyE9z0L.V.vF2H7Wl.wO0ZJ8nEa/k1sB2z0X3c4v5b6n7m8l9k0', 'Rahul Verma (Cashier)', 'Cashier', '+91 98765 43215', 1, UTC_TIMESTAMP()
+WHERE NOT EXISTS (SELECT 1 FROM Users WHERE Username = 'cashier');
+
+INSERT INTO Users (CampusId, Username, Email, PasswordHash, FullName, Role, PhoneNumber, IsActive, CreatedAt)
 SELECT 1, 'aarav', 'aarav.student@git.edu', '$2a$11$s1QyE9z0L.V.vF2H7Wl.wO0ZJ8nEa/k1sB2z0X3c4v5b6n7m8l9k0', 'Aarav (B.Tech 2nd Year)', 'Student', '+91 98765 43212', 1, UTC_TIMESTAMP()
 WHERE NOT EXISTS (SELECT 1 FROM Users WHERE Username = 'aarav');
 

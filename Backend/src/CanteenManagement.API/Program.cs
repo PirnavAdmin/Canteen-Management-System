@@ -101,7 +101,9 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("RequireAdmin", policy => policy.RequireRole("Admin"));
-    options.AddPolicy("RequireStaffOrAdmin", policy => policy.RequireRole("Admin", "Staff"));
+    options.AddPolicy("RequireStaffOrAdmin", policy => policy.RequireRole("Admin", "Staff", "Cashier"));
+    options.AddPolicy("RequireCashierOrAdmin", policy => policy.RequireRole("Admin", "Cashier"));
+    options.AddPolicy("RequireReportsAccess", policy => policy.RequireRole("Admin", "Cashier"));
 });
 
 // 4. Register Services & Repositories (N-Tier Clean Architecture)
