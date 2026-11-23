@@ -132,7 +132,7 @@ export const CustomerHeader = () => {
         const orders = await customerOrderService.getCustomerOrders(user);
         if (!isMounted) return;
         const list = Array.isArray(orders) ? orders : [];
-        const active = list.find(o => !['Completed', 'Cancelled', 'Refunded'].includes(o.status));
+        const active = list.find(o => !['Completed', 'Collected', 'Cancelled', 'Refunded'].includes(o.status));
         if (active) {
           setActiveOrder(active);
         } else if (list.length > 0) {
@@ -146,14 +146,18 @@ export const CustomerHeader = () => {
     };
 
     fetchLatestOrder();
-    const interval = setInterval(fetchLatestOrder, 8000);
+
+    const handleOrderEvent = () => fetchLatestOrder();
+    window.addEventListener('cms:order_created', handleOrderEvent);
+    window.addEventListener('cms:order_status_updated', handleOrderEvent);
 
     const handleCustomTrigger = () => setShowOrderModal(true);
     window.addEventListener('cms:show-order-status', handleCustomTrigger);
 
     return () => {
       isMounted = false;
-      clearInterval(interval);
+      window.removeEventListener('cms:order_created', handleOrderEvent);
+      window.removeEventListener('cms:order_status_updated', handleOrderEvent);
       window.removeEventListener('cms:show-order-status', handleCustomTrigger);
     };
   }, [user]);

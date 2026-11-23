@@ -125,6 +125,29 @@ export const OrderDetailsModal = ({
             </div>
           </div>
 
+          {/* Special Cooking Notes & Dietary Instructions */}
+          {(order.notes || order.cookingNotes) && (
+            <div style={{
+              backgroundColor: '#fffbeb',
+              border: '1px solid #fde68a',
+              borderRadius: 'var(--border-radius-md)',
+              padding: '12px 16px',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '12px'
+            }}>
+              <ChefHat size={20} style={{ color: '#d97706', flexShrink: 0, marginTop: '2px' }} />
+              <div>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block' }}>
+                  Special Cooking Notes & Dietary Instructions
+                </span>
+                <p style={{ fontSize: '13.5px', fontWeight: 600, color: '#92400e', margin: '3px 0 0 0', lineHeight: 1.4 }}>
+                  {order.notes || order.cookingNotes}
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Items Breakdown Table */}
           <div>
             <h4 style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 8px 0' }}>

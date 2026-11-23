@@ -33,16 +33,10 @@ export const useStaffOrders = () => {
     window.addEventListener('cms:order_created', handleOrderEvent);
     window.addEventListener('storage', handleOrderEvent);
 
-    // Periodic polling to synchronize across browser tabs and backend
-    const interval = setInterval(() => {
-      loadOrders();
-    }, 10000);
-
     return () => {
       window.removeEventListener('cms:order_status_updated', handleOrderEvent);
       window.removeEventListener('cms:order_created', handleOrderEvent);
       window.removeEventListener('storage', handleOrderEvent);
-      clearInterval(interval);
     };
   }, [loadOrders]);
 

@@ -222,9 +222,9 @@ export const StaffOrderDetailsModal = ({
               <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginTop: '2px' }}>
                 Kitchen Station: <strong>Hot Food Line</strong>
               </div>
-              {notes && (
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                  Note: {notes}
+              {(notes || order.cookingNotes) && (
+                <div style={{ fontSize: '11.5px', color: '#b45309', backgroundColor: '#fef3c7', padding: '4px 8px', borderRadius: '4px', marginTop: '4px', fontWeight: 600 }}>
+                  Note: {notes || order.cookingNotes}
                 </div>
               )}
             </div>

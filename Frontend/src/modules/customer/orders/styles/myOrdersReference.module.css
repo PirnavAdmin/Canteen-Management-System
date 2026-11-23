@@ -177,6 +177,11 @@
   color: #b95200;
 }
 
+.cancelled {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
 .track {
   display: inline-flex;
   align-items: center;

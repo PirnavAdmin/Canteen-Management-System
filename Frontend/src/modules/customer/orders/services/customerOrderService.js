@@ -41,9 +41,24 @@ export const customerOrderService = {
     }
 
     const uniqueOrders = new Map();
-    [...remoteOrders, ...(Array.isArray(locallySaved) ? locallySaved : [])]
+    // 1. Seed with locally saved orders (fallback bridge)
+    (Array.isArray(locallySaved) ? locallySaved : [])
       .filter(belongsToCurrentUser)
       .forEach((order) => uniqueOrders.set(String(order.id || order.orderId), order));
+
+    // 2. Overwrite with live backend database orders (authoritative live status!)
+    remoteOrders
+      .filter(belongsToCurrentUser)
+      .forEach((remoteOrder) => {
+        const key = String(remoteOrder.id || remoteOrder.orderId);
+        const local = uniqueOrders.get(key) || {};
+        uniqueOrders.set(key, {
+          ...local,
+          ...remoteOrder,
+          notes: remoteOrder.notes || local.notes || local.cookingNotes || '',
+          cookingNotes: remoteOrder.notes || local.notes || local.cookingNotes || ''
+        });
+      });
 
     return [...uniqueOrders.values()].sort((a, b) =>
       new Date(b.orderDate || b.createdAt || 0) - new Date(a.orderDate || a.createdAt || 0)
@@ -110,14 +125,23 @@ export const customerOrderService = {
       throw new Error('A cancellation reason is required for institutional audit and refund records.');
     }
 
-    const allOrders = storageService.getItem(ORDERS_STORAGE_KEY, []);
-    const idx = allOrders.findIndex(o => o.id === orderId);
+    const allOrders = storageService.getItem(ORDERS_STORAGE_KEY, []) || [];
+    const idx = allOrders.findIndex(o => String(o.id || o.orderId) === String(orderId));
 
+    let targetOrder;
     if (idx === -1) {
-      throw new Error(`Order with ID ${orderId} was not found.`);
+      targetOrder = {
+        id: orderId,
+        orderId: orderId,
+        status: ORDER_STATUS.PLACED,
+        customer: { email: (user?.email || '').trim().toLowerCase(), name: (user?.fullName || user?.username || '').trim().toLowerCase() },
+        totalAmount: 0,
+        timeline: []
+      };
+      allOrders.unshift(targetOrder);
+    } else {
+      targetOrder = allOrders[idx];
     }
-
-    const targetOrder = allOrders[idx];
 
     // Ownership check: Prevent cancelling other users' orders
     const userEmail = (user?.email || '').trim().toLowerCase();
@@ -293,43 +317,81 @@ export const customerOrderService = {
       throw new Error(`Unsupported payment method: ${paymentMethod}`);
     }
 
-    // 3. Normalize Pickup Slot Configuration
-    let slotObj = {
-      timeWindow: '12:30 PM - 01:00 PM',
-      session: 'Lunch'
-    };
-    if (orderPayload.pickupSlot === 'lunch_slot_2') {
-      slotObj = { timeWindow: '01:00 PM - 01:30 PM', session: 'Lunch' };
-    } else if (orderPayload.pickupSlot === 'tea_slot') {
-      slotObj = { timeWindow: '04:30 PM - 05:00 PM', session: 'Tea / Snacks' };
-    } else if (orderPayload.pickupSlot === 'express') {
-      slotObj = { timeWindow: 'Immediate Counter Pickup', session: 'Express Service' };
-    } else if (orderPayload.slot) {
-      slotObj = orderPayload.slot;
-    }
-
-    // 4. Generate Kitchen Pickup Token
-    const tokenNumber = orderPayload.token || `T-${Math.floor(100 + Math.random() * 900)}`;
+    // 3. Submit Order to Live Backend API
     const now = new Date();
     const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    let createdBackendOrder = null;
+    const specialCookingNotes = (orderPayload.cookingNotes || orderPayload.notes || '').trim();
 
-    // 5. Construct Normalized Completed Order
+    // Resolve safe numeric outletId
+    const rawOutletId = orderPayload.outletId || orderPayload.outlet?.id;
+    const firstItemOutlet = (orderPayload.items || [])[0]?.outletId;
+    const numOutlet = Number(rawOutletId);
+    const numItemOutlet = Number(firstItemOutlet);
+
+    const resolvedOutletId = (!isNaN(numOutlet) && numOutlet > 0)
+      ? numOutlet
+      : (!isNaN(numItemOutlet) && numItemOutlet > 0)
+        ? numItemOutlet
+        : 1;
+
+    const itemsPayload = (orderPayload.items || []).map(item => {
+      const rawId = item.menuItemId || item.id;
+      const numId = Number(rawId);
+      return {
+        menuItemId: (!isNaN(numId) && numId > 0) ? numId : 1,
+        quantity: Math.max(1, Number(item.quantity || 1)),
+        variantName: item.variantName || item.variant || undefined
+      };
+    });
+
+    const apiPayload = {
+      outletId: resolvedOutletId,
+      customerName: user?.fullName || user?.username || orderPayload.customer?.name || 'Campus Diner',
+      customerRole: userRole,
+      rollNo: identifier,
+      department: department,
+      phone: user?.phoneNumber || user?.phone || '+91 98765 43210',
+      email: user?.email || orderPayload.customer?.email || '',
+      paymentMethod: methodLabel,
+      items: itemsPayload,
+      notes: specialCookingNotes
+    };
+
+    try {
+      const res = await orderService.create(apiPayload);
+      createdBackendOrder = res?.data || res;
+    } catch (apiErr) {
+      console.error('Backend order creation returned error:', apiErr);
+      throw new Error(apiErr?.message || 'Failed to submit order to canteen backend server. Please try again.');
+    }
+
+    if (!createdBackendOrder || !createdBackendOrder.id) {
+      throw new Error('Canteen server did not return a valid order record.');
+    }
+
+    const assignedId = createdBackendOrder.id;
+    const assignedToken = createdBackendOrder.token || `T-${Math.floor(100 + Math.random() * 900)}`;
+
+    // 4. Construct Normalized Completed Order
     const completedOrder = {
       ...orderPayload,
-      id: orderPayload.orderId,
-      token: tokenNumber,
-      status: ORDER_STATUS.PLACED,
-      totalAmount: orderAmt,
+      ...(createdBackendOrder || {}),
+      id: assignedId,
+      token: assignedToken,
+      status: createdBackendOrder?.status || ORDER_STATUS.PLACED,
+      totalAmount: createdBackendOrder?.totalAmount || orderAmt,
       paymentStatus: finalPaymentStatus,
       paymentMethod: methodLabel,
+      notes: specialCookingNotes || createdBackendOrder?.notes || '',
+      cookingNotes: specialCookingNotes || createdBackendOrder?.notes || '',
       payment: {
         method: methodLabel,
         status: finalPaymentStatus,
         transactionId: txnId,
-        amount: orderAmt,
+        amount: createdBackendOrder?.totalAmount || orderAmt,
         paidAt: paymentMethod === 'CASH' ? null : now.toISOString()
       },
-      slot: slotObj,
       customer: {
         name: user?.fullName || user?.username || orderPayload.customer?.name || 'Campus Diner',
         role: userRole,
@@ -338,7 +400,7 @@ export const customerOrderService = {
         email: user?.email || orderPayload.customer?.email || '',
         phone: user?.phoneNumber || user?.phone || '+91 98765 43210'
       },
-      timeline: [
+      timeline: createdBackendOrder?.timeline || [
         {
           status: ORDER_STATUS.PLACED,
           timestamp: timeStr,
@@ -347,19 +409,22 @@ export const customerOrderService = {
             : `Payment authorized via ${methodLabel} (Ref: ${txnId})`
         }
       ],
-      orderDate: now.toISOString(),
+      orderDate: createdBackendOrder?.orderDate || now.toISOString(),
       counterNumber: 'Counter 02'
     };
 
     // 6. Idempotent storage persistence
     const allOrders = storageService.getItem(ORDERS_STORAGE_KEY, []) || [];
-    const existingIdx = allOrders.findIndex(o => o.id === completedOrder.id);
+    const existingIdx = allOrders.findIndex(o => String(o.id) === String(completedOrder.id));
     if (existingIdx >= 0) {
       allOrders[existingIdx] = completedOrder;
     } else {
       allOrders.unshift(completedOrder);
     }
     storageService.setItem(ORDERS_STORAGE_KEY, allOrders);
+
+    // Notify all app components on this client of the new order
+    window.dispatchEvent(new CustomEvent('cms:order_created', { detail: completedOrder }));
 
     return completedOrder;
   }

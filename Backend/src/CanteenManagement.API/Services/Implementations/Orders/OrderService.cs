@@ -19,8 +19,9 @@ namespace CanteenManagement.API.Services.Implementations.Orders
             ["Placed"] = new[] { "Accepted", "Cancelled" },
             ["Accepted"] = new[] { "Preparing", "Cancelled" },
             ["Preparing"] = new[] { "Ready for Pickup", "Cancelled" },
-            ["Ready for Pickup"] = new[] { "Collected", "Cancelled" },
+            ["Ready for Pickup"] = new[] { "Collected", "Completed", "Cancelled" },
             ["Collected"] = Array.Empty<string>(),
+            ["Completed"] = Array.Empty<string>(),
             ["Cancelled"] = new[] { "Refunded" },
             ["Refunded"] = Array.Empty<string>()
         };
@@ -132,6 +133,7 @@ namespace CanteenManagement.API.Services.Implementations.Orders
                 Department = dto.Department,
                 CustomerPhone = dto.Phone,
                 CustomerEmail = dto.Email,
+                Notes = dto.Notes?.Trim(),
                 Subtotal = subtotal,
                 TaxAmount = taxAmount,
                 TotalAmount = totalAmount,
@@ -144,7 +146,9 @@ namespace CanteenManagement.API.Services.Implementations.Orders
                     {
                         OrderId = orderId,
                         Status = "Placed",
-                        Note = "Order placed via portal",
+                        Note = string.IsNullOrWhiteSpace(dto.Notes)
+                            ? "Order placed via portal"
+                            : $"Order placed via portal [Notes: {dto.Notes.Trim()}]",
                         Timestamp = now
                     }
                 },
@@ -186,20 +190,21 @@ namespace CanteenManagement.API.Services.Implementations.Orders
                 throw new KeyNotFoundException($"Order with ID {id} was not found.");
             }
 
+            var targetStatus = dto.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase) ? "Collected" : dto.Status;
             var allowed = PermittedNextStates.GetValueOrDefault(order.Status, Array.Empty<string>());
-            if (!allowed.Contains(dto.Status))
+            if (!allowed.Contains(dto.Status) && !allowed.Contains(targetStatus))
             {
                 throw new InvalidOperationException($"Invalid status transition from '{order.Status}' to '{dto.Status}'. Permitted next states: {string.Join(", ", allowed)}.");
             }
 
-            order.Status = dto.Status;
+            order.Status = targetStatus;
             var now = DateTime.UtcNow;
 
             order.Timeline.Add(new OrderTimeline
             {
                 OrderId = order.OrderId,
-                Status = dto.Status,
-                Note = dto.Note ?? $"Order transitioned to {dto.Status}",
+                Status = targetStatus,
+                Note = dto.Note ?? $"Order transitioned to {targetStatus}",
                 Timestamp = now
             });
 
@@ -324,6 +329,12 @@ namespace CanteenManagement.API.Services.Implementations.Orders
         private static OrderDto MapToDto(Order o)
         {
             var payment = o.Payments.FirstOrDefault();
+            string? specialNotes = !string.IsNullOrWhiteSpace(o.Notes)
+                ? o.Notes
+                : (o.Timeline?.FirstOrDefault(t => t.Note != null && t.Note.Contains("[Notes:"))?.Note is string noteStr
+                    ? noteStr.Substring(noteStr.IndexOf("[Notes:") + 7).TrimEnd(']').Trim()
+                    : null);
+
             return new OrderDto
             {
                 Id = o.OrderId,
@@ -356,6 +367,7 @@ namespace CanteenManagement.API.Services.Implementations.Orders
                 OrderDate = o.OrderDate,
                 Status = o.Status,
                 CancellationReason = o.CancellationReason,
+                Notes = specialNotes,
                 Payment = new PaymentSummaryDto
                 {
                     Method = payment?.Method ?? "UPI",

@@ -291,9 +291,28 @@ export const KitchenDisplayPage = () => {
                 }}>
                   <span>{order.customer?.name || 'Customer'}</span>
                   <span style={{ fontWeight: 700 }}>
-                    {order.customer?.role || 'Student'} • {order.slot?.timeWindow || 'Express'}
+                    {order.customer?.role || 'Student'} • Express Counter
                   </span>
                 </div>
+
+                {/* Special Cooking Notes for Chef */}
+                {(order.notes || order.cookingNotes) && (
+                  <div style={{
+                    margin: '10px 16px 0 16px',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    backgroundColor: '#fffbeb',
+                    border: '1.5px solid #fde68a',
+                    color: '#92400e',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}>
+                    <span>⚠️ Note: {order.notes || order.cookingNotes}</span>
+                  </div>
+                )}
 
                 {/* Food Items Checklist */}
                 <div style={{

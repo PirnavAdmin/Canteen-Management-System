@@ -413,15 +413,14 @@ export const PaymentPage = () => {
                 <span style={{ color: 'var(--text-muted)' }}>Meal Items:</span>
                 <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{draftOrder.items?.length || 0} Dishes</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Pickup Slot:</span>
-                <span style={{ fontWeight: 600, color: 'var(--color-accent)' }}>
-                  {draftOrder.pickupSlot === 'tea_slot' ? '04:30 PM - 05:00 PM (Tea)' :
-                   draftOrder.pickupSlot === 'lunch_slot_2' ? '01:00 PM - 01:30 PM (Lunch)' :
-                   draftOrder.pickupSlot === 'express' ? 'Immediate Express Pickup' :
-                   '12:30 PM - 01:00 PM (Lunch)'}
-                </span>
-              </div>
+              {draftOrder.cookingNotes && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>Cooking Note:</span>
+                  <span style={{ fontWeight: 600, color: '#d97706', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={draftOrder.cookingNotes}>
+                    {draftOrder.cookingNotes}
+                  </span>
+                </div>
+              )}
             </div>
 
             <div style={{

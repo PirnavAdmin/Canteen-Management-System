@@ -53,7 +53,7 @@ export const CustomerDashboardPage = () => {
   const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
   const [orderToRate, setOrderToRate] = useState(null);
 
-  // Poll orders
+  // Fetch orders on mount and update on order events (no continuous background hitting)
   useEffect(() => {
     let isMounted = true;
     const fetchOrders = async () => {
@@ -65,10 +65,15 @@ export const CustomerDashboardPage = () => {
       }
     };
     fetchOrders();
-    const interval = setInterval(fetchOrders, 8000);
+
+    const handleEvent = () => fetchOrders();
+    window.addEventListener('cms:order_created', handleEvent);
+    window.addEventListener('cms:order_status_updated', handleEvent);
+
     return () => {
       isMounted = false;
-      clearInterval(interval);
+      window.removeEventListener('cms:order_created', handleEvent);
+      window.removeEventListener('cms:order_status_updated', handleEvent);
     };
   }, [user]);
 

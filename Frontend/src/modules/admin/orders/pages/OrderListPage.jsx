@@ -10,6 +10,7 @@ import { OrderDetailsModal } from '../components/OrderDetailsModal';
 import { CancelOrderModal } from '../components/CancelOrderModal';
 import { PlaceOrderCatalog } from '../components/PlaceOrderCatalog';
 import { useCanteens } from '../../outlets/hooks/useCanteens';
+import { orderService } from '../services/orderService';
 import { isSameIstDate, isYesterdayIST, isWithinDaysIST } from '../../../../utils/formatters';
 
 export const OrderListPage = () => {
@@ -90,6 +91,16 @@ export const OrderListPage = () => {
     setSelectedPayment('ALL');
     setSelectedOutlet('ALL');
     setCurrentPage(1);
+  };
+
+  const handleViewOrder = async (ord) => {
+    setSelectedOrder(ord);
+    try {
+      const full = await orderService.getById(ord.id);
+      if (full && full.id) {
+        setSelectedOrder(prev => (prev && String(prev.id) === String(full.id) ? { ...prev, ...full } : prev));
+      }
+    } catch {}
   };
 
   const handleStatusAdvance = async (order, nextStatus) => {
@@ -256,7 +267,7 @@ export const OrderListPage = () => {
             orders={paginatedOrders}
             loading={loading}
             actionLoadingId={actionLoadingId}
-            onView={(ord) => setSelectedOrder(ord)}
+            onView={handleViewOrder}
             onAdvanceStatus={handleStatusAdvance}
             footer={
               <Pagination

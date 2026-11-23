@@ -16,6 +16,7 @@ namespace CanteenManagement.API.DTOs.Orders
         public DateTime OrderDate { get; set; }
         public string Status { get; set; } = "Placed";
         public string? CancellationReason { get; set; }
+        public string? Notes { get; set; }
         public PaymentSummaryDto Payment { get; set; } = new();
         public List<TimelineEntryDto> Timeline { get; set; } = new();
     }
@@ -72,6 +73,7 @@ namespace CanteenManagement.API.DTOs.Orders
         public string? Department { get; set; }
         public string? Phone { get; set; }
         public string? Email { get; set; }
+        public string? Notes { get; set; }
 
         [Required]
         [MinLength(1, ErrorMessage = "At least one order item is required.")]

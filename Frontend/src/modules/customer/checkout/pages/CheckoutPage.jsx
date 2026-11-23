@@ -31,7 +31,6 @@ export const CheckoutPage = () => {
 
   const safeCartItems = Array.isArray(cartItems) ? cartItems : [];
 
-  const [pickupSlot, setPickupSlot] = useState('express');
   const [cookingNotes, setCookingNotes] = useState('');
   const [orderError, setOrderError] = useState('');
 
@@ -50,6 +49,18 @@ export const CheckoutPage = () => {
       return;
     }
 
+    const firstItemOutletId = safeCartItems[0]?.outletId;
+    const numSelected = Number(selectedOutlet?.id);
+    const numItem = Number(firstItemOutletId);
+    const safeOutletId = (!isNaN(numSelected) && numSelected > 0)
+      ? numSelected
+      : (!isNaN(numItem) && numItem > 0)
+        ? numItem
+        : 1;
+    const safeOutletName = (selectedOutlet && selectedOutlet.id !== 'ALL' && selectedOutlet.name)
+      ? selectedOutlet.name
+      : (safeCartItems[0]?.outletName || 'Main Canteen');
+
     // Prepare draft order payload in session
     const draftOrder = {
       orderId: `ORD-${Date.now().toString().slice(-6)}`,
@@ -60,14 +71,16 @@ export const CheckoutPage = () => {
         role: role,
         department: department
       },
-      outletId: selectedOutlet?.id || 'canteen-001',
-      outletName: selectedOutlet?.name || 'Central Dining Hall',
+      outletId: safeOutletId,
+      outletName: safeOutletName,
       items: safeCartItems.map(item => ({
         id: item.id,
+        menuItemId: Number(item.id || item.menuItemId || 1),
         name: item.name,
         price: item.price,
         imageUrl: item.imageUrl,
         quantity: item.quantity,
+        outletId: safeOutletId,
         variant: typeof item.variant === 'object' ? (item.variant?.name || item.variant?.id) : (item.variant || null),
         addOns: (item.selectedAddOns || []).map(a => a.name)
       })),
@@ -77,7 +90,6 @@ export const CheckoutPage = () => {
         packagingFee,
         totalAmount
       },
-      pickupSlot,
       cookingNotes,
       status: 'Placed',
       createdAt: new Date().toISOString()
@@ -195,53 +207,6 @@ export const CheckoutPage = () => {
                     {selectedOutlet?.location || 'Campus Center, Ground Floor'} • Open until {selectedOutlet?.closingTime || '10:00 PM'}
                   </p>
                 </div>
-              </div>
-            </Card>
-
-            {/* Pickup Schedule Slot Card */}
-            <Card title="Pickup Window Slot" padding="20px">
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {[
-                  { id: 'express', label: 'Express Counter Pickup', desc: 'Ready in 10-15 minutes at counter' },
-                  { id: 'lunch_slot_1', label: 'Lunch Break: 12:30 PM - 01:00 PM', desc: 'Reserved slot during peak lunch hour' },
-                  { id: 'lunch_slot_2', label: 'Lunch Break: 01:00 PM - 01:30 PM', desc: 'Reserved slot during second lunch session' },
-                  { id: 'tea_slot', label: 'Evening Refreshment: 04:30 PM - 05:00 PM', desc: 'High-tea and snack counter' }
-                ].map((slot) => (
-                  <label
-                    key={slot.id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '12px 14px',
-                      borderRadius: 'var(--border-radius-md)',
-                      border: '1px solid',
-                      borderColor: pickupSlot === slot.id ? 'var(--color-accent)' : 'var(--border-color)',
-                      backgroundColor: pickupSlot === slot.id ? 'var(--color-primary-light)' : 'var(--bg-app)',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <input
-                        type="radio"
-                        name="pickupSlot"
-                        value={slot.id}
-                        checked={pickupSlot === slot.id}
-                        onChange={(e) => setPickupSlot(e.target.value)}
-                        style={{ cursor: 'pointer' }}
-                      />
-                      <div>
-                        <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                          {slot.label}
-                        </span>
-                        <span style={{ fontSize: '11.5px', color: 'var(--text-muted)', display: 'block', marginTop: '2px' }}>
-                          {slot.desc}
-                        </span>
-                      </div>
-                    </div>
-                    <Clock size={16} style={{ color: pickupSlot === slot.id ? 'var(--color-accent)' : 'var(--text-muted)' }} />
-                  </label>
-                ))}
               </div>
             </Card>
 

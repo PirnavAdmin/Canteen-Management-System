@@ -25,12 +25,18 @@ export const useOrders = () => {
 
   useEffect(() => {
     loadOrders();
+    const handleOrderEvent = () => loadOrders();
+    window.addEventListener('cms:order_created', handleOrderEvent);
+    return () => {
+      window.removeEventListener('cms:order_created', handleOrderEvent);
+    };
   }, [loadOrders]);
 
   const updateOrderStatus = useCallback(async (orderId, newStatus, note = '') => {
     try {
       const updated = await orderService.updateStatus(orderId, newStatus, note);
       setOrders(prev => prev.map(o => o.id === orderId ? updated : o));
+      window.dispatchEvent(new CustomEvent('cms:order_status_updated', { detail: updated }));
       success('Status Updated', `Order ${updated.token} moved to ${newStatus}.`);
       return updated;
     } catch (err) {
@@ -43,6 +49,7 @@ export const useOrders = () => {
     try {
       const updated = await orderService.cancelOrder(orderId, reason);
       setOrders(prev => prev.map(o => o.id === orderId ? updated : o));
+      window.dispatchEvent(new CustomEvent('cms:order_status_updated', { detail: updated }));
       info('Order Cancelled', `Order ${updated.token} has been marked as Cancelled.`);
       return updated;
     } catch (err) {

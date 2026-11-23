@@ -36,8 +36,8 @@ export const FloatingOrderBubble = () => {
         const list = await customerOrderService.getCustomerOrders(user);
         if (!isMounted) return;
         const orders = Array.isArray(list) ? list : [];
-        // Only active in-progress orders (not Completed, Cancelled, or Refunded)
-        const active = orders.find(o => o && !['Completed', 'Cancelled', 'Refunded'].includes(o.status));
+        // Only active in-progress orders (not Completed, Collected, Cancelled, or Refunded)
+        const active = orders.find(o => o && !['Completed', 'Collected', 'Cancelled', 'Refunded'].includes(o.status));
         setActiveOrder(active || null);
       } catch (err) {
         console.warn('Could not fetch active order for bubble:', err);
@@ -45,10 +45,20 @@ export const FloatingOrderBubble = () => {
     };
 
     fetchOrders();
-    const interval = setInterval(fetchOrders, 5000);
+
+    const handleOrderEvent = () => fetchOrders();
+    window.addEventListener('cms:order_created', handleOrderEvent);
+    window.addEventListener('cms:order_status_updated', handleOrderEvent);
+    window.addEventListener('focus', handleOrderEvent);
+    const handleVisibility = () => { if (!document.hidden) handleOrderEvent(); };
+    document.addEventListener('visibilitychange', handleVisibility);
+
     return () => {
       isMounted = false;
-      clearInterval(interval);
+      window.removeEventListener('cms:order_created', handleOrderEvent);
+      window.removeEventListener('cms:order_status_updated', handleOrderEvent);
+      window.removeEventListener('focus', handleOrderEvent);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, [user]);
 

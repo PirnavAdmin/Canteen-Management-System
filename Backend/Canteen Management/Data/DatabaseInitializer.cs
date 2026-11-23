@@ -50,6 +50,18 @@ namespace CanteenManagement.API.Data
                     return;
                 }
 
+                // Ensure Notes column exists in Orders table safely
+                try
+                {
+                    using var alterConn = new MySqlConnection(activeCs);
+                    await alterConn.OpenAsync();
+                    await alterConn.ExecuteAsync("ALTER TABLE Orders ADD COLUMN IF NOT EXISTS Notes VARCHAR(500) NULL;");
+                }
+                catch (Exception ex)
+                {
+                    logger.LogInformation("Orders Notes column verification: {Message}", ex.Message);
+                }
+
                 // Cloud database on Hostinger is already deployed and verified.
                 // We only run full schema & stored procedure migrations if explicitly requested via INIT_DATABASE=true.
                 var shouldDeploy = string.Equals(Environment.GetEnvironmentVariable("INIT_DATABASE"), "true", StringComparison.OrdinalIgnoreCase);

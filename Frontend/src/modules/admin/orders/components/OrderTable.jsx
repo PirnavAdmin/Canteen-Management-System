@@ -130,21 +130,43 @@ export const OrderTable = ({
     {
       key: 'items',
       header: 'Items',
-      render: (items) => {
+      render: (items, row) => {
         const itemStr = (Array.isArray(items) ? items : []).map(i => `${i.name} (x${i.quantity})`).join(', ');
+        const hasNotes = Boolean(row?.notes || row?.cookingNotes);
         return (
-          <div
-            title={itemStr}
-            style={{
-              fontSize: '11.5px',
-              color: 'var(--text-secondary)',
-              maxWidth: '120px',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis'
-            }}
-          >
-            {itemStr}
+          <div style={{ display: 'flex', flexDirection: 'column', maxWidth: '125px' }}>
+            <span
+              title={itemStr}
+              style={{
+                fontSize: '11.5px',
+                color: 'var(--text-secondary)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}
+            >
+              {itemStr}
+            </span>
+            {hasNotes && (
+              <span
+                title={`Note: ${row.notes || row.cookingNotes}`}
+                style={{
+                  fontSize: '9.5px',
+                  color: '#b45309',
+                  backgroundColor: '#fef3c7',
+                  padding: '1px 4px',
+                  borderRadius: '3px',
+                  marginTop: '2px',
+                  fontWeight: 600,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  display: 'inline-block'
+                }}
+              >
+                📝 {row.notes || row.cookingNotes}
+              </span>
+            )}
           </div>
         );
       }

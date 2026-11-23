@@ -59,6 +59,9 @@ namespace CanteenManagement.API.Models.Orders
 
         public string? CancellationReason { get; set; }
 
+        [MaxLength(500)]
+        public string? Notes { get; set; }
+
         public DateTime OrderDate { get; set; } = DateTime.UtcNow;
 
         public DateTime? UpdatedAt { get; set; }
