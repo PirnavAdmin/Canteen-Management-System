@@ -9,6 +9,7 @@ namespace CanteenManagement.API.Repositories.Interfaces.Orders
         Task<string> GenerateNextDailyTokenAsync(int outletId, DateTime date);
         Task<Order> CreateAsync(Order order);
         Task<Order> UpdateAsync(Order order);
+        Task<bool> DeleteAsync(string id, int campusId);
     }
 }
 

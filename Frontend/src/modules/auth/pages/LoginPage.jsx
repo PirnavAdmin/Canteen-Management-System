@@ -26,6 +26,9 @@ export const LoginPage = () => {
       }
     }
     const roleStr = String(userRole || '').toUpperCase();
+    if (roleStr.includes('CASHIER')) {
+      return '/cashier/dashboard';
+    }
     if (roleStr.includes('STUDENT') || roleStr.includes('FACULTY')) {
       return '/customer/dashboard';
     }
@@ -71,25 +74,30 @@ export const LoginPage = () => {
 
   return (
     <div style={{
-      minHeight: '100vh',
+      minHeight: '100dvh',
+      height: '100dvh',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-      padding: '24px',
-      fontFamily: 'Inter, system-ui, sans-serif'
+      padding: '12px 24px',
+      fontFamily: 'Inter, system-ui, sans-serif',
+      overflow: 'hidden'
     }}>
+      <style>{`.quick-demo-scroll { -ms-overflow-style: none; scrollbar-width: none; } .quick-demo-scroll::-webkit-scrollbar { display: none; }`}</style>
       <div style={{
         width: '100%',
         maxWidth: '440px',
         background: '#ffffff',
         borderRadius: '16px',
         boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-        padding: '36px',
-        color: '#1e293b'
+        padding: '20px 36px',
+        color: '#1e293b',
+        display: 'flex',
+        flexDirection: 'column'
       }}>
         {/* Header Branding */}
-        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '18px' }}>
           <div style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -123,7 +131,7 @@ export const LoginPage = () => {
             border: '1px solid #fecaca',
             color: '#dc2626',
             fontSize: '13px',
-            marginBottom: '20px'
+          marginBottom: '14px'
           }}>
             <AlertCircle size={16} style={{ flexShrink: 0 }} />
             <span>{error}</span>
@@ -131,8 +139,8 @@ export const LoginPage = () => {
         )}
 
         {/* Login Form */}
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '18px' }}>
+        <form onSubmit={handleSubmit} style={{ order: 4 }}>
+          <div style={{ marginBottom: '14px' }}>
             <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
               Username or Email
             </label>
@@ -158,7 +166,7 @@ export const LoginPage = () => {
             </div>
           </div>
 
-          <div style={{ marginBottom: '22px' }}>
+          <div style={{ marginBottom: '16px' }}>
             <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
               Password
             </label>
@@ -215,7 +223,9 @@ export const LoginPage = () => {
 
         {/* Demo Credentials Helper */}
         <div style={{
-          marginTop: '24px',
+          order: 3,
+          marginTop: '0',
+          marginBottom: '18px',
           padding: '14px',
           backgroundColor: '#f8fafc',
           borderRadius: '10px',
@@ -227,16 +237,17 @@ export const LoginPage = () => {
             ⚡ Quick Demo Accounts (Click to Sign In):
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <div className="quick-demo-scroll" style={{ display: 'flex', gap: '8px', flexWrap: 'nowrap', overflowX: 'auto', paddingBottom: '2px', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
               <button
                 type="button"
                 onClick={() => handleQuickLogin('admin', 'Admin@123')}
                 style={{
+                  flexShrink: 0,
                   padding: '6px 12px',
                   borderRadius: '6px',
-                  border: '1px solid #2563eb',
-                  backgroundColor: '#eff6ff',
-                  color: '#1d4ed8',
+                  border: '1px solid #cbd5e1',
+                  backgroundColor: '#ffffff',
+                  color: '#334155',
                   cursor: 'pointer',
                   fontSize: '12px',
                   fontWeight: '600'
@@ -248,6 +259,7 @@ export const LoginPage = () => {
                 type="button"
                 onClick={() => handleQuickLogin('staff', 'Staff@123')}
                 style={{
+                  flexShrink: 0,
                   padding: '6px 12px',
                   borderRadius: '6px',
                   border: '1px solid #cbd5e1',
@@ -262,8 +274,21 @@ export const LoginPage = () => {
               </button>
               <button
                 type="button"
+                onClick={() => handleQuickLogin('cashier', 'Cashier@123')}
+                style={{
+                  flexShrink: 0,
+                  padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1',
+                  backgroundColor: '#ffffff', color: '#334155', cursor: 'pointer',
+                  fontSize: '12px', fontWeight: '600'
+                }}
+              >
+                Cashier (Rahul)
+              </button>
+              <button
+                type="button"
                 onClick={() => handleQuickLogin('aarav', 'Student@123')}
                 style={{
+                  flexShrink: 0,
                   padding: '6px 12px',
                   borderRadius: '6px',
                   border: '1px solid #cbd5e1',
@@ -280,6 +305,7 @@ export const LoginPage = () => {
                 type="button"
                 onClick={() => handleQuickLogin('sunita.rao', 'Faculty@123')}
                 style={{
+                  flexShrink: 0,
                   padding: '6px 12px',
                   borderRadius: '6px',
                   border: '1px solid #cbd5e1',
@@ -293,9 +319,10 @@ export const LoginPage = () => {
                 Faculty (Dr. Sunita)
               </button>
             </div>
-            <div style={{ fontSize: '11px', color: '#64748b', lineHeight: '1.6', background: '#ffffff', padding: '8px 10px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+            <div aria-hidden="true" style={{ display: 'none' }}>
               <div>🔑 <strong>Admin:</strong> <code>admin</code> / <code>Admin@123</code> (Full Portal Access)</div>
               <div>🔑 <strong>Staff:</strong> <code>staff</code> / <code>Staff@123</code> (Orders, Kitchen & Menu)</div>
+              <div>🔑 <strong>Cashier:</strong> <code>cashier</code> / <code>Cashier@123</code> (Billing & Payments)</div>
               <div>🔑 <strong>Student:</strong> <code>aarav</code> / <code>Student@123</code></div>
               <div>🔑 <strong>Faculty:</strong> <code>sunita.rao</code> / <code>Faculty@123</code></div>
             </div>
@@ -303,7 +330,7 @@ export const LoginPage = () => {
         </div>
 
         {/* Register link */}
-        <div style={{ textAlign: 'center', marginTop: '20px', fontSize: '13px', color: '#64748b' }}>
+        <div style={{ order: 5, textAlign: 'center', marginTop: '16px', fontSize: '13px', color: '#64748b' }}>
           Don't have an account?{' '}
           <Link to="/register" style={{ color: '#2563eb', fontWeight: '600', textDecoration: 'none' }}>
             Create Account

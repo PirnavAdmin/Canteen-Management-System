@@ -59,6 +59,8 @@ namespace CanteenManagement.API.Repositories.Implementations.Orders
             catch
             {
                 var query = _dbContext.Orders
+                    .AsNoTracking()
+                    .AsSplitQuery()
                     .Include(o => o.Outlet)
                     .Include(o => o.Items)
                     .Include(o => o.Timeline)
@@ -114,8 +116,10 @@ namespace CanteenManagement.API.Repositories.Implementations.Orders
             catch
             {
                 return await _dbContext.Orders
+                    .AsNoTracking()
+                    .AsSplitQuery()
                     .Include(o => o.Outlet)
-                                        .Include(o => o.Items)
+                    .Include(o => o.Items)
                     .Include(o => o.Timeline)
                     .Include(o => o.Payments)
                     .FirstOrDefaultAsync(o => o.OrderId == id && o.CampusId == campusId);
@@ -171,6 +175,32 @@ namespace CanteenManagement.API.Repositories.Implementations.Orders
                 _dbContext.Orders.Update(order);
                 await _dbContext.SaveChangesAsync();
                 return order;
+            }
+        }
+
+        public async Task<bool> DeleteAsync(string id, int campusId)
+        {
+            try
+            {
+                var order = await _dbContext.Orders
+                    .Include(o => o.Items)
+                    .Include(o => o.Timeline)
+                    .Include(o => o.Payments)
+                    .FirstOrDefaultAsync(o => o.OrderId == id && (campusId <= 0 || o.CampusId == campusId));
+
+                if (order == null) return false;
+
+                _dbContext.Orders.Remove(order);
+                await _dbContext.SaveChangesAsync();
+                return true;
+            }
+            catch
+            {
+                using var connection = _connectionFactory.CreateConnection();
+                var rows = await connection.ExecuteAsync(
+                    "DELETE FROM Orders WHERE OrderId = @Id AND (@CampusId <= 0 OR CampusId = @CampusId);",
+                    new { Id = id, CampusId = campusId });
+                return rows > 0;
             }
         }
     }

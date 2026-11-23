@@ -26,7 +26,8 @@ export const CheckoutPage = () => {
     subtotal,
     packagingFee,
     taxAmount,
-    totalAmount
+    totalAmount,
+    gstPercent
   } = useCart();
 
   const safeCartItems = Array.isArray(cartItems) ? cartItems : [];
@@ -88,7 +89,8 @@ export const CheckoutPage = () => {
         subtotal,
         taxAmount,
         packagingFee,
-        totalAmount
+        totalAmount,
+        gstPercent: gstPercent || 5.0
       },
       cookingNotes,
       status: 'Placed',
@@ -271,7 +273,7 @@ export const CheckoutPage = () => {
                   <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>₹{subtotal.toFixed(2)}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>GST (5%):</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>GST ({gstPercent || 5}%):</span>
                   <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>₹{taxAmount.toFixed(2)}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>

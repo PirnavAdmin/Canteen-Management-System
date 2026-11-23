@@ -1,0 +1,11 @@
+import React, { useState } from 'react';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Bell, ChevronDown, ClipboardList, LayoutDashboard, Menu, ReceiptText, X, LogOut, BarChart3 } from 'lucide-react';
+import { useAuth } from '../../../app/providers/AuthProvider';
+import '../styles/cashier.css';
+import '../styles/cashierLayout.css';
+const nav = [['Dashboard','dashboard',LayoutDashboard],['Order Management','orders',ClipboardList],['Reports','reports',BarChart3]];
+export default function CashierLayout() { const [open,setOpen]=useState(false); const [profileOpen,setProfileOpen]=useState(false); const {user,logout}=useAuth(); const navigate=useNavigate(); const leave=()=>{logout();navigate('/cashier/login')}; return <div className="cashier-shell">
+  {open && <button className="cashier-backdrop" aria-label="Close menu" onClick={()=>setOpen(false)}/>}<aside className={`cashier-sidebar ${open?'open':''}`}><div className="cashier-brand"><ReceiptText/> <span>Canteen Management<br/>System</span><button onClick={()=>setOpen(false)}><X/></button></div><nav>{nav.map(([label,path,Icon])=><NavLink key={path} to={`/cashier/${path}`} onClick={()=>setOpen(false)}><Icon size={19}/><span>{label}</span></NavLink>)}</nav></aside>
+  <section className="cashier-main"><header className="cashier-header"><button className="cashier-menu" onClick={()=>setOpen(true)}><Menu/></button><button type="button" className="cashier-canteen" aria-label="Assigned canteen">Main Canteen</button><label className="cashier-search"><span>⌕</span><input placeholder="Search orders, items, or bill number…" aria-label="Search cashier portal"/></label><Bell size={20}/><div className="cashier-profile"><button className="cashier-user" onClick={()=>setProfileOpen(v=>!v)} aria-expanded={profileOpen} aria-haspopup="menu"><span>{(user?.fullName || 'Cashier').split(' ').map(x=>x[0]).join('').slice(0,2)}</span><div><b>{user?.fullName || 'Cashier'}</b><small>Cashier</small></div><ChevronDown size={16}/></button>{profileOpen&&<div className="cashier-profile-menu" role="menu"><div><b>{user?.fullName || 'Cashier'}</b><small>Cashier · Main Canteen</small></div><button onClick={leave}><LogOut size={16}/> Sign Out</button></div>}</div></header><main className="cashier-content"><Outlet/></main></section>
+ </div> }

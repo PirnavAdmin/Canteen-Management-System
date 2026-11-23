@@ -1,0 +1,10 @@
+/* Keep navigation stable: only the active cashier page scrolls. */
+.cashier-shell{height:100dvh;min-height:0;overflow:hidden}
+.cashier-sidebar{height:100dvh;overflow:hidden}
+.cashier-main{height:100dvh;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.cashier-header{flex:0 0 var(--header-height)}
+.cashier-canteen{border:1px solid var(--color-primary-border);background:var(--color-primary-light);color:var(--color-primary);border-radius:8px;padding:8px 12px;font-weight:700;white-space:nowrap;cursor:default}
+.cashier-header>svg{margin-left:auto}
+.cashier-profile{position:relative}.cashier-user{border:0;background:transparent;color:var(--text-primary);cursor:pointer;padding:3px;display:flex;align-items:center}.cashier-profile-menu{position:absolute;right:0;top:calc(100% + 10px);z-index:30;width:210px;background:var(--bg-surface);border:1px solid var(--border-color);border-radius:10px;box-shadow:var(--shadow-lg);overflow:hidden}.cashier-profile-menu>div{padding:13px;border-bottom:1px solid var(--border-color)}.cashier-profile-menu b,.cashier-profile-menu small{display:block}.cashier-profile-menu small{margin-top:3px;color:var(--text-muted);font-size:12px}.cashier-profile-menu button{width:100%;display:flex;align-items:center;gap:8px;padding:11px 13px;border:0;background:transparent;color:var(--color-danger);font-weight:700;cursor:pointer;text-align:left}.cashier-profile-menu button:hover{background:var(--color-danger-bg)}
+.cashier-content{box-sizing:border-box;flex:1 1 auto;min-height:0;width:100%;overflow-y:auto;overflow-x:hidden}
+@media(max-width:760px){.cashier-sidebar{height:100dvh}.cashier-content{padding-bottom:24px}}

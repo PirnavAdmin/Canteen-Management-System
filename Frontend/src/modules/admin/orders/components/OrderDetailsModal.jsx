@@ -188,12 +188,18 @@ export const OrderDetailsModal = ({
                   <span style={{ color: 'var(--text-secondary)' }}>Subtotal:</span>
                   <span>{formatCurrency(order.subtotal || order.totalAmount)}</span>
                 </div>
-                {order.taxAmount && (
+                {order.taxAmount ? (
                   <div style={{ display: 'flex', gap: '24px' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>Institutional GST (5%):</span>
+                    <span style={{ color: 'var(--text-secondary)' }}>GST:</span>
                     <span>{formatCurrency(order.taxAmount)}</span>
                   </div>
-                )}
+                ) : null}
+                {order.packagingFee ? (
+                  <div style={{ display: 'flex', gap: '24px' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>Packaging Fee:</span>
+                    <span>{formatCurrency(order.packagingFee)}</span>
+                  </div>
+                ) : null}
                 <div style={{ display: 'flex', gap: '24px', fontSize: '14px', fontWeight: 700, color: 'var(--color-primary)', marginTop: '4px' }}>
                   <span>Grand Total:</span>
                   <span>{formatCurrency(order.totalAmount)}</span>

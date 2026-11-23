@@ -14,6 +14,7 @@ namespace CanteenManagement.API.DTOs.Menu
         public string OutletName { get; set; } = string.Empty;
         public string FoodType { get; set; } = "Veg";
         public decimal Price { get; set; }
+        public decimal DiscountPercent { get; set; }
         public int DailyCapacity { get; set; }
         public int RemainingCapacity { get; set; }
         public DateTime? LastResetDate { get; set; }
@@ -78,6 +79,9 @@ namespace CanteenManagement.API.DTOs.Menu
         [Required]
         [Range(0.01, 99999.00, ErrorMessage = "Price must be greater than 0.")]
         public decimal Price { get; set; }
+
+        [Range(0, 100, ErrorMessage = "Discount must be between 0 and 100%.")]
+        public decimal DiscountPercent { get; set; } = 0;
 
         [Range(1, 99999, ErrorMessage = "Daily capacity must be at least 1.")]
         public int DailyCapacity { get; set; } = 100;
