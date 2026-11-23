@@ -13,7 +13,7 @@ import { useCanteens } from '../../outlets/hooks/useCanteens';
 import { orderService } from '../services/orderService';
 import { isSameIstDate, isYesterdayIST, isWithinDaysIST } from '../../../../utils/formatters';
 
-export const OrderListPage = () => {
+export const OrderListPage = ({ cashierMode = false }) => {
   const {
     orders,
     loading,
@@ -21,7 +21,7 @@ export const OrderListPage = () => {
     cancelOrder,
     processRefund,
     refreshOrders
-  } = useOrders();
+  } = useOrders({ localDemoMode: cashierMode });
 
   const { selectedOutlet: globalOutlet, setSelectedOutlet: setGlobalOutlet } = useCanteens();
 
@@ -241,7 +241,7 @@ export const OrderListPage = () => {
 
       {/* Tab 1: Place Order Food Catalog */}
       {activeTab === 'PLACE_ORDER' && (
-        <PlaceOrderCatalog onOrderPlaced={handleOrderPlaced} />
+        <PlaceOrderCatalog onOrderPlaced={handleOrderPlaced} cashierMode={cashierMode} />
       )}
 
       {/* Tab 2: Today's Orders & Live Queue */}

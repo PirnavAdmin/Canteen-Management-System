@@ -3,7 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../../../app/providers/AuthProvider';
 
 export const CustomerProtectedRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, user } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -35,6 +35,10 @@ export const CustomerProtectedRoute = ({ children }) => {
 
   if (!isAuthenticated) {
     return <Navigate to="/customer/login" state={{ from: location }} replace />;
+  }
+
+  if (!['Student', 'Faculty'].includes(user?.role)) {
+    return <Navigate to={user?.role === 'Cashier' ? '/cashier/dashboard' : user?.role === 'Staff' ? '/staff/dashboard' : '/admin/dashboard'} replace />;
   }
 
   return children;

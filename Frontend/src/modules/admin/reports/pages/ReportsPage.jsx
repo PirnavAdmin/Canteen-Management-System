@@ -123,6 +123,7 @@ export const ReportsPage = () => {
           loading={loading}
           style={{ border: 'none', borderRadius: 0, boxShadow: 'none' }}
         />
+
       </div>
 
       {/* Print & PDF Preview Modal */}

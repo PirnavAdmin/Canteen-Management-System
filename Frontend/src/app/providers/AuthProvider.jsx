@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useMemo, useCall
 import { apiClient } from '../../services/api/apiClient';
 import { API_ENDPOINTS } from '../../services/api/apiEndpoints';
 import { ROLE_PERMISSIONS, ROLES } from '../../constants/permissions';
+import { ENV } from '../../config/env';
 
 const DEMO_USERS = [
   {
@@ -14,6 +15,18 @@ const DEMO_USERS = [
     role: 'Admin',
     roleCode: ROLES.INSTITUTION_ADMIN,
     phoneNumber: '+91 98765 43210',
+    isActive: true,
+    createdAt: '2026-01-01T00:00:00.000Z'
+  },
+  {
+    userId: 5,
+    institutionId: 1,
+    username: 'cashier',
+    email: 'cashier@canteen.edu',
+    password: 'Cashier@123',
+    fullName: 'Rahul Verma',
+    role: 'Cashier',
+    roleCode: ROLES.CASHIER,
     isActive: true,
     createdAt: '2026-01-01T00:00:00.000Z'
   },
@@ -89,6 +102,20 @@ const getLocalUsers = () => {
   }
 };
 
+// Demo access is deliberately restricted to the named fixture accounts and development mode.
+// It exists because a connected backend may not include every frontend demo role.
+const getDemoUser = (usernameOrEmail, password) => {
+  if (!ENV.isDevelopment) return null;
+  const identifier = (usernameOrEmail || '').trim().toLowerCase();
+  const match = DEMO_USERS.find((demoUser) =>
+    demoUser.password === password &&
+    (demoUser.username.toLowerCase() === identifier || demoUser.email.toLowerCase() === identifier)
+  );
+  if (!match) return null;
+  const { password: _password, ...profile } = match;
+  return { ...profile, id: profile.userId, name: profile.fullName, campusId: profile.institutionId };
+};
+
 const createLocalSessionProfile = (usernameOrEmail) => {
   const identifier = (usernameOrEmail || '').trim().toLowerCase();
   const localUsers = getLocalUsers();
@@ -112,6 +139,13 @@ const createLocalSessionProfile = (usernameOrEmail) => {
       role: 'Staff',
       roleCode: ROLES.CANTEEN_STAFF,
       campusId: 1, institutionId: 1
+    };
+  }
+
+  if (identifier === 'cashier' || identifier.startsWith('cashier@')) {
+    return {
+      id: 'cashier-001', username: 'cashier', fullName: 'Rahul Verma', name: 'Rahul Verma',
+      email: 'cashier@cms.edu', role: 'Cashier', roleCode: ROLES.CASHIER, campusId: 1, institutionId: 1
     };
   }
 
@@ -243,6 +277,14 @@ export const AuthProvider = ({ children }) => {
         const localProfile = createLocalSessionProfile(usernameOrEmail);
         const localToken = `local-demo-token-${Date.now()}`;
         return persistSession(localToken, localProfile);
+      }
+      // The backend currently has no Cashier fixture. Permit only exact, local demo
+      // credentials to use the explicitly gated frontend demo session after a 401.
+      if (err?.status === 401) {
+        const demoProfile = getDemoUser(usernameOrEmail, password);
+        if (demoProfile) {
+          return persistSession(`local-demo-token-${Date.now()}`, demoProfile);
+        }
       }
       throw new Error(err?.message || 'Login failed.', { cause: err });
     }

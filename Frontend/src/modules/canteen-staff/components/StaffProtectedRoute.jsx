@@ -37,6 +37,10 @@ export const StaffProtectedRoute = ({ children }) => {
     return <Navigate to="/staff/login" state={{ from: location }} replace />;
   }
 
+  if (user.role !== 'Staff' && user.roleCode !== 'CANTEEN_STAFF') {
+    return <Navigate to={user.role === 'Cashier' ? '/cashier/dashboard' : user.role === 'Admin' ? '/admin/dashboard' : '/customer/dashboard'} replace />;
+  }
+
   return children;
 };
 

@@ -26,6 +26,9 @@ export const LoginPage = () => {
       }
     }
     const roleStr = String(userRole || '').toUpperCase();
+    if (roleStr.includes('CASHIER')) {
+      return '/cashier/dashboard';
+    }
     if (roleStr.includes('STUDENT') || roleStr.includes('FACULTY')) {
       return '/customer/dashboard';
     }
@@ -262,6 +265,17 @@ export const LoginPage = () => {
               </button>
               <button
                 type="button"
+                onClick={() => handleQuickLogin('cashier', 'Cashier@123')}
+                style={{
+                  padding: '6px 12px', borderRadius: '6px', border: '1px solid #bfdbfe',
+                  backgroundColor: '#eff6ff', color: '#1d4ed8', cursor: 'pointer',
+                  fontSize: '12px', fontWeight: '600'
+                }}
+              >
+                Cashier (Rahul)
+              </button>
+              <button
+                type="button"
                 onClick={() => handleQuickLogin('aarav', 'Student@123')}
                 style={{
                   padding: '6px 12px',
@@ -296,6 +310,7 @@ export const LoginPage = () => {
             <div style={{ fontSize: '11px', color: '#64748b', lineHeight: '1.6', background: '#ffffff', padding: '8px 10px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
               <div>🔑 <strong>Admin:</strong> <code>admin</code> / <code>Admin@123</code> (Full Portal Access)</div>
               <div>🔑 <strong>Staff:</strong> <code>staff</code> / <code>Staff@123</code> (Orders, Kitchen & Menu)</div>
+              <div>🔑 <strong>Cashier:</strong> <code>cashier</code> / <code>Cashier@123</code> (Billing & Payments)</div>
               <div>🔑 <strong>Student:</strong> <code>aarav</code> / <code>Student@123</code></div>
               <div>🔑 <strong>Faculty:</strong> <code>sunita.rao</code> / <code>Faculty@123</code></div>
             </div>
