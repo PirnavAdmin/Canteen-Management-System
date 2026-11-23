@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { RefreshCw, UtensilsCrossed, Clock } from 'lucide-react';
+import { RefreshCw, UtensilsCrossed, Clock, Printer } from 'lucide-react';
 import { PageHeader } from '../../../../components/common/PageHeader';
 import { Button } from '../../../../components/common/Button';
 import { Pagination } from '../../../../components/common/Pagination';
@@ -8,6 +8,8 @@ import { OrderFilters } from '../components/OrderFilters';
 import { OrderTable } from '../components/OrderTable';
 import { OrderDetailsModal } from '../components/OrderDetailsModal';
 import { CancelOrderModal } from '../components/CancelOrderModal';
+import { OrderReceiptModal } from '../components/OrderReceiptModal';
+import { OrdersA4SheetModal } from '../components/OrdersA4SheetModal';
 import { PlaceOrderCatalog } from '../components/PlaceOrderCatalog';
 import { useCanteens } from '../../outlets/hooks/useCanteens';
 import { orderService } from '../services/orderService';
@@ -51,6 +53,8 @@ export const OrderListPage = () => {
   // Modals & action loading state
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [orderToCancel, setOrderToCancel] = useState(null);
+  const [orderForReceipt, setOrderForReceipt] = useState(null);
+  const [isA4SheetOpen, setIsA4SheetOpen] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
 
@@ -134,6 +138,9 @@ export const OrderListPage = () => {
     try {
       setModalLoading(true);
       await cancelOrder(orderId, reason);
+      if (selectedOrder && selectedOrder.id === orderId) {
+        setSelectedOrder(prev => (prev ? { ...prev, status: 'Cancelled', cancellationReason: reason } : null));
+      }
     } finally {
       setModalLoading(false);
     }
@@ -155,14 +162,24 @@ export const OrderListPage = () => {
         ]}
         actions={
           activeTab === 'TODAYS_ORDERS' ? (
-            <Button
-              variant="secondary"
-              icon={RefreshCw}
-              onClick={refreshOrders}
-              loading={loading}
-            >
-              Refresh Orders
-            </Button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Button
+                variant="secondary"
+                icon={Printer}
+                onClick={() => setIsA4SheetOpen(true)}
+                title="Download A4 Sheet configuration of currently filtered orders"
+              >
+                Download A4 Sheet
+              </Button>
+              <Button
+                variant="secondary"
+                icon={RefreshCw}
+                onClick={refreshOrders}
+                loading={loading}
+              >
+                Refresh Orders
+              </Button>
+            </div>
           ) : null
         }
       />
@@ -269,6 +286,8 @@ export const OrderListPage = () => {
             actionLoadingId={actionLoadingId}
             onView={handleViewOrder}
             onAdvanceStatus={handleStatusAdvance}
+            onCancel={(ord) => setOrderToCancel(ord)}
+            onPrintReceipt={(ord) => setOrderForReceipt(ord)}
             footer={
               <Pagination
                 currentPage={currentPage}
@@ -299,6 +318,27 @@ export const OrderListPage = () => {
             order={orderToCancel}
             loading={modalLoading}
             onConfirmCancel={handleConfirmCancel}
+          />
+
+          {/* Order Receipt Preview Modal (Thermal / A4) */}
+          <OrderReceiptModal
+            isOpen={Boolean(orderForReceipt)}
+            onClose={() => setOrderForReceipt(null)}
+            order={orderForReceipt}
+          />
+
+          {/* Global A4 Sheet Configuration & Download Modal */}
+          <OrdersA4SheetModal
+            isOpen={isA4SheetOpen}
+            onClose={() => setIsA4SheetOpen(false)}
+            orders={filteredOrders}
+            activeFilters={{
+              date: selectedDate,
+              outlet: selectedOutlet,
+              status: selectedStatus,
+              payment: selectedPayment,
+              search: searchTerm
+            }}
           />
         </>
       )}

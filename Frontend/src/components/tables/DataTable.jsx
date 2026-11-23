@@ -108,7 +108,19 @@ export const DataTable = ({
             ) : tableData.length === 0 ? (
               <tr>
                 <td colSpan={validColumns.length || 1} style={{ padding: '32px' }}>
-                  {emptyState || <EmptyState />}
+                  {React.isValidElement(emptyState) ? (
+                    emptyState
+                  ) : emptyState && typeof emptyState === 'object' ? (
+                    <EmptyState
+                      icon={emptyState.icon}
+                      title={emptyState.title}
+                      message={emptyState.message || emptyState.description}
+                      actionLabel={emptyState.actionLabel}
+                      onAction={emptyState.onAction}
+                    />
+                  ) : (
+                    <EmptyState />
+                  )}
                 </td>
               </tr>
             ) : (

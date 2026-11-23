@@ -5,6 +5,7 @@ import { useAuth } from '../../../../app/providers/AuthProvider';
 import { customerOrderService } from '../services/customerOrderService';
 import { customerMenuService } from '../../menu/services/customerMenuService';
 import { orderService } from '../../../admin/orders/services/orderService';
+import { notifyOrderStatusUpdated, subscribeToOrderSync } from '../../../../utils/orderSync';
 import styles from '../styles/myOrdersReference.module.css';
 
 const flow = ['Placed', 'Accepted', 'Preparing', 'Ready for Pickup', 'Completed'];
@@ -45,9 +46,7 @@ export const MyOrdersPage = () => {
       if (trackedOrder && String(trackedOrder.id) === String(orderToCancel.id)) {
         setTrackedOrder(prev => ({ ...prev, status: 'Cancelled', cancellationReason: finalReason }));
       }
-      window.dispatchEvent(new CustomEvent('cms:order_status_updated', {
-        detail: { id: orderToCancel.id, status: 'Cancelled', reason: finalReason }
-      }));
+      notifyOrderStatusUpdated({ ...orderToCancel, status: 'Cancelled', cancellationReason: finalReason });
       setNotice(`Order #${orderToCancel.id} has been cancelled successfully.`);
       setOrderToCancel(null);
       setCancelReason('Changed my mind');
@@ -65,6 +64,7 @@ export const MyOrdersPage = () => {
       if (fresh && fresh.id) {
         setTrackedOrder(prev => (prev && String(prev.id) === String(fresh.id) ? { ...prev, ...fresh } : prev));
         setOrders(prev => prev.map(o => String(o.id) === String(fresh.id) ? { ...o, ...fresh } : o));
+        notifyOrderStatusUpdated(fresh);
       }
     } catch {}
     finally {
@@ -75,14 +75,12 @@ export const MyOrdersPage = () => {
   useEffect(() => {
     load();
     const handleSync = () => load();
-    window.addEventListener('cms:order_created', handleSync);
-    window.addEventListener('cms:order_status_updated', handleSync);
+    const unsubscribe = subscribeToOrderSync(handleSync, handleSync);
     window.addEventListener('focus', handleSync);
     const handleVisibility = () => { if (!document.hidden) handleSync(); };
     document.addEventListener('visibilitychange', handleVisibility);
     return () => {
-      window.removeEventListener('cms:order_created', handleSync);
-      window.removeEventListener('cms:order_status_updated', handleSync);
+      unsubscribe();
       window.removeEventListener('focus', handleSync);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
@@ -97,9 +95,10 @@ export const MyOrdersPage = () => {
         if (fresh && fresh.id) {
           setTrackedOrder(prev => (prev && String(prev.id) === String(fresh.id) ? { ...prev, ...fresh } : prev));
           setOrders(prev => prev.map(o => String(o.id) === String(fresh.id) ? { ...o, ...fresh } : o));
+          notifyOrderStatusUpdated(fresh);
         }
       } catch {}
-    }, 3500);
+    }, 3000);
     return () => clearInterval(interval);
   }, [trackedOrder?.id, trackedOrder?.status]);
   useEffect(() => {
@@ -198,10 +197,10 @@ export const MyOrdersPage = () => {
         transition: 'all 0.2s ease',
         boxShadow: 'var(--shadow-xs, 0 1px 2px rgba(0,0,0,0.05))'
       }}
-      title="Back to Dashboard"
+      title="Back to Menu"
     >
       <ArrowLeft size={15} />
-      <span>Back to Dashboard</span>
+      <span>Back to Menu</span>
     </Link>
     <div className={styles.heading}><span className={styles.headingIcon}><ClipboardList size={32}/></span><div><h1>My Orders</h1><p>Track your orders, view past orders and payment details.</p></div></div>
     {notice && <div style={{background:'#e8f1ff',border:'1px solid #aecaff',color:'#1d4ed8',padding:12,borderRadius:12,marginBottom:12,fontWeight:700}}>{notice}<button type="button" onClick={() => setNotice(null)} style={{float:'right',border:0,background:'none',cursor:'pointer'}}>×</button></div>}

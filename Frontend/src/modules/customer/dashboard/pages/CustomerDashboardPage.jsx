@@ -20,6 +20,7 @@ import { useCart } from '../../cart/hooks/useCart';
 import { customerOrderService } from '../../orders/services/customerOrderService';
 import { SafeImage } from '../../../../components/common/SafeImage';
 import { FoodRatingModal, inMemoryRatedOrderIds } from '../../feedback/components/FoodRatingModal';
+import { subscribeToOrderSync } from '../../../../utils/orderSync';
 
 export const CustomerDashboardPage = () => {
   const navigate = useNavigate();
@@ -66,14 +67,13 @@ export const CustomerDashboardPage = () => {
     };
     fetchOrders();
 
-    const handleEvent = () => fetchOrders();
-    window.addEventListener('cms:order_created', handleEvent);
-    window.addEventListener('cms:order_status_updated', handleEvent);
+    const unsubscribe = subscribeToOrderSync(fetchOrders, fetchOrders);
+    window.addEventListener('focus', fetchOrders);
 
     return () => {
       isMounted = false;
-      window.removeEventListener('cms:order_created', handleEvent);
-      window.removeEventListener('cms:order_status_updated', handleEvent);
+      unsubscribe();
+      window.removeEventListener('focus', fetchOrders);
     };
   }, [user]);
 

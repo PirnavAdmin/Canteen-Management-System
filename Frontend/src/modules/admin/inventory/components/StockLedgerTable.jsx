@@ -2,14 +2,14 @@ import React from 'react';
 import { DataTable } from '../../../../components/tables/DataTable';
 import { formatDateTime } from '../../../../utils/formatters';
 
-export const StockLedgerTable = ({ ledger = [], loading = false }) => {
+export const StockLedgerTable = ({ ledger = [], loading = false, footer }) => {
   const columns = [
     {
       key: 'dateTime',
       header: 'Date & Time',
-      render: (val) => (
+      render: (val, row) => (
         <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-          {formatDateTime(val)}
+          {formatDateTime(val || row.createdAt || row.timestamp || row.date || new Date())}
         </span>
       )
     },
@@ -19,7 +19,7 @@ export const StockLedgerTable = ({ ledger = [], loading = false }) => {
       render: (val, row) => (
         <div>
           <strong style={{ fontSize: '13px', color: 'var(--text-primary)', display: 'block' }}>
-            {val}
+            {val || row.name || row.itemName || 'Raw Material'}
           </strong>
           <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginTop: '1px' }}>
             {row.outletName || (row.outletId === 1 ? 'Main Canteen' : (row.outletId ? `Outlet #${row.outletId}` : 'Main Canteen'))}
@@ -51,15 +51,19 @@ export const StockLedgerTable = ({ ledger = [], loading = false }) => {
     {
       key: 'quantity',
       header: 'Quantity',
-      render: (val, row) => (
-        <span style={{
-          fontSize: '13px',
-          fontWeight: 700,
-          color: val > 0 ? 'var(--color-success)' : 'var(--color-danger)'
-        }}>
-          {val > 0 ? `+${val}` : val} {row.unit}
-        </span>
-      )
+      render: (val, row) => {
+        const q = Number(val || row.qty || 0);
+        const isPositive = q > 0 || row.movementType === 'Stock In';
+        return (
+          <span style={{
+            fontSize: '13px',
+            fontWeight: 700,
+            color: isPositive ? 'var(--color-success)' : 'var(--color-danger)'
+          }}>
+            {isPositive ? `+${Math.abs(q)}` : `-${Math.abs(q)}`} {row.unit || 'kg'}
+          </span>
+        );
+      }
     },
     {
       key: 'batchNumber',
@@ -96,6 +100,7 @@ export const StockLedgerTable = ({ ledger = [], loading = false }) => {
       columns={columns}
       data={ledger}
       loading={loading}
+      footer={footer}
     />
   );
 };

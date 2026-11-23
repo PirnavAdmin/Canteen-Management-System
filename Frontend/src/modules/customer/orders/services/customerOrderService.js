@@ -3,11 +3,9 @@
  * Handles customer order fetching, ownership validation, cancellation rules, and refund processing.
  */
 
-import { storageService } from '../../../../services/storageService';
 import { orderService } from '../../../admin/orders/services/orderService';
 import { ORDER_STATUS, PAYMENT_STATUS } from '../../../../constants/appConstants';
-
-const ORDERS_STORAGE_KEY = 'cms_canteen_management_orders';
+import { notifyOrderCreated } from '../../../../utils/orderSync';
 
 export const customerOrderService = {
   /**
@@ -29,34 +27,26 @@ export const customerOrderService = {
         (userRollNo && custRoll === userRollNo);
     };
 
-    // Checkout currently persists immediately to local storage. Keep that order visible
-    // while the live API is unavailable or before it has returned the new record.
-    const locallySaved = storageService.getItem(ORDERS_STORAGE_KEY, []);
     let remoteOrders = [];
     try {
       const response = await orderService.getAll();
       remoteOrders = Array.isArray(response) ? response : [];
     } catch (err) {
-      console.warn('Live order list unavailable; using locally saved customer orders.', err);
+      // Gracefully handle live order list unavailability without polluting console with timeout warnings
+      remoteOrders = [];
     }
 
     const uniqueOrders = new Map();
-    // 1. Seed with locally saved orders (fallback bridge)
-    (Array.isArray(locallySaved) ? locallySaved : [])
-      .filter(belongsToCurrentUser)
-      .forEach((order) => uniqueOrders.set(String(order.id || order.orderId), order));
-
-    // 2. Overwrite with live backend database orders (authoritative live status!)
     remoteOrders
       .filter(belongsToCurrentUser)
       .forEach((remoteOrder) => {
-        const key = String(remoteOrder.id || remoteOrder.orderId);
-        const local = uniqueOrders.get(key) || {};
+        const key = String(remoteOrder.orderId || remoteOrder.id);
         uniqueOrders.set(key, {
-          ...local,
           ...remoteOrder,
-          notes: remoteOrder.notes || local.notes || local.cookingNotes || '',
-          cookingNotes: remoteOrder.notes || local.notes || local.cookingNotes || ''
+          id: remoteOrder.orderId || remoteOrder.id,
+          orderId: remoteOrder.orderId || remoteOrder.id,
+          notes: remoteOrder.notes || remoteOrder.cookingNotes || '',
+          cookingNotes: remoteOrder.notes || remoteOrder.cookingNotes || ''
         });
       });
 
@@ -413,18 +403,8 @@ export const customerOrderService = {
       counterNumber: 'Counter 02'
     };
 
-    // 6. Idempotent storage persistence
-    const allOrders = storageService.getItem(ORDERS_STORAGE_KEY, []) || [];
-    const existingIdx = allOrders.findIndex(o => String(o.id) === String(completedOrder.id));
-    if (existingIdx >= 0) {
-      allOrders[existingIdx] = completedOrder;
-    } else {
-      allOrders.unshift(completedOrder);
-    }
-    storageService.setItem(ORDERS_STORAGE_KEY, allOrders);
-
-    // Notify all app components on this client of the new order
-    window.dispatchEvent(new CustomEvent('cms:order_created', { detail: completedOrder }));
+    // Notify all app components locally and across browser tabs of the new order
+    notifyOrderCreated(completedOrder);
 
     return completedOrder;
   }
