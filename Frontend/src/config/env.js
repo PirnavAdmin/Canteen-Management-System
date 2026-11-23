@@ -20,7 +20,7 @@ export const ENV = {
 
   // API Config
   apiBaseUrl: getEnv('VITE_API_BASE_URL', "https://heroics-ambush-baton.ngrok-free.dev"),
-  apiTimeout: Number(getEnv('VITE_API_TIMEOUT', 15000)),
+  apiTimeout: Number(getEnv('VITE_API_TIMEOUT', 60000)),
 
   // Public Feature Flags
   features: {

@@ -50,16 +50,18 @@ namespace CanteenManagement.API.Data
                     return;
                 }
 
-                // Ensure Notes column exists in Orders table safely
+                // Ensure Notes, PackagingFee in Orders and DiscountPercent in MenuItems exist safely
                 try
                 {
                     using var alterConn = new MySqlConnection(activeCs);
                     await alterConn.OpenAsync();
                     await alterConn.ExecuteAsync("ALTER TABLE Orders ADD COLUMN IF NOT EXISTS Notes VARCHAR(500) NULL;");
+                    await alterConn.ExecuteAsync("ALTER TABLE Orders ADD COLUMN IF NOT EXISTS PackagingFee DECIMAL(10,2) NOT NULL DEFAULT 0.00;");
+                    await alterConn.ExecuteAsync("ALTER TABLE MenuItems ADD COLUMN IF NOT EXISTS DiscountPercent DECIMAL(5,2) NOT NULL DEFAULT 0.00;");
                 }
                 catch (Exception ex)
                 {
-                    logger.LogInformation("Orders Notes column verification: {Message}", ex.Message);
+                    logger.LogInformation("Database column schema verification: {Message}", ex.Message);
                 }
 
                 // Cloud database on Hostinger is already deployed and verified.

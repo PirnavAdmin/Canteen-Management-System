@@ -10,6 +10,8 @@ namespace CanteenManagement.API.Services.Interfaces.Orders
         Task<OrderDto> UpdateStatusAsync(string id, UpdateOrderStatusDto dto, int campusId, string performedBy);
         Task<OrderDto> CancelOrderAsync(string id, CancelOrderDto dto, int campusId, string performedBy);
         Task<OrderDto> ProcessRefundAsync(string id, int campusId, string performedBy);
+        Task<bool> DeleteAsync(string id, int campusId);
+        Task<int> DeleteTestOrdersAsync(int campusId);
     }
 }
 

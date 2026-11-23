@@ -76,6 +76,7 @@ namespace CanteenManagement.API.Services.Implementations.Menu
                 Description = dto.Description?.Trim(),
                 FoodType = dto.FoodType,
                 Price = dto.Price,
+                DiscountPercent = dto.DiscountPercent,
                 DailyCapacity = dto.DailyCapacity,
                 RemainingCapacity = dto.DailyCapacity,
                 Availability = dto.Availability ?? "Available",
@@ -153,6 +154,7 @@ namespace CanteenManagement.API.Services.Implementations.Menu
             item.Description = dto.Description?.Trim();
             item.FoodType = dto.FoodType;
             item.Price = dto.Price;
+            item.DiscountPercent = dto.DiscountPercent;
             item.DailyCapacity = dto.DailyCapacity;
             item.Availability = dto.Availability ?? item.Availability;
             item.Status = dto.Status ?? item.Status;
@@ -309,6 +311,7 @@ namespace CanteenManagement.API.Services.Implementations.Menu
             OutletName = m.Outlet?.Name ?? string.Empty,
             FoodType = m.FoodType,
             Price = m.Price,
+            DiscountPercent = m.DiscountPercent,
             DailyCapacity = m.DailyCapacity,
             RemainingCapacity = m.RemainingCapacity,
             LastResetDate = m.LastResetDate,

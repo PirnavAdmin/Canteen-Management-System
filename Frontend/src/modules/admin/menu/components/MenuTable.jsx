@@ -199,12 +199,33 @@ export const MenuTable = ({
     {
       key: 'price',
       header: 'Price',
-      width: '75px',
-      render: (val) => (
-        <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
-          {formatCurrency(val)}
-        </span>
-      )
+      width: '95px',
+      render: (val, row) => {
+        const discount = Number(row?.discountPercent || 0);
+        if (discount > 0) {
+          const discounted = Math.round(Number(val) * (1 - discount / 100) * 100) / 100;
+          return (
+            <div style={{ whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: '#16a34a' }}>
+                {formatCurrency(discounted)}
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '1px' }}>
+                <span style={{ fontSize: '11px', textDecoration: 'line-through', color: 'var(--text-muted)' }}>
+                  {formatCurrency(val)}
+                </span>
+                <span style={{ fontSize: '9.5px', fontWeight: 700, color: '#dc2626', backgroundColor: '#fee2e2', padding: '1px 3px', borderRadius: '3px' }}>
+                  -{discount}%
+                </span>
+              </div>
+            </div>
+          );
+        }
+        return (
+          <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+            {formatCurrency(val)}
+          </span>
+        );
+      }
     },
     {
       key: 'dailyCapacity',

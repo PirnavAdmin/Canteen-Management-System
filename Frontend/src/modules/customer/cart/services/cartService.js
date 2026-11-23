@@ -11,7 +11,29 @@ let inMemorySelectedOutlet = {
   name: 'All Campus Dining Halls'
 };
 
+let activeSettings = {
+  gstPercent: 5.0,
+  packagingFee: 5.0,
+  enablePackagingFee: true
+};
+
 export const cartService = {
+  setSettings: (settings) => {
+    if (!settings) return;
+    const rules = settings.orderRules || settings.OrderRules || settings;
+    const payments = settings.payments || settings.Payments || {};
+    const gst = rules.gstPercent ?? payments.gstPercent ?? rules.GstPercent ?? payments.GstPercent ?? 5.0;
+    const fee = rules.packagingFee ?? rules.PackagingFee ?? 5.0;
+    const enable = rules.enablePackagingFee ?? rules.EnablePackagingFee ?? true;
+    activeSettings = {
+      gstPercent: Number(gst) >= 0 ? Number(gst) : 5.0,
+      packagingFee: Number(fee) >= 0 ? Number(fee) : 5.0,
+      enablePackagingFee: enable !== false
+    };
+  },
+
+  getSettings: () => ({ ...activeSettings }),
+
   getCart: (userId = 'guest') => {
     const cleanId = String(userId || 'guest').trim().toLowerCase();
     return Array.isArray(inMemoryCarts[cleanId]) ? [...inMemoryCarts[cleanId]] : [];
@@ -41,13 +63,20 @@ export const cartService = {
   calculateTotals: (items) => {
     const safeItems = Array.isArray(items) ? items : [];
     const subtotal = safeItems.reduce((acc, item) => {
-      const itemPrice = Number(item.price) || 0;
+      let itemPrice = Number(item.price) || 0;
+      const discount = Number(item.discountPercent || 0);
+      if (discount > 0) {
+        itemPrice = Math.round(itemPrice * (1 - discount / 100) * 100) / 100;
+      }
       const addOnsTotal = (item.selectedAddOns || []).reduce((a, addOn) => a + (Number(addOn.price) || 0), 0);
       return acc + (itemPrice + addOnsTotal) * (item.quantity || 1);
     }, 0);
 
-    const taxAmount = Math.round(subtotal * TAX_RATE * 100) / 100;
-    const packagingFee = subtotal > 200 || subtotal === 0 ? 0 : PACKAGING_FEE;
+    const gstPercent = activeSettings.gstPercent !== undefined ? activeSettings.gstPercent : 5.0;
+    const taxAmount = Math.round(subtotal * (gstPercent / 100) * 100) / 100;
+    const packagingFee = !activeSettings.enablePackagingFee || subtotal > 200 || subtotal === 0
+      ? 0
+      : activeSettings.packagingFee;
     const totalAmount = Math.round((subtotal + taxAmount + packagingFee) * 100) / 100;
 
     return {
@@ -55,6 +84,8 @@ export const cartService = {
       taxAmount,
       packagingFee,
       totalAmount,
+      gstPercent,
+      enablePackagingFee: activeSettings.enablePackagingFee,
       itemCount: safeItems.reduce((acc, item) => acc + (item.quantity || 1), 0)
     };
   }

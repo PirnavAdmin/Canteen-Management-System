@@ -17,7 +17,8 @@ export const CartDrawer = () => {
     taxAmount,
     totalAmount,
     itemCount,
-    selectedOutlet
+    selectedOutlet,
+    gstPercent
   } = useCart();
 
   const safeCartItems = Array.isArray(cartItems) ? cartItems : [];
@@ -149,7 +150,7 @@ export const CartDrawer = () => {
                 <span>{packagingFee === 0 ? <strong className={styles.freeText}>FREE</strong> : `₹${packagingFee.toFixed(2)}`}</span>
               </div>
               <div className={styles.billRow}>
-                <span>Institutional GST (5%)</span>
+                <span>GST ({gstPercent || 5}%)</span>
                 <span>₹{taxAmount.toFixed(2)}</span>
               </div>
               <div className={`${styles.billRow} ${styles.totalRow}`}>

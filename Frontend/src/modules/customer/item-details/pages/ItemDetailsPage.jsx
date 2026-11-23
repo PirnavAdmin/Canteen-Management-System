@@ -73,7 +73,11 @@ export const ItemDetailsPage = () => {
     );
   }
 
-  const basePrice = selectedVariant ? Number(selectedVariant.price) : Number(item.price);
+  const discount = Number(item.discountPercent || 0);
+  let basePrice = selectedVariant ? Number(selectedVariant.price) : Number(item.price);
+  if (discount > 0 && !selectedVariant) {
+    basePrice = Math.round(basePrice * (1 - discount / 100) * 100) / 100;
+  }
   const addOnsTotal = selectedAddOns.reduce((acc, curr) => acc + Number(curr.price), 0);
   const unitPrice = basePrice + addOnsTotal;
   const totalPrice = unitPrice * quantity;

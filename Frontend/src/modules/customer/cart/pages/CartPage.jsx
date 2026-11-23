@@ -28,7 +28,8 @@ export const CartPage = () => {
     packagingFee,
     taxAmount,
     totalAmount,
-    itemCount
+    itemCount,
+    gstPercent
   } = useCart();
 
   const safeCartItems = Array.isArray(cartItems) ? cartItems : [];
@@ -301,7 +302,7 @@ export const CartPage = () => {
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Institutional GST (5%):</span>
+                <span style={{ color: 'var(--text-secondary)' }}>GST ({gstPercent || 5}%):</span>
                 <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>₹{taxAmount.toFixed(2)}</span>
               </div>
 

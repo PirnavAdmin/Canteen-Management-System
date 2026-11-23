@@ -40,10 +40,24 @@ export const customerOrderService = {
       console.warn('Live order list unavailable; using locally saved customer orders.', err);
     }
 
+    // When live remote orders are available, purge any obsolete client-only fake orders from local storage
+    if (remoteOrders.length > 0) {
+      const validRemoteIds = new Set(remoteOrders.map(o => String(o.id || o.orderId)));
+      const cleanedLocal = (Array.isArray(locallySaved) ? locallySaved : []).filter(o => validRemoteIds.has(String(o.id || o.orderId)));
+      if (cleanedLocal.length !== (locallySaved?.length || 0)) {
+        storageService.setItem(ORDERS_STORAGE_KEY, cleanedLocal);
+      }
+    }
+
     const uniqueOrders = new Map();
-    // 1. Seed with locally saved orders (fallback bridge)
+    // 1. Seed with locally saved orders (only if confirmed by backend or during offline fallback)
     (Array.isArray(locallySaved) ? locallySaved : [])
       .filter(belongsToCurrentUser)
+      .filter((o) => {
+        if (!remoteOrders.length) return true;
+        const id = String(o.id || o.orderId || '');
+        return remoteOrders.some(r => String(r.id || r.orderId) === id);
+      })
       .forEach((order) => uniqueOrders.set(String(order.id || order.orderId), order));
 
     // 2. Overwrite with live backend database orders (authoritative live status!)

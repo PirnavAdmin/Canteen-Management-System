@@ -39,6 +39,9 @@ namespace CanteenManagement.API.Models.Menu
         [Column(TypeName = "decimal(10,2)")]
         public decimal Price { get; set; }
 
+        [Column(TypeName = "decimal(5,2)")]
+        public decimal DiscountPercent { get; set; } = 0.00m;
+
         public int DailyCapacity { get; set; } = 100;
 
         public int RemainingCapacity { get; set; } = 100;

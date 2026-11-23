@@ -289,11 +289,25 @@ export const MenuItemDetailsModal = ({ isOpen, onClose, item }) => {
               }}>
                 <div>
                   <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
-                    Base Price
+                    {Number(item.discountPercent || 0) > 0 ? 'Discounted Price' : 'Base Price'}
                   </span>
-                  <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--color-primary)', lineHeight: 1.2 }}>
-                    {formatCurrency(item.price)}
-                  </div>
+                  {Number(item.discountPercent || 0) > 0 ? (
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                      <span style={{ fontSize: '20px', fontWeight: 800, color: '#16a34a', lineHeight: 1.2 }}>
+                        {formatCurrency(Math.round(Number(item.price) * (1 - Number(item.discountPercent) / 100) * 100) / 100)}
+                      </span>
+                      <span style={{ fontSize: '13px', textDecoration: 'line-through', color: 'var(--text-muted)' }}>
+                        {formatCurrency(item.price)}
+                      </span>
+                      <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#dc2626', backgroundColor: '#fee2e2', padding: '1px 5px', borderRadius: '4px' }}>
+                        -{item.discountPercent}% OFF
+                      </span>
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--color-primary)', lineHeight: 1.2 }}>
+                      {formatCurrency(item.price)}
+                    </div>
+                  )}
                 </div>
 
                 <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
