@@ -18,11 +18,10 @@ namespace CanteenManagement.API.Repositories.Implementations.Dashboard
         public async Task<DashboardSummaryDto> GetSummaryAsync(int campusId, int? outletId = null)
         {
             using var connection = _connectionFactory.CreateConnection();
-            var parameters = new
-            {
-                p_CampusId = campusId,
-                p_OutletId = outletId ?? 0
-            };
+            var parameters = new DynamicParameters();
+            parameters.Add("p_CampusId", campusId);
+            parameters.Add("p_InstitutionId", campusId);
+            parameters.Add("p_OutletId", outletId ?? 0);
 
             var summary = await connection.QueryFirstOrDefaultAsync<dynamic>(
                 "sp_GetDashboardSummary",
@@ -52,11 +51,10 @@ namespace CanteenManagement.API.Repositories.Implementations.Dashboard
         public async Task<IEnumerable<HourlySalesDto>> GetHourlySalesAsync(int campusId, int? outletId = null)
         {
             using var connection = _connectionFactory.CreateConnection();
-            var parameters = new
-            {
-                p_CampusId = campusId,
-                p_OutletId = outletId ?? 0
-            };
+            var parameters = new DynamicParameters();
+            parameters.Add("p_CampusId", campusId);
+            parameters.Add("p_InstitutionId", campusId);
+            parameters.Add("p_OutletId", outletId ?? 0);
 
             return await connection.QueryAsync<HourlySalesDto>(
                 "sp_GetHourlySales",
@@ -67,11 +65,10 @@ namespace CanteenManagement.API.Repositories.Implementations.Dashboard
         public async Task<IEnumerable<LiveOrderDto>> GetLiveOrdersAsync(int campusId, int? outletId = null)
         {
             using var connection = _connectionFactory.CreateConnection();
-            var parameters = new
-            {
-                p_CampusId = campusId,
-                p_OutletId = outletId ?? 0
-            };
+            var parameters = new DynamicParameters();
+            parameters.Add("p_CampusId", campusId);
+            parameters.Add("p_InstitutionId", campusId);
+            parameters.Add("p_OutletId", outletId ?? 0);
 
             var orders = (await connection.QueryAsync<LiveOrderDto>(
                 "sp_GetLiveOrders",
@@ -114,11 +111,10 @@ namespace CanteenManagement.API.Repositories.Implementations.Dashboard
         public async Task<IEnumerable<TopSellingItemDto>> GetTopSellingItemsAsync(int campusId, int? outletId = null)
         {
             using var connection = _connectionFactory.CreateConnection();
-            var parameters = new
-            {
-                p_CampusId = campusId,
-                p_OutletId = outletId ?? 0
-            };
+            var parameters = new DynamicParameters();
+            parameters.Add("p_CampusId", campusId);
+            parameters.Add("p_InstitutionId", campusId);
+            parameters.Add("p_OutletId", outletId ?? 0);
 
             return await connection.QueryAsync<TopSellingItemDto>(
                 "sp_GetTopSellingItems",
@@ -129,10 +125,9 @@ namespace CanteenManagement.API.Repositories.Implementations.Dashboard
         public async Task<IEnumerable<StockAlertDto>> GetStockAlertsAsync(int campusId)
         {
             using var connection = _connectionFactory.CreateConnection();
-            var parameters = new
-            {
-                p_CampusId = campusId
-            };
+            var parameters = new DynamicParameters();
+            parameters.Add("p_CampusId", campusId);
+            parameters.Add("p_InstitutionId", campusId);
 
             return await connection.QueryAsync<StockAlertDto>(
                 "sp_GetStockAlerts",
@@ -143,10 +138,9 @@ namespace CanteenManagement.API.Repositories.Implementations.Dashboard
         public async Task<IEnumerable<OutletSalesDto>> GetOutletSalesAsync(int campusId)
         {
             using var connection = _connectionFactory.CreateConnection();
-            var parameters = new
-            {
-                p_CampusId = campusId
-            };
+            var parameters = new DynamicParameters();
+            parameters.Add("p_CampusId", campusId);
+            parameters.Add("p_InstitutionId", campusId);
 
             return await connection.QueryAsync<OutletSalesDto>(
                 "sp_GetOutletSales",

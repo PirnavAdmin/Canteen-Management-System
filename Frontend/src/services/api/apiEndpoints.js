@@ -67,12 +67,15 @@ export const API_ENDPOINTS = {
   // Inventory
   INVENTORY: {
     ITEMS: '/canteen-inventory/items',
+    ITEM_BY_ID: (id) => `/canteen-inventory/items/${id}`,
     BATCHES: '/canteen-inventory/batches',
     STOCK_MOVEMENT: '/canteen-inventory/movements',
     LEDGER: '/canteen-inventory/ledger',
     STOCK_REQUESTS: '/canteen-inventory/stock-requests',
     STOCK_REQUEST_BY_ID: (id) => `/canteen-inventory/stock-requests/${id}`,
+    STOCK_REQUEST_DISPATCH: (id) => `/canteen-inventory/stock-requests/${id}/dispatch`,
     STOCK_REQUEST_RECEIVED: (id) => `/canteen-inventory/stock-requests/${id}/received`,
+    STOCK_REQUEST_REJECT: (id) => `/canteen-inventory/stock-requests/${id}/reject`,
     PURCHASE_ORDERS: '/canteen-inventory/purchase-orders',
     PO_UPDATE_STATUS: (id) => `/canteen-inventory/purchase-orders/${id}/status`,
     SUPPLIERS: '/canteen-inventory/suppliers',

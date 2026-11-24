@@ -12,6 +12,7 @@ import { PurchaseOrdersTable } from '../components/PurchaseOrdersTable';
 import { PurchaseOrderModal } from '../components/PurchaseOrderModal';
 import { SuppliersTable } from '../components/SuppliersTable';
 import { SupplierModal } from '../components/SupplierModal';
+import { InventoryItemModal } from '../components/InventoryItemModal';
 import { KitchenRequestsTable } from '../components/KitchenRequestsTable';
 import { ApproveKitchenRequestModal } from '../components/ApproveKitchenRequestModal';
 import { canteenService } from '../../outlets/services/canteenService';
@@ -28,6 +29,9 @@ export const InventoryPage = () => {
     suppliers,
     kitchenRequests = [],
     loading,
+    createItem,
+    updateItem,
+    deleteItem,
     recordMovement,
     createPO,
     updatePOStatus,
@@ -74,8 +78,50 @@ export const InventoryPage = () => {
   const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState(null);
   const [supplierToDelete, setSupplierToDelete] = useState(null);
+
+  // Main Inventory Item Modals
+  const [isItemModalOpen, setIsItemModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+  const [itemToDelete, setItemToDelete] = useState(null);
+
   const [actionLoadingId, setActionLoadingId] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
+
+  const handleOpenAddItem = () => {
+    setEditingItem(null);
+    setIsItemModalOpen(true);
+  };
+
+  const handleOpenEditItem = (item) => {
+    setEditingItem(item);
+    setIsItemModalOpen(true);
+  };
+
+  const handleSaveItem = async (payload) => {
+    try {
+      setModalLoading(true);
+      if (editingItem) {
+        await updateItem(editingItem.id, payload);
+      } else {
+        await createItem(payload);
+      }
+      setIsItemModalOpen(false);
+      setEditingItem(null);
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const handleConfirmDeleteItem = async () => {
+    if (!itemToDelete) return;
+    try {
+      setModalLoading(true);
+      await deleteItem(itemToDelete.id);
+      setItemToDelete(null);
+    } finally {
+      setModalLoading(false);
+    }
+  };
 
   const handleOpenMovement = (item, type = 'Stock Out') => {
     setMovementModal({ isOpen: true, item, type });
@@ -155,18 +201,29 @@ export const InventoryPage = () => {
   return (
     <div>
       <PageHeader
-        title="Kitchen Inventory & Stock Ledger"
-        description="Trace raw ingredient inflows, issues, spoilage wastage, purchase orders, and supplier relationships with institutional ledger compliance."
+        title="Main Inventory & Stock Management"
+        description="Maintain central campus raw materials, stock quantities, reorder thresholds, purchase orders, and supplier relationships."
         actions={
           <div style={{ display: 'flex', gap: '8px' }}>
-            {activeTab === 'items' && items.length > 0 && (
-              <Button
-                variant="primary"
-                icon={ArrowDownUp}
-                onClick={() => handleOpenMovement(items[0], 'Stock In')}
-              >
-                Log Movement
-              </Button>
+            {activeTab === 'items' && (
+              <>
+                <Button
+                  variant="primary"
+                  icon={PlusCircle}
+                  onClick={handleOpenAddItem}
+                >
+                  Add Stock Item
+                </Button>
+                {items.length > 0 && (
+                  <Button
+                    variant="outline"
+                    icon={ArrowDownUp}
+                    onClick={() => handleOpenMovement(items[0], 'Stock In')}
+                  >
+                    Log Movement
+                  </Button>
+                )}
+              </>
             )}
 
             {activeTab === 'pos' && (
@@ -383,6 +440,8 @@ export const InventoryPage = () => {
           items={paginatedItems}
           loading={loading}
           onOpenMovement={handleOpenMovement}
+          onEditItem={handleOpenEditItem}
+          onDeleteItem={(item) => setItemToDelete(item)}
           footer={
             <Pagination
               currentPage={currentPage}
@@ -509,6 +568,31 @@ export const InventoryPage = () => {
         title="Inactivate Supplier"
         message={`Are you sure you want to inactivate "${supplierToDelete?.name || supplierToDelete?.contactPerson || 'this supplier'}"? If linked purchase orders exist, their status will be set to Inactive to preserve audit history.`}
         confirmText="Inactive"
+        variant="danger"
+        loading={modalLoading}
+      />
+
+      <InventoryItemModal
+        isOpen={isItemModalOpen}
+        onClose={() => {
+          if (!modalLoading) {
+            setIsItemModalOpen(false);
+            setEditingItem(null);
+          }
+        }}
+        onSave={handleSaveItem}
+        initialData={editingItem}
+        outlets={outlets}
+        loading={modalLoading}
+      />
+
+      <ConfirmationModal
+        isOpen={Boolean(itemToDelete)}
+        onClose={() => !modalLoading && setItemToDelete(null)}
+        onConfirm={handleConfirmDeleteItem}
+        title="Delete Stock Item"
+        message={`Are you sure you want to remove "${itemToDelete?.ingredientName || itemToDelete?.name || 'this item'}" from inventory? This action will permanently remove the item and its movement records.`}
+        confirmText="Delete Material"
         variant="danger"
         loading={modalLoading}
       />

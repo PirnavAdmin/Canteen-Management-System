@@ -202,76 +202,52 @@ export const useInventory = (selectedOutlet = 'ALL') => {
 
   const approveKitchenRequest = useCallback(async (request, issuedQty) => {
     try {
-      // 1. Find matching raw material item
-      const reqItemName = (request.itemName || request.ingredientName || '').trim().toLowerCase();
-      const reqItemCode = (request.itemCode || '').trim().toLowerCase();
-      const matchedItem = items.find(i =>
-        (request.ingredientId && String(i.id) === String(request.ingredientId)) ||
-        (reqItemName && (i.ingredientName || '').trim().toLowerCase() === reqItemName) ||
-        (reqItemCode && (i.itemCode || '').trim().toLowerCase() === reqItemCode)
-      );
-
-      if (!matchedItem) {
-        throw new Error(`Ingredient "${request.itemName || request.ingredientName || 'requested item'}" was not found in raw materials inventory.`);
-      }
-
-      if (Number(issuedQty) > Number(matchedItem.availableQuantity)) {
-        throw new Error(`Issued quantity (${issuedQty} ${matchedItem.unit}) cannot exceed available stock (${matchedItem.availableQuantity} ${matchedItem.unit}).`);
-      }
-
-      // 2. Record stock movement to subtract from raw materials
-      const res = await inventoryService.recordMovement({
-        ingredientId: matchedItem.id,
-        movementType: 'Stock Out',
-        quantity: -Math.abs(Number(issuedQty)),
-        reason: `Stock issued to ${request.outletName || (request.outletId === 1 ? 'Main Canteen' : `Outlet #${request.outletId}`)} Kitchen (Req #${request.id || request.requestId || 'REQ'})`,
-        reference: `REQ-${request.id || request.requestId || 'ISSUE'}`,
-        performedBy: 'Mrs. Sunitha (Canteen Admin)'
-      });
-
-      // Update local items & ledger immediately
-      const movementEntry = {
-        id: res?.movement?.id || `mov-kr-${Date.now()}`,
-        dateTime: res?.movement?.dateTime || res?.movement?.createdAt || new Date().toISOString(),
-        ingredientName: res?.movement?.ingredientName || matchedItem.ingredientName || 'Raw Material',
-        outletId: res?.movement?.outletId || matchedItem.outletId || (selectedOutlet !== 'ALL' ? Number(selectedOutlet) : 1),
-        outletName: res?.movement?.outletName || matchedItem.outletName || request.outletName || 'Main Canteen',
-        movementType: 'Stock Out',
-        quantity: -Math.abs(Number(issuedQty)),
-        unit: res?.movement?.unit || matchedItem.unit || 'kg',
-        batchNumber: res?.movement?.batchNumber || matchedItem.batchNumber || 'N/A',
-        reference: `REQ-${request.id || request.requestId || 'ISSUE'}`,
-        reason: `Stock issued to ${request.outletName || (request.outletId === 1 ? 'Main Canteen' : `Outlet #${request.outletId}`)} Kitchen (Req #${request.id || request.requestId || 'REQ'})`,
-        performedBy: 'Mrs. Sunitha (Canteen Admin)'
-      };
-
-      if (res?.item?.id) {
-        setItems(prev => prev.map(i => i.id === res.item.id ? res.item : i));
-      } else {
-        setItems(prev => prev.map(i => i.id === matchedItem.id ? { ...i, availableQuantity: Math.max(0, Number(i.availableQuantity) - Number(issuedQty)) } : i));
-      }
-      setLedger(prev => [movementEntry, ...prev]);
-
-      // 3. Update stock request status to 'Stock Issued'
+      const reqId = request.id || request.requestId;
       try {
-        await inventoryService.updateStockRequestStatus(request.id || request.requestId, 'Stock Issued');
-      } catch (err) {
-        console.warn('Backend status update fallback handled locally');
+        await inventoryService.dispatchStockRequest(reqId, {
+          issuedQuantity: Number(issuedQty),
+          adminNotes: 'Approved & Dispatched from Central Warehouse'
+        });
+        await loadAll();
+      } catch (backendErr) {
+        console.warn('Backend dispatch endpoint fallback:', backendErr);
+        // 1. Find matching raw material item
+        const reqItemName = (request.itemName || request.ingredientName || '').trim().toLowerCase();
+        const reqItemCode = (request.itemCode || '').trim().toLowerCase();
+        const matchedItem = items.find(i =>
+          (request.ingredientId && String(i.id) === String(request.ingredientId)) ||
+          (reqItemName && (i.ingredientName || '').trim().toLowerCase() === reqItemName) ||
+          (reqItemCode && (i.itemCode || '').trim().toLowerCase() === reqItemCode)
+        );
+
+        if (!matchedItem) {
+          throw new Error(`Ingredient "${request.itemName || request.ingredientName || 'requested item'}" was not found in raw materials inventory.`);
+        }
+
+        if (Number(issuedQty) > Number(matchedItem.availableQuantity)) {
+          throw new Error(`Issued quantity (${issuedQty} ${matchedItem.unit}) cannot exceed available stock (${matchedItem.availableQuantity} ${matchedItem.unit}).`);
+        }
+
+        // 2. Record stock movement to subtract from raw materials
+        await inventoryService.recordMovement({
+          ingredientId: matchedItem.id,
+          movementType: 'Stock Out',
+          quantity: -Math.abs(Number(issuedQty)),
+          reason: `Stock issued to ${request.outletName || (request.outletId === 1 ? 'Main Canteen' : `Outlet #${request.outletId}`)} Kitchen (Req #${reqId})`,
+          reference: `REQ-${reqId}`,
+          performedBy: 'Mrs. Sunitha (Canteen Admin)'
+        });
+
+        await loadAll();
       }
 
-      setKitchenRequests(prev => prev.map(r =>
-        (String(r.id) === String(request.id) || String(r.requestId) === String(request.requestId))
-          ? { ...r, status: 'Stock Issued', issuedQuantity: issuedQty }
-          : r
-      ));
-
-      success('Stock Issued & Subtracted', `Successfully dispatched ${issuedQty} ${matchedItem.unit} of ${matchedItem.ingredientName}. Raw materials inventory updated.`);
+      success('Stock Issued & Dispatched', `Successfully dispatched ${issuedQty} ${request.unit || 'units'} of ${request.itemName || request.ingredientName}. Raw materials inventory updated.`);
       return true;
     } catch (err) {
       toastError('Approval Failed', err.message);
       throw err;
     }
-  }, [items, selectedOutlet, success, toastError]);
+  }, [items, loadAll, success, toastError]);
 
   const markKitchenRequestReceived = useCallback(async (request) => {
     try {
@@ -294,6 +270,44 @@ export const useInventory = (selectedOutlet = 'ALL') => {
     }
   }, [success, toastError]);
 
+  const createItem = useCallback(async (itemData) => {
+    try {
+      const newItem = await inventoryService.createItem(itemData);
+      setItems(prev => [newItem, ...prev]);
+      success('Material Registered', `Raw material '${newItem.ingredientName || itemData.ingredientName}' added to inventory.`);
+      loadAll();
+      return newItem;
+    } catch (err) {
+      toastError('Failed to Add Item', err.message);
+      throw err;
+    }
+  }, [loadAll, success, toastError]);
+
+  const updateItem = useCallback(async (id, itemData) => {
+    try {
+      const updated = await inventoryService.updateItem(id, itemData);
+      setItems(prev => prev.map(i => i.id === id ? { ...i, ...updated } : i));
+      success('Stock Updated', `Inventory item '${updated.ingredientName || itemData.ingredientName || 'Stock'}' updated successfully.`);
+      loadAll();
+      return updated;
+    } catch (err) {
+      toastError('Update Failed', err.message);
+      throw err;
+    }
+  }, [loadAll, success, toastError]);
+
+  const deleteItem = useCallback(async (id) => {
+    try {
+      await inventoryService.deleteItem(id);
+      setItems(prev => prev.filter(i => i.id !== id));
+      success('Item Removed', 'Inventory item removed successfully.');
+      return true;
+    } catch (err) {
+      toastError('Delete Failed', err.message);
+      throw err;
+    }
+  }, [success, toastError]);
+
   return {
     items,
     ledger,
@@ -302,6 +316,9 @@ export const useInventory = (selectedOutlet = 'ALL') => {
     kitchenRequests,
     loading,
     error,
+    createItem,
+    updateItem,
+    deleteItem,
     recordMovement,
     createPO,
     updatePOStatus,

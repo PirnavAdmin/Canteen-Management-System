@@ -29,6 +29,58 @@ namespace CanteenManagement.API.Controllers.V1
             return Ok(ApiResponse<IEnumerable<InventoryItemDto>>.SuccessResponse(items));
         }
 
+        [HttpPost("items")]
+        [Authorize(Policy = "RequireAdmin")]
+        public async Task<IActionResult> CreateItem([FromBody] CreateInventoryItemDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
+                return BadRequest(ApiResponse<string>.ErrorResponse("Validation failed.", errors));
+            }
+
+            var campusId = User.ResolveCampusId();
+            var userName = User.ResolveUserName();
+            var created = await _inventoryService.CreateItemAsync(dto, campusId, userName);
+            return Ok(ApiResponse<InventoryItemDto>.SuccessResponse(created, $"Raw material '{created.IngredientName}' added to inventory successfully."));
+        }
+
+        [HttpPut("items/{id:int}")]
+        [Authorize(Policy = "RequireAdmin")]
+        public async Task<IActionResult> UpdateItem(int id, [FromBody] UpdateInventoryItemDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
+                return BadRequest(ApiResponse<string>.ErrorResponse("Validation failed.", errors));
+            }
+
+            var campusId = User.ResolveCampusId();
+            var userName = User.ResolveUserName();
+            var updated = await _inventoryService.UpdateItemAsync(id, dto, campusId, userName);
+            if (updated == null)
+            {
+                return NotFound(ApiResponse<string>.ErrorResponse($"Inventory item with ID {id} was not found."));
+            }
+
+            return Ok(ApiResponse<InventoryItemDto>.SuccessResponse(updated, $"Inventory item '{updated.IngredientName}' updated successfully."));
+        }
+
+        [HttpDelete("items/{id:int}")]
+        [Authorize(Policy = "RequireAdmin")]
+        public async Task<IActionResult> DeleteItem(int id)
+        {
+            var campusId = User.ResolveCampusId();
+            var userName = User.ResolveUserName();
+            var success = await _inventoryService.DeleteItemAsync(id, campusId, userName);
+            if (!success)
+            {
+                return NotFound(ApiResponse<string>.ErrorResponse($"Inventory item with ID {id} was not found."));
+            }
+
+            return Ok(ApiResponse<bool>.SuccessResponse(true, "Inventory item deleted successfully."));
+        }
+
         [HttpPost("movements")]
         public async Task<IActionResult> RecordMovement([FromBody] RecordStockMovementDto dto)
         {
@@ -177,6 +229,96 @@ namespace CanteenManagement.API.Controllers.V1
             }
 
             return Ok(ApiResponse<SupplierDto>.SuccessResponse(updated, $"Supplier status updated to '{dto.Status}'."));
+        }
+
+        [HttpGet("stock-requests")]
+        public async Task<IActionResult> GetStockRequests([FromQuery] int? outletId, [FromQuery] string? status)
+        {
+            var campusId = User.ResolveCampusId();
+            var requests = await _inventoryService.GetStockRequestsAsync(campusId, outletId, status);
+            return Ok(ApiResponse<IEnumerable<StockRequestDto>>.SuccessResponse(requests));
+        }
+
+        [HttpPost("stock-requests")]
+        public async Task<IActionResult> CreateStockRequest([FromBody] CreateStockRequestDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
+                return BadRequest(ApiResponse<string>.ErrorResponse("Validation failed.", errors));
+            }
+
+            var campusId = User.ResolveCampusId();
+            var userName = User.ResolveUserName();
+            var created = await _inventoryService.CreateStockRequestAsync(dto, campusId, userName);
+            return Ok(ApiResponse<StockRequestDto>.SuccessResponse(created, $"Stock requisition #{created.RequestId} submitted successfully."));
+        }
+
+        [HttpPatch("stock-requests/{id}/dispatch")]
+        [Authorize(Policy = "RequireAdmin")]
+        public async Task<IActionResult> DispatchStockRequest(string id, [FromBody] DispatchStockRequestDto dto)
+        {
+            try
+            {
+                var campusId = User.ResolveCampusId();
+                var userName = User.ResolveUserName();
+                var updated = await _inventoryService.DispatchStockRequestAsync(id, dto, campusId, userName);
+                return Ok(ApiResponse<StockRequestDto>.SuccessResponse(updated, $"Stock requisition #{id} dispatched from Main Inventory."));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ApiResponse<string>.ErrorResponse(ex.Message));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ApiResponse<string>.ErrorResponse(ex.Message));
+            }
+        }
+
+        [HttpPatch("stock-requests/{id}/received")]
+        public async Task<IActionResult> ReceiveStockRequest(string id)
+        {
+            try
+            {
+                var campusId = User.ResolveCampusId();
+                var userName = User.ResolveUserName();
+                var updated = await _inventoryService.ReceiveStockRequestAsync(id, campusId, userName);
+                return Ok(ApiResponse<StockRequestDto>.SuccessResponse(updated, $"Stock requisition #{id} received into kitchen inventory."));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ApiResponse<string>.ErrorResponse(ex.Message));
+            }
+        }
+
+        [HttpPatch("stock-requests/{id}/reject")]
+        [Authorize(Policy = "RequireAdmin")]
+        public async Task<IActionResult> RejectStockRequest(string id, [FromBody] RejectStockRequestDto dto)
+        {
+            try
+            {
+                var campusId = User.ResolveCampusId();
+                var userName = User.ResolveUserName();
+                var updated = await _inventoryService.RejectStockRequestAsync(id, dto.Reason, campusId, userName);
+                return Ok(ApiResponse<StockRequestDto>.SuccessResponse(updated, $"Stock requisition #{id} has been rejected."));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ApiResponse<string>.ErrorResponse(ex.Message));
+            }
+        }
+
+        [HttpDelete("stock-requests/{id}")]
+        public async Task<IActionResult> DeleteStockRequest(string id)
+        {
+            var campusId = User.ResolveCampusId();
+            var userName = User.ResolveUserName();
+            var success = await _inventoryService.DeleteStockRequestAsync(id, campusId, userName);
+            if (!success)
+            {
+                return NotFound(ApiResponse<string>.ErrorResponse($"Stock request with ID {id} was not found."));
+            }
+            return Ok(ApiResponse<bool>.SuccessResponse(true, "Stock request removed successfully."));
         }
     }
 

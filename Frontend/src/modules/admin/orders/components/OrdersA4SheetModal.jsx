@@ -102,8 +102,16 @@ export const OrdersA4SheetModal = ({
         return;
       }
 
-      const html2canvasModule = (await import('html2canvas')).default;
-      const { jsPDF } = await import('jspdf');
+      let html2canvasModule = null;
+      let jsPDF = null;
+      try {
+        html2canvasModule = (await import(/* @vite-ignore */ 'html2canvas')).default;
+        const jspdfModule = await import(/* @vite-ignore */ 'jspdf');
+        jsPDF = jspdfModule.jsPDF;
+      } catch (e) {
+        window.print();
+        return;
+      }
 
       const dateStr = new Date().toISOString().slice(0, 10);
       const safeOutlet = String(activeFilters.outlet || 'All_Outlets').replace(/[^a-zA-Z0-9_-]/g, '_');

@@ -13,6 +13,45 @@ export const inventoryService = {
     return response?.data ?? response;
   },
 
+  createItem: async (itemData) => {
+    const payload = {
+      ingredientName: itemData.ingredientName?.trim(),
+      category: itemData.category || 'Groceries',
+      availableQuantity: Number(itemData.availableQuantity || itemData.quantity || 0),
+      unit: itemData.unit || 'kg',
+      reorderLevel: Number(itemData.reorderLevel || 10),
+      costPerUnit: Number(itemData.costPerUnit || 0),
+      outletId: Number(itemData.outletId || 1),
+      batchNumber: itemData.batchNumber || null,
+      expiryDate: itemData.expiryDate || null,
+      status: itemData.status || 'In Stock'
+    };
+    const response = await apiClient.post(API_ENDPOINTS.INVENTORY.ITEMS, payload);
+    return response?.data ?? response;
+  },
+
+  updateItem: async (id, itemData) => {
+    const payload = {
+      ingredientName: itemData.ingredientName?.trim(),
+      category: itemData.category,
+      availableQuantity: itemData.availableQuantity !== undefined ? Number(itemData.availableQuantity) : undefined,
+      unit: itemData.unit,
+      reorderLevel: itemData.reorderLevel !== undefined ? Number(itemData.reorderLevel) : undefined,
+      costPerUnit: itemData.costPerUnit !== undefined ? Number(itemData.costPerUnit) : undefined,
+      outletId: itemData.outletId ? Number(itemData.outletId) : undefined,
+      batchNumber: itemData.batchNumber || null,
+      expiryDate: itemData.expiryDate || null,
+      status: itemData.status
+    };
+    const response = await apiClient.put(API_ENDPOINTS.INVENTORY.ITEM_BY_ID(id), payload);
+    return response?.data ?? response;
+  },
+
+  deleteItem: async (id) => {
+    const response = await apiClient.delete(API_ENDPOINTS.INVENTORY.ITEM_BY_ID(id));
+    return response?.data ?? response;
+  },
+
   // Traceable Stock Movement (Stock In, Stock Out, Wastage, Adjustment)
   recordMovement: async (movementData) => {
     const ingredientId = Number(movementData.ingredientId || movementData.itemId || movementData.id);
@@ -144,6 +183,26 @@ export const inventoryService = {
       return response?.data ?? response;
     } catch (err) {
       return { id, status };
+    }
+  },
+
+  dispatchStockRequest: async (id, data = {}) => {
+    try {
+      const response = await apiClient.patch(API_ENDPOINTS.INVENTORY.STOCK_REQUEST_DISPATCH(id), data);
+      return response?.data ?? response;
+    } catch (err) {
+      console.error('Failed to dispatch stock request:', err);
+      throw err;
+    }
+  },
+
+  rejectStockRequest: async (id, reason = '') => {
+    try {
+      const response = await apiClient.patch(API_ENDPOINTS.INVENTORY.STOCK_REQUEST_REJECT(id), { reason });
+      return response?.data ?? response;
+    } catch (err) {
+      console.error('Failed to reject stock request:', err);
+      throw err;
     }
   },
 
