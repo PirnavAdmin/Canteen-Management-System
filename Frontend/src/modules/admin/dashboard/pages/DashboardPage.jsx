@@ -1,6 +1,5 @@
 import React from 'react';
-import { RefreshCw, Store } from 'lucide-react';
-import { PageHeader } from '../../../../components/common/PageHeader';
+import { RefreshCw, Store, Clock } from 'lucide-react';
 import { Button } from '../../../../components/common/Button';
 import { useDashboard } from '../hooks/useDashboard';
 import { DashboardKPICards } from '../components/DashboardKPICards';
@@ -17,35 +16,48 @@ export const DashboardPage = () => {
   const {
     loading,
     summary,
-    hourlySales,
+    salesData,
     liveOrders,
     topSelling,
     stockAlerts,
     outletSales,
+    lastUpdated,
     refreshDashboard
   } = useDashboard(selectedOutlet);
 
   return (
     <div>
-      <PageHeader
-        title="Canteen Operations Dashboard"
-        description={
-          selectedOutlet === 'ALL'
-            ? 'Comprehensive real-time administrative intelligence across all dining halls, order lifecycle, sales revenue, and kitchen inventory.'
-            : `Operational analytics, kitchen queues, and live activity for "${selectedOutletObj?.name || 'Selected Outlet'}".`
-        }
-        badge={
-          selectedOutlet !== 'ALL' ? (
+      {/* Header with Title and Actions aligned horizontally on the exact same row */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '12px',
+        marginBottom: '16px'
+      }}>
+        {/* Left: Title + Outlet Badge */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <h1 style={{
+            fontSize: '20px',
+            fontWeight: 700,
+            color: 'var(--text-primary)',
+            letterSpacing: '-0.02em',
+            margin: 0
+          }}>
+            Canteen Operations Dashboard
+          </h1>
+          {selectedOutlet !== 'ALL' && (
             <span
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '5px',
-                padding: '3px 10px',
+                padding: '3px 9px',
                 borderRadius: '9999px',
                 backgroundColor: 'var(--color-primary-light)',
                 color: 'var(--color-primary)',
-                fontSize: '12px',
+                fontSize: '11.5px',
                 fontWeight: 600,
                 border: '1px solid var(--border-color)'
               }}
@@ -53,44 +65,54 @@ export const DashboardPage = () => {
               <Store size={12} />
               {selectedOutletObj?.name || 'Active Outlet'}
             </span>
-          ) : null
-        }
-        actions={
+          )}
+        </div>
+
+        {/* Right: Last Updated Badge & Refresh Dashboard Button aligned on same line */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {lastUpdated && (
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              fontSize: '11.5px',
+              color: 'var(--text-secondary)',
+              backgroundColor: 'var(--bg-muted)',
+              padding: '5px 10px',
+              borderRadius: 'var(--border-radius-full)',
+              border: '1px solid var(--border-color)',
+              whiteSpace: 'nowrap'
+            }}>
+              <Clock size={12} style={{ color: 'var(--text-muted)' }} />
+              <span>Last updated {lastUpdated.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}, {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+            </span>
+          )}
           <Button
             variant="secondary"
             icon={RefreshCw}
             onClick={refreshDashboard}
             loading={loading}
           >
-            Refresh
+            Refresh Dashboard
           </Button>
-        }
-      />
+        </div>
+      </div>
 
-      {/* KPI Stats Grid */}
-      <DashboardKPICards summary={summary || {}} />
+      {/* KPI Stats Grid - 9 Compact, Linear & Responsive Cards */}
+      <DashboardKPICards summary={summary || {}} loading={loading} />
 
-      {/* Sales Velocity Chart */}
-      <SalesAnalyticsChart data={hourlySales} />
-
-      {/* Operational Grids */}
+      {/* Operational Cards Grid - All Cards Same Size & Responsive */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
-        gap: '20px',
-        alignItems: 'start'
+        gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
+        gap: '14px',
+        alignItems: 'stretch'
       }}>
-        {/* Left Section */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <LiveOrderQueue orders={liveOrders} />
-          <OutletSalesCard outletSales={outletSales} />
-        </div>
-
-        {/* Right Section */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <TopSellingItems items={topSelling} />
-          <StockAlertsCard alerts={stockAlerts} />
-        </div>
+        <SalesAnalyticsChart salesData={salesData} loading={loading} />
+        <LiveOrderQueue orders={liveOrders} loading={loading} />
+        <TopSellingItems items={topSelling} loading={loading} />
+        <OutletSalesCard outletSales={outletSales} loading={loading} />
+        <StockAlertsCard alerts={stockAlerts} loading={loading} />
       </div>
     </div>
   );
