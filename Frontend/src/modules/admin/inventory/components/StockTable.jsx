@@ -138,29 +138,9 @@ export const StockTable = ({
       key: 'actions',
       header: 'Log Movement',
       align: 'center',
-      width: '96px',
+      width: '76px',
       render: (_, row) => (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-          <button
-            type="button"
-            onClick={() => onOpenMovement(row, 'Stock In')}
-            style={{
-              background: 'var(--color-success-bg)',
-              border: '1px solid var(--color-success-border)',
-              borderRadius: 'var(--border-radius-sm)',
-              padding: '5px',
-              color: 'var(--color-success-text)',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-            title="Log Stock In"
-            aria-label="Log Stock In"
-          >
-            <ArrowDownRight size={14} />
-          </button>
-
           <button
             type="button"
             onClick={() => onOpenMovement(row, 'Stock Out')}
