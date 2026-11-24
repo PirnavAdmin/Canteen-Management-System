@@ -9,7 +9,7 @@ import { CartDrawer } from './CartDrawer';
 import { formatCurrency } from '../../../../utils/formatters';
 import { useToast } from '../../../../app/providers/ToastProvider';
 
-export const PlaceOrderCatalog = ({ onOrderPlaced }) => {
+export const PlaceOrderCatalog = ({ onOrderPlaced, cashierMode = false }) => {
   const { error: toastError } = useToast();
   const { selectedOutlet: globalOutlet, setSelectedOutlet: setGlobalOutlet } = useCanteens();
 
@@ -56,13 +56,18 @@ export const PlaceOrderCatalog = ({ onOrderPlaced }) => {
 
       const outs = Array.isArray(outRes) ? outRes : (outRes?.data || []);
       setOutlets(outs);
+      // Cashiers work from one assigned counter/canteen, rather than choosing
+      // an outlet from the Admin selector.
+      if (cashierMode && selectedOutlet === 'ALL' && outs.length > 0) {
+        setSelectedOutlet(String(outs[0].outletId || outs[0].id));
+      }
     } catch (err) {
       console.error('Failed to load menu catalog data:', err);
       toastError('Catalog Error', 'Could not load menu catalog.');
     } finally {
       setLoading(false);
     }
-  }, [toastError]);
+  }, [toastError, cashierMode, selectedOutlet]);
 
   useEffect(() => {
     loadData();
@@ -227,8 +232,28 @@ export const PlaceOrderCatalog = ({ onOrderPlaced }) => {
             />
           </div>
 
-          {/* Outlet Selector Filter */}
-          <div style={{ minWidth: '160px', flex: '0 1 200px' }}>
+          {cashierMode && (
+            <div style={{ minWidth: '180px', flex: '0 1 230px' }}>
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                aria-label="Filter menu by category"
+                style={{
+                  width: '100%', height: '38px', padding: '0 10px', borderRadius: '8px',
+                  border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)',
+                  color: 'var(--text-primary)', fontSize: '13px', outline: 'none', cursor: 'pointer'
+                }}
+              >
+                <option value="ALL">All Items ({menuItems.length})</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.name}>{cat.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Cashiers are scoped to their assigned canteen; Admins may select one. */}
+          {!cashierMode && <div style={{ minWidth: '160px', flex: '0 1 200px' }}>
             <select
               value={selectedOutlet}
               onChange={(e) => {
@@ -255,7 +280,7 @@ export const PlaceOrderCatalog = ({ onOrderPlaced }) => {
                 </option>
               ))}
             </select>
-          </div>
+          </div>}
 
           {/* Sort By Dropdown */}
           <div style={{ minWidth: '160px', flex: '0 1 180px' }}>
@@ -324,7 +349,7 @@ export const PlaceOrderCatalog = ({ onOrderPlaced }) => {
         </div>
 
         {/* Category Pills Bar */}
-        <div
+        {!cashierMode && <div
           className="no-scrollbar"
           style={{
             display: 'flex',
@@ -379,7 +404,7 @@ export const PlaceOrderCatalog = ({ onOrderPlaced }) => {
               </button>
             );
           })}
-        </div>
+        </div>}
       </div>
 
       {/* Meta Bar: Total Count */}

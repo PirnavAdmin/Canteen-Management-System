@@ -20,10 +20,11 @@ namespace CanteenManagement.API.Controllers.V1
             _settingsService = settingsService;
         }
 
+        [AllowAnonymous]
         [HttpGet]
         public async Task<IActionResult> GetSettings()
         {
-            var campusId = User.ResolveCampusId();
+            var campusId = User.Identity?.IsAuthenticated == true ? User.ResolveCampusId() : 1;
             var settings = await _settingsService.GetSettingsAsync(campusId);
             return Ok(ApiResponse<SystemSettingsResponseDto>.SuccessResponse(settings));
         }

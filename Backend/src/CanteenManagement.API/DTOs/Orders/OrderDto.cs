@@ -12,6 +12,7 @@ namespace CanteenManagement.API.DTOs.Orders
         public List<OrderItemDto> Items { get; set; } = new();
         public decimal Subtotal { get; set; }
         public decimal TaxAmount { get; set; }
+        public decimal PackagingFee { get; set; }
         public decimal TotalAmount { get; set; }
         public DateTime OrderDate { get; set; }
         public string Status { get; set; } = "Placed";
@@ -74,6 +75,7 @@ namespace CanteenManagement.API.DTOs.Orders
         public string? Phone { get; set; }
         public string? Email { get; set; }
         public string? Notes { get; set; }
+        public decimal? PackagingFee { get; set; }
 
         [Required]
         [MinLength(1, ErrorMessage = "At least one order item is required.")]

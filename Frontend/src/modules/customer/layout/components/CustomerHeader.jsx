@@ -23,6 +23,7 @@ import { useCart } from '../../cart/hooks/useCart';
 import { CUSTOMER_NAV_GROUPS } from '../constants/customerNavigation';
 import { customerOrderService } from '../../orders/services/customerOrderService';
 import { canteenService } from '../../../admin/outlets/services/canteenService';
+import { subscribeToOrderSync } from '../../../../utils/orderSync';
 
 /**
  * Returns color tokens and status label depending on the chef's manual order milestone
@@ -35,7 +36,7 @@ const getOrderStatusStyle = (status) => {
       bg: '#dcfce7',
       border: '#bbf7d0',
       dot: '#16a34a',
-      label: 'Preparing...'
+      label: 'Preparing'
     };
   }
   if (s.includes('ready') || s.includes('pickup')) {
@@ -65,7 +66,7 @@ const getOrderStatusStyle = (status) => {
       label: 'Order Placed'
     };
   }
-  if (s.includes('complete')) {
+  if (s.includes('complete') || s.includes('collect')) {
     return {
       text: '#334155',
       bg: '#f1f5f9',
@@ -79,7 +80,7 @@ const getOrderStatusStyle = (status) => {
     bg: '#dcfce7',
     border: '#bbf7d0',
     dot: '#16a34a',
-    label: status || 'Preparing...'
+    label: status || 'Preparing'
   };
 };
 
@@ -124,7 +125,7 @@ export const CustomerHeader = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Poll live orders every 8s so chef status updates appear in real-time
+  // Poll live orders every 3s & synchronously listen to live status updates
   useEffect(() => {
     let isMounted = true;
     const fetchLatestOrder = async () => {
@@ -132,14 +133,9 @@ export const CustomerHeader = () => {
         const orders = await customerOrderService.getCustomerOrders(user);
         if (!isMounted) return;
         const list = Array.isArray(orders) ? orders : [];
-        const active = list.find(o => !['Completed', 'Collected', 'Cancelled', 'Refunded'].includes(o.status));
-        if (active) {
-          setActiveOrder(active);
-        } else if (list.length > 0) {
-          setActiveOrder(list[0]);
-        } else {
-          setActiveOrder(null);
-        }
+        // Only pick active in-progress orders (not Completed, Collected, Cancelled, or Refunded)
+        const active = list.find(o => o && !['Completed', 'Collected', 'Cancelled', 'Refunded'].includes(o.status));
+        setActiveOrder(active || null);
       } catch (err) {
         console.warn('Could not fetch active order:', err);
       }
@@ -147,17 +143,40 @@ export const CustomerHeader = () => {
 
     fetchLatestOrder();
 
-    const handleOrderEvent = () => fetchLatestOrder();
-    window.addEventListener('cms:order_created', handleOrderEvent);
-    window.addEventListener('cms:order_status_updated', handleOrderEvent);
+    const handleOrderEvent = (updatedOrder) => {
+      if (updatedOrder && (updatedOrder.id || updatedOrder.orderId)) {
+        setActiveOrder(prev => {
+          if (!prev) return prev;
+          const isMatch = String(prev.id) === String(updatedOrder.id) ||
+                          String(prev.orderId) === String(updatedOrder.orderId) ||
+                          String(prev.token) === String(updatedOrder.token);
+          if (isMatch) {
+            if (['Completed', 'Collected', 'Cancelled', 'Refunded'].includes(updatedOrder.status)) {
+              return null;
+            }
+            return { ...prev, ...updatedOrder };
+          }
+          return prev;
+        });
+      }
+      fetchLatestOrder();
+    };
+
+    const unsubscribe = subscribeToOrderSync(handleOrderEvent, fetchLatestOrder);
+    const pollInterval = setInterval(fetchLatestOrder, 3000);
+    window.addEventListener('focus', fetchLatestOrder);
+    const handleVisibility = () => { if (!document.hidden) fetchLatestOrder(); };
+    document.addEventListener('visibilitychange', handleVisibility);
 
     const handleCustomTrigger = () => setShowOrderModal(true);
     window.addEventListener('cms:show-order-status', handleCustomTrigger);
 
     return () => {
       isMounted = false;
-      window.removeEventListener('cms:order_created', handleOrderEvent);
-      window.removeEventListener('cms:order_status_updated', handleOrderEvent);
+      unsubscribe();
+      clearInterval(pollInterval);
+      window.removeEventListener('focus', fetchLatestOrder);
+      document.removeEventListener('visibilitychange', handleVisibility);
       window.removeEventListener('cms:show-order-status', handleCustomTrigger);
     };
   }, [user]);

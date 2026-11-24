@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Package, BookOpen, ShoppingCart, Users, PlusCircle, ArrowDownUp, Store, ClipboardList } from 'lucide-react';
+import { Package, BookOpen, ShoppingCart, Users, PlusCircle, ArrowDownUp, Store, ChefHat } from 'lucide-react';
 import { PageHeader } from '../../../../components/common/PageHeader';
 import { Button } from '../../../../components/common/Button';
 import { ConfirmationModal } from '../../../../components/common/ConfirmationModal';
@@ -8,11 +8,12 @@ import { useInventory } from '../hooks/useInventory';
 import { StockTable } from '../components/StockTable';
 import { StockMovementModal } from '../components/StockMovementModal';
 import { StockLedgerTable } from '../components/StockLedgerTable';
-import { StockRequestsTable } from '../components/StockRequestsTable';
 import { PurchaseOrdersTable } from '../components/PurchaseOrdersTable';
 import { PurchaseOrderModal } from '../components/PurchaseOrderModal';
 import { SuppliersTable } from '../components/SuppliersTable';
 import { SupplierModal } from '../components/SupplierModal';
+import { KitchenRequestsTable } from '../components/KitchenRequestsTable';
+import { ApproveKitchenRequestModal } from '../components/ApproveKitchenRequestModal';
 import { canteenService } from '../../outlets/services/canteenService';
 
 import { useCanteens } from '../../outlets/hooks/useCanteens';
@@ -25,42 +26,58 @@ export const InventoryPage = () => {
     ledger,
     purchaseOrders,
     suppliers,
-    stockRequests,
+    kitchenRequests = [],
     loading,
     recordMovement,
     createPO,
     updatePOStatus,
-    approveStockRequest,
-    rejectStockRequest,
     createSupplier,
     updateSupplier,
     deleteSupplier,
-    deactivateSupplier
+    deactivateSupplier,
+    approveKitchenRequest,
+    markKitchenRequestReceived
   } = useInventory(selectedOutlet);
 
-  // Tab state: 'items' | 'ledger' | 'requests' | 'pos' | 'suppliers'
+  // Tab state: 'items' | 'ledger' | 'pos' | 'suppliers' | 'kitchen-requests'
   const [activeTab, setActiveTab] = useState('items');
 
-  // Pagination state (default 5 per page)
+  // Pagination state (default 5 per page) for each tab
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
+
+  const [ledgerPage, setLedgerPage] = useState(1);
+  const [ledgerPageSize, setLedgerPageSize] = useState(5);
+
+  const [posPage, setPosPage] = useState(1);
+  const [posPageSize, setPosPageSize] = useState(5);
 
   const paginatedItems = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return items.slice(start, start + pageSize);
   }, [items, currentPage, pageSize]);
 
+  const paginatedLedger = useMemo(() => {
+    const start = (ledgerPage - 1) * ledgerPageSize;
+    return ledger.slice(start, start + ledgerPageSize);
+  }, [ledger, ledgerPage, ledgerPageSize]);
+
+  const paginatedPOs = useMemo(() => {
+    const start = (posPage - 1) * posPageSize;
+    return purchaseOrders.slice(start, start + posPageSize);
+  }, [purchaseOrders, posPage, posPageSize]);
+
   // Modals & action loading state
-  const [movementModal, setMovementModal] = useState({ isOpen: false, item: null, type: 'Stock In' });
+  const [movementModal, setMovementModal] = useState({ isOpen: false, item: null, type: 'Stock Out' });
+  const [approveModal, setApproveModal] = useState({ isOpen: false, request: null });
   const [isPOModalOpen, setIsPOModalOpen] = useState(false);
-  const [poInitialItems, setPoInitialItems] = useState(null);
   const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState(null);
   const [supplierToDelete, setSupplierToDelete] = useState(null);
   const [actionLoadingId, setActionLoadingId] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
 
-  const handleOpenMovement = (item, type = 'Stock In') => {
+  const handleOpenMovement = (item, type = 'Stock Out') => {
     setMovementModal({ isOpen: true, item, type });
   };
 
@@ -77,40 +94,9 @@ export const InventoryPage = () => {
     try {
       setModalLoading(true);
       await createPO(payload);
-      setPoInitialItems(null);
     } finally {
       setModalLoading(false);
     }
-  };
-
-  const handleApproveRequest = async (id) => {
-    try {
-      setActionLoadingId(id);
-      await approveStockRequest(id);
-    } finally {
-      setActionLoadingId(null);
-    }
-  };
-
-  const handleRejectRequest = async (id) => {
-    try {
-      setActionLoadingId(id);
-      await rejectStockRequest(id);
-    } finally {
-      setActionLoadingId(null);
-    }
-  };
-
-  const handleCreatePOFromRequest = (req) => {
-    setPoInitialItems([
-      {
-        ingredientName: req.itemName,
-        qty: req.requestedQuantity,
-        unit: req.unit || 'kg',
-        unitPrice: ''
-      }
-    ]);
-    setIsPOModalOpen(true);
   };
 
   const handleCreateSupplier = async (payload) => {
@@ -233,6 +219,8 @@ export const InventoryPage = () => {
             onChange={(e) => {
               setSelectedOutlet(e.target.value);
               setCurrentPage(1);
+              setLedgerPage(1);
+              setPosPage(1);
             }}
             style={{
               height: '36px',
@@ -251,7 +239,7 @@ export const InventoryPage = () => {
             <option value="ALL">All Campus Outlets (Consolidated)</option>
             {outlets.map(out => (
               <option key={out.outletId || out.id} value={out.outletId || out.id}>
-                {out.name} {out.location ? `(${out.location})` : ''}
+                {out.name}
               </option>
             ))}
           </select>
@@ -293,7 +281,7 @@ export const InventoryPage = () => {
           }}
         >
           <Package size={15} />
-          <span>Raw Materials & Stock ({items.length})</span>
+          <span>Raw Materials & Stock</span>
         </button>
 
         <button
@@ -316,43 +304,7 @@ export const InventoryPage = () => {
           }}
         >
           <BookOpen size={15} />
-          <span>Movement Ledger ({ledger.length})</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('requests')}
-          style={{
-            padding: '10px 16px',
-            fontSize: '13px',
-            fontWeight: activeTab === 'requests' ? 600 : 500,
-            color: activeTab === 'requests' ? 'var(--color-primary)' : 'var(--text-secondary)',
-            borderBottom: activeTab === 'requests' ? '2.5px solid var(--color-primary)' : '2.5px solid transparent',
-            background: 'none',
-            borderTop: 'none',
-            borderLeft: 'none',
-            borderRight: 'none',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}
-        >
-          <ClipboardList size={15} />
-          <span>Stock Requests ({stockRequests.length})</span>
-          {stockRequests.filter(r => r.status === 'Pending Review' || r.status === 'Pending').length > 0 && (
-            <span style={{
-              padding: '1px 6px',
-              borderRadius: '9999px',
-              fontSize: '10.5px',
-              fontWeight: 700,
-              backgroundColor: 'var(--color-warning-bg, #fffbeb)',
-              color: 'var(--color-warning, #b45309)',
-              border: '1px solid var(--color-warning-border, #fde68a)'
-            }}>
-              {stockRequests.filter(r => r.status === 'Pending Review' || r.status === 'Pending').length}
-            </span>
-          )}
+          <span>Movement Ledger</span>
         </button>
 
         <button
@@ -375,7 +327,7 @@ export const InventoryPage = () => {
           }}
         >
           <ShoppingCart size={15} />
-          <span>Purchase Orders ({purchaseOrders.length})</span>
+          <span>Purchase Orders</span>
         </button>
 
         <button
@@ -398,7 +350,30 @@ export const InventoryPage = () => {
           }}
         >
           <Users size={15} />
-          <span>Suppliers ({suppliers.length})</span>
+          <span>Suppliers</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('kitchen-requests')}
+          style={{
+            padding: '10px 16px',
+            fontSize: '13px',
+            fontWeight: activeTab === 'kitchen-requests' ? 600 : 500,
+            color: activeTab === 'kitchen-requests' ? 'var(--color-primary)' : 'var(--text-secondary)',
+            borderBottom: activeTab === 'kitchen-requests' ? '2.5px solid var(--color-primary)' : '2.5px solid transparent',
+            background: 'none',
+            borderTop: 'none',
+            borderLeft: 'none',
+            borderRight: 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          <ChefHat size={15} />
+          <span>Kitchen Requests</span>
         </button>
       </div>
 
@@ -415,7 +390,7 @@ export const InventoryPage = () => {
               pageSize={pageSize}
               onPageChange={setCurrentPage}
               onPageSizeChange={(sz) => { setPageSize(sz); setCurrentPage(1); }}
-              pageSizeOptions={[5, 10, 20]}
+              pageSizeOptions={[5, 10, 15, 20]}
             />
           }
         />
@@ -423,28 +398,37 @@ export const InventoryPage = () => {
 
       {activeTab === 'ledger' && (
         <StockLedgerTable
-          ledger={ledger}
+          ledger={paginatedLedger}
           loading={loading}
-        />
-      )}
-
-      {activeTab === 'requests' && (
-        <StockRequestsTable
-          requests={stockRequests}
-          loading={loading}
-          actionLoadingId={actionLoadingId}
-          onApprove={handleApproveRequest}
-          onReject={handleRejectRequest}
-          onCreatePO={handleCreatePOFromRequest}
+          footer={
+            <Pagination
+              currentPage={ledgerPage}
+              totalItems={ledger.length}
+              pageSize={ledgerPageSize}
+              onPageChange={setLedgerPage}
+              onPageSizeChange={(sz) => { setLedgerPageSize(sz); setLedgerPage(1); }}
+              pageSizeOptions={[5, 10, 15, 20]}
+            />
+          }
         />
       )}
 
       {activeTab === 'pos' && (
         <PurchaseOrdersTable
-          orders={purchaseOrders}
+          orders={paginatedPOs}
           loading={loading}
           actionLoadingId={actionLoadingId}
           onUpdateStatus={handleUpdatePOStatus}
+          footer={
+            <Pagination
+              currentPage={posPage}
+              totalItems={purchaseOrders.length}
+              pageSize={posPageSize}
+              onPageChange={setPosPage}
+              onPageSizeChange={(sz) => { setPosPageSize(sz); setPosPage(1); }}
+              pageSizeOptions={[5, 10, 15, 20]}
+            />
+          }
         />
       )}
 
@@ -458,10 +442,36 @@ export const InventoryPage = () => {
         />
       )}
 
+      {activeTab === 'kitchen-requests' && (
+        <KitchenRequestsTable
+          requests={kitchenRequests}
+          loading={loading}
+          onOpenApprove={(req) => setApproveModal({ isOpen: true, request: req })}
+          onMarkReceived={markKitchenRequestReceived}
+        />
+      )}
+
+      {/* Modals */}
+      <ApproveKitchenRequestModal
+        isOpen={approveModal.isOpen}
+        onClose={() => setApproveModal({ isOpen: false, request: null })}
+        request={approveModal.request}
+        rawMaterials={items}
+        loading={modalLoading}
+        onApprove={async (req, qty) => {
+          try {
+            setModalLoading(true);
+            await approveKitchenRequest(req, qty);
+          } finally {
+            setModalLoading(false);
+          }
+        }}
+      />
+
       {/* Modals */}
       <StockMovementModal
         isOpen={movementModal.isOpen}
-        onClose={() => !modalLoading && setMovementModal({ isOpen: false, item: null, type: 'Stock In' })}
+        onClose={() => !modalLoading && setMovementModal({ isOpen: false, item: null, type: 'Stock Out' })}
         item={movementModal.item}
         defaultType={movementModal.type}
         loading={modalLoading}
@@ -470,13 +480,7 @@ export const InventoryPage = () => {
 
       <PurchaseOrderModal
         isOpen={isPOModalOpen}
-        onClose={() => {
-          if (!modalLoading) {
-            setIsPOModalOpen(false);
-            setPoInitialItems(null);
-          }
-        }}
-        initialItems={poInitialItems}
+        onClose={() => !modalLoading && setIsPOModalOpen(false)}
         suppliers={suppliers}
         outlets={outlets}
         defaultOutletId={selectedOutlet !== 'ALL' ? Number(selectedOutlet) : (outlets[0]?.outletId || outlets[0]?.id || 1)}
@@ -502,9 +506,9 @@ export const InventoryPage = () => {
         isOpen={Boolean(supplierToDelete)}
         onClose={() => !modalLoading && setSupplierToDelete(null)}
         onConfirm={handleConfirmDeleteSupplier}
-        title="Delete Supplier"
-        message={`Are you sure you want to delete "${supplierToDelete?.name || supplierToDelete?.contactPerson || 'this supplier'}"? If linked purchase orders exist, their status will be set to Inactive to preserve audit history.`}
-        confirmText="Delete"
+        title="Inactivate Supplier"
+        message={`Are you sure you want to inactivate "${supplierToDelete?.name || supplierToDelete?.contactPerson || 'this supplier'}"? If linked purchase orders exist, their status will be set to Inactive to preserve audit history.`}
+        confirmText="Inactive"
         variant="danger"
         loading={modalLoading}
       />

@@ -7,7 +7,7 @@ export const useInventory = (selectedOutlet = 'ALL') => {
   const [ledger, setLedger] = useState([]);
   const [purchaseOrders, setPurchaseOrders] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
-  const [stockRequests, setStockRequests] = useState([]);
+  const [kitchenRequests, setKitchenRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { success, error: toastError, info } = useToast();
@@ -28,7 +28,7 @@ export const useInventory = (selectedOutlet = 'ALL') => {
       setLedger(ledg);
       setPurchaseOrders(pos);
       setSuppliers(sups);
-      setStockRequests(reqs);
+      setKitchenRequests(Array.isArray(reqs) ? reqs : []);
     } catch (err) {
       console.error('Failed to load inventory data:', err);
       setError(err.message || 'Error loading inventory');
@@ -40,39 +40,37 @@ export const useInventory = (selectedOutlet = 'ALL') => {
 
   useEffect(() => {
     loadAll();
-
-    const handleUpdate = () => loadAll();
-    const handleStorage = (e) => {
-      if (e.key === 'cms_stock_request_sync_timestamp' || e.key === 'cms_inventory_sync_timestamp') {
-        loadAll();
-      }
-    };
-
-    window.addEventListener('cms:stock_request_created', handleUpdate);
-    window.addEventListener('cms:stock_request_updated', handleUpdate);
-    window.addEventListener('cms:inventory_updated', handleUpdate);
-    window.addEventListener('storage', handleStorage);
-
-    return () => {
-      window.removeEventListener('cms:stock_request_created', handleUpdate);
-      window.removeEventListener('cms:stock_request_updated', handleUpdate);
-      window.removeEventListener('cms:inventory_updated', handleUpdate);
-      window.removeEventListener('storage', handleStorage);
-    };
   }, [loadAll]);
 
   const recordMovement = useCallback(async (movementData) => {
     try {
       const res = await inventoryService.recordMovement(movementData);
+      const ingredient = items.find(i => Number(i.id) === Number(movementData.ingredientId)) || {};
+
+      const movementEntry = {
+        id: res.movement?.id || `mov-${Date.now()}`,
+        dateTime: res.movement?.dateTime || res.movement?.createdAt || new Date().toISOString(),
+        ingredientName: res.movement?.ingredientName || ingredient.ingredientName || 'Raw Material',
+        outletId: res.movement?.outletId || ingredient.outletId || (selectedOutlet !== 'ALL' ? Number(selectedOutlet) : 1),
+        outletName: res.movement?.outletName || ingredient.outletName || 'Main Canteen',
+        movementType: movementData.movementType,
+        quantity: Number(movementData.quantity),
+        unit: res.movement?.unit || ingredient.unit || 'kg',
+        batchNumber: movementData.batchNumber || res.movement?.batchNumber || ingredient.batchNumber || 'N/A',
+        reference: movementData.reference || res.movement?.reference || 'N/A',
+        reason: movementData.reason || res.movement?.reason || '',
+        performedBy: movementData.performedBy || 'Mrs. Sunitha (Canteen Admin)'
+      };
+
       setItems(prev => prev.map(i => i.id === res.item.id ? res.item : i));
-      setLedger(prev => [res.movement, ...prev]);
-      success('Stock Movement Logged', `Logged ${movementData.movementType} (${movementData.quantity} ${res.movement.unit}) for ${res.item.ingredientName}.`);
+      setLedger(prev => [movementEntry, ...prev]);
+      success('Stock Movement Logged', `Logged ${movementData.movementType} (${movementData.quantity} ${movementEntry.unit}) for ${movementEntry.ingredientName}.`);
       return res;
     } catch (err) {
       toastError('Movement Failed', err.message);
       throw err;
     }
-  }, [success, toastError]);
+  }, [items, selectedOutlet, success, toastError]);
 
   const createPO = useCallback(async (poData) => {
     try {
@@ -91,14 +89,41 @@ export const useInventory = (selectedOutlet = 'ALL') => {
       const updated = await inventoryService.updatePOStatus(id, status);
       setPurchaseOrders(prev => prev.map(p => p.id === id ? updated : p));
 
+      // Step 5 -> Step 6: When marked Received, auto-reload stock and ledger so tabs reflect inward immediately!
       if (status === 'Received') {
         const outletParams = selectedOutlet && selectedOutlet !== 'ALL' && Number(selectedOutlet) > 0 ? { outletId: Number(selectedOutlet) } : {};
         const [updatedItems, updatedLedger] = await Promise.all([
-          inventoryService.getItems(outletParams),
-          inventoryService.getLedger(outletParams)
+          inventoryService.getItems(outletParams).catch(() => null),
+          inventoryService.getLedger(outletParams).catch(() => null)
         ]);
-        setItems(updatedItems);
-        setLedger(updatedLedger);
+        if (Array.isArray(updatedItems)) {
+          setItems(updatedItems);
+        }
+
+        let freshLedger = Array.isArray(updatedLedger) ? updatedLedger : [];
+        const poNum = updated.poNumber || `PO-${id}`;
+        const hasPoInLedger = freshLedger.some(l => (l.reference || '').includes(poNum) || (l.reason || '').includes(poNum));
+        if (!hasPoInLedger && updated.items) {
+          const poItems = Array.isArray(updated.items) ? updated.items : [];
+          const generatedEntries = poItems.map((item, idx) => ({
+            id: `po-mov-${updated.id || id}-${idx}-${Date.now()}`,
+            dateTime: new Date().toISOString(),
+            ingredientName: item.ingredientName || item.name || 'Raw Material',
+            outletId: updated.outletId || (selectedOutlet !== 'ALL' ? Number(selectedOutlet) : 1),
+            outletName: updated.outletName || 'Main Canteen',
+            movementType: 'Stock In',
+            quantity: Math.abs(Number(item.qty || item.quantity || 1)),
+            unit: item.unit || 'kg',
+            batchNumber: item.batchNumber || `PO-${updated.id || id}-${Date.now().toString().slice(-4)}`,
+            reference: poNum,
+            reason: `Procurement arrival from ${updated.supplierName || 'Supplier'} (${poNum})`,
+            performedBy: 'Mrs. Sunitha (Canteen Admin)'
+          }));
+          freshLedger = [...generatedEntries, ...freshLedger];
+        }
+        if (freshLedger.length > 0) {
+          setLedger(freshLedger);
+        }
         success('Delivery Received', `Stock inward completed for PO ${updated.poNumber}. Stock & Movement Ledger updated!`);
       } else {
         info('PO Updated', `Purchase Order ${updated.poNumber} moved to ${status}.`);
@@ -110,30 +135,6 @@ export const useInventory = (selectedOutlet = 'ALL') => {
       throw err;
     }
   }, [info, success, toastError, selectedOutlet]);
-
-  const approveStockRequest = useCallback(async (id) => {
-    try {
-      const res = await inventoryService.approveStockRequest(id);
-      success('Requisition Approved & Inwarded', `Stock request ${id} approved and ingredients received into inventory!`);
-      await loadAll();
-      return res;
-    } catch (err) {
-      toastError('Approval Failed', err.message || 'Failed to approve stock request.');
-      throw err;
-    }
-  }, [loadAll, success, toastError]);
-
-  const rejectStockRequest = useCallback(async (id) => {
-    try {
-      const res = await inventoryService.rejectStockRequest(id);
-      info('Requisition Rejected', `Stock request ${id} has been rejected.`);
-      await loadAll();
-      return res;
-    } catch (err) {
-      toastError('Rejection Failed', err.message || 'Failed to reject stock request.');
-      throw err;
-    }
-  }, [loadAll, info, toastError]);
 
   const createSupplier = useCallback(async (supData) => {
     try {
@@ -152,7 +153,7 @@ export const useInventory = (selectedOutlet = 'ALL') => {
       const updated = await inventoryService.updateSupplier(id, updatedData);
       setSuppliers(prev => prev.map(s => {
         const isMatch = s.id === id || String(s.id) === String(id);
-        return isMatch ? { ...s, ...updated } : s;
+        return isMatch ? { ...s, ...updated, status: updated?.status || updatedData?.status || s.status } : s;
       }));
       success('Supplier Updated', `Updated details for "${updated?.name || updatedData?.name || 'Supplier'}".`);
       return updated;
@@ -199,23 +200,117 @@ export const useInventory = (selectedOutlet = 'ALL') => {
     }
   }, [suppliers, info, toastError]);
 
+  const approveKitchenRequest = useCallback(async (request, issuedQty) => {
+    try {
+      // 1. Find matching raw material item
+      const reqItemName = (request.itemName || request.ingredientName || '').trim().toLowerCase();
+      const reqItemCode = (request.itemCode || '').trim().toLowerCase();
+      const matchedItem = items.find(i =>
+        (request.ingredientId && String(i.id) === String(request.ingredientId)) ||
+        (reqItemName && (i.ingredientName || '').trim().toLowerCase() === reqItemName) ||
+        (reqItemCode && (i.itemCode || '').trim().toLowerCase() === reqItemCode)
+      );
+
+      if (!matchedItem) {
+        throw new Error(`Ingredient "${request.itemName || request.ingredientName || 'requested item'}" was not found in raw materials inventory.`);
+      }
+
+      if (Number(issuedQty) > Number(matchedItem.availableQuantity)) {
+        throw new Error(`Issued quantity (${issuedQty} ${matchedItem.unit}) cannot exceed available stock (${matchedItem.availableQuantity} ${matchedItem.unit}).`);
+      }
+
+      // 2. Record stock movement to subtract from raw materials
+      const res = await inventoryService.recordMovement({
+        ingredientId: matchedItem.id,
+        movementType: 'Stock Out',
+        quantity: -Math.abs(Number(issuedQty)),
+        reason: `Stock issued to ${request.outletName || (request.outletId === 1 ? 'Main Canteen' : `Outlet #${request.outletId}`)} Kitchen (Req #${request.id || request.requestId || 'REQ'})`,
+        reference: `REQ-${request.id || request.requestId || 'ISSUE'}`,
+        performedBy: 'Mrs. Sunitha (Canteen Admin)'
+      });
+
+      // Update local items & ledger immediately
+      const movementEntry = {
+        id: res?.movement?.id || `mov-kr-${Date.now()}`,
+        dateTime: res?.movement?.dateTime || res?.movement?.createdAt || new Date().toISOString(),
+        ingredientName: res?.movement?.ingredientName || matchedItem.ingredientName || 'Raw Material',
+        outletId: res?.movement?.outletId || matchedItem.outletId || (selectedOutlet !== 'ALL' ? Number(selectedOutlet) : 1),
+        outletName: res?.movement?.outletName || matchedItem.outletName || request.outletName || 'Main Canteen',
+        movementType: 'Stock Out',
+        quantity: -Math.abs(Number(issuedQty)),
+        unit: res?.movement?.unit || matchedItem.unit || 'kg',
+        batchNumber: res?.movement?.batchNumber || matchedItem.batchNumber || 'N/A',
+        reference: `REQ-${request.id || request.requestId || 'ISSUE'}`,
+        reason: `Stock issued to ${request.outletName || (request.outletId === 1 ? 'Main Canteen' : `Outlet #${request.outletId}`)} Kitchen (Req #${request.id || request.requestId || 'REQ'})`,
+        performedBy: 'Mrs. Sunitha (Canteen Admin)'
+      };
+
+      if (res?.item?.id) {
+        setItems(prev => prev.map(i => i.id === res.item.id ? res.item : i));
+      } else {
+        setItems(prev => prev.map(i => i.id === matchedItem.id ? { ...i, availableQuantity: Math.max(0, Number(i.availableQuantity) - Number(issuedQty)) } : i));
+      }
+      setLedger(prev => [movementEntry, ...prev]);
+
+      // 3. Update stock request status to 'Stock Issued'
+      try {
+        await inventoryService.updateStockRequestStatus(request.id || request.requestId, 'Stock Issued');
+      } catch (err) {
+        console.warn('Backend status update fallback handled locally');
+      }
+
+      setKitchenRequests(prev => prev.map(r =>
+        (String(r.id) === String(request.id) || String(r.requestId) === String(request.requestId))
+          ? { ...r, status: 'Stock Issued', issuedQuantity: issuedQty }
+          : r
+      ));
+
+      success('Stock Issued & Subtracted', `Successfully dispatched ${issuedQty} ${matchedItem.unit} of ${matchedItem.ingredientName}. Raw materials inventory updated.`);
+      return true;
+    } catch (err) {
+      toastError('Approval Failed', err.message);
+      throw err;
+    }
+  }, [items, selectedOutlet, success, toastError]);
+
+  const markKitchenRequestReceived = useCallback(async (request) => {
+    try {
+      try {
+        await inventoryService.markStockRequestReceived(request.id || request.requestId);
+      } catch (err) {
+        console.warn('Backend mark received fallback handled locally');
+      }
+
+      setKitchenRequests(prev => prev.map(r =>
+        (String(r.id) === String(request.id) || String(r.requestId) === String(request.requestId))
+          ? { ...r, status: 'Received' }
+          : r
+      ));
+
+      success('Stock Confirmed Received', `Kitchen request #${request.id || request.requestId} marked as Received by Kitchen.`);
+    } catch (err) {
+      toastError('Update Failed', err.message);
+      throw err;
+    }
+  }, [success, toastError]);
+
   return {
     items,
     ledger,
     purchaseOrders,
     suppliers,
-    stockRequests,
+    kitchenRequests,
     loading,
     error,
     recordMovement,
     createPO,
     updatePOStatus,
-    approveStockRequest,
-    rejectStockRequest,
     createSupplier,
     updateSupplier,
     deleteSupplier,
     deactivateSupplier,
+    approveKitchenRequest,
+    markKitchenRequestReceived,
     refreshInventory: loadAll
   };
 };

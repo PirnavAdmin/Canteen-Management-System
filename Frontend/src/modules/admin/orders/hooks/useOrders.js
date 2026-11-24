@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { orderService } from '../services/orderService';
 import { useToast } from '../../../../app/providers/ToastProvider';
+import { notifyOrderStatusUpdated } from '../../../../utils/orderSync';
 
-export const useOrders = () => {
+export const useOrders = ({ localDemoMode = false } = {}) => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -13,7 +14,7 @@ export const useOrders = () => {
       setLoading(true);
       setError(null);
       const data = await orderService.getAll();
-      setOrders(Array.isArray(data) ? data : []);
+      setOrders(data);
     } catch (err) {
       console.error('Failed to load orders:', err);
       setError(err.message || 'Error loading orders');
@@ -26,41 +27,44 @@ export const useOrders = () => {
   useEffect(() => {
     loadOrders();
     const handleOrderEvent = () => loadOrders();
-    const handleStorageEvent = (e) => {
-      if (e.key === 'cms_order_sync_timestamp') {
-        loadOrders();
-      }
-    };
-
     window.addEventListener('cms:order_created', handleOrderEvent);
-    window.addEventListener('cms:order_status_updated', handleOrderEvent);
-    window.addEventListener('cms:order_updated', handleOrderEvent);
-    window.addEventListener('storage', handleStorageEvent);
-
     return () => {
       window.removeEventListener('cms:order_created', handleOrderEvent);
-      window.removeEventListener('cms:order_status_updated', handleOrderEvent);
-      window.removeEventListener('cms:order_updated', handleOrderEvent);
-      window.removeEventListener('storage', handleStorageEvent);
     };
   }, [loadOrders]);
 
   const updateOrderStatus = useCallback(async (orderId, newStatus, note = '') => {
     try {
+      // A local Cashier demo session has no server-issued JWT. Keep the action
+      // functional locally instead of sending a request that would 401/logout.
+      if (localDemoMode && localStorage.getItem('token')?.startsWith('local-demo-token-')) {
+        let updated;
+        setOrders(prev => prev.map(order => {
+          if (String(order.id) !== String(orderId)) return order;
+          updated = { ...order, status: newStatus, statusNote: note || order.statusNote };
+          return updated;
+        }));
+        updated = updated || { id: orderId, token: String(orderId), status: newStatus };
+        window.dispatchEvent(new CustomEvent('cms:order_status_updated', { detail: updated }));
+        success('Status Updated', `Order ${updated.token} moved to ${newStatus}.`);
+        return updated;
+      }
       const updated = await orderService.updateStatus(orderId, newStatus, note);
       setOrders(prev => prev.map(o => o.id === orderId ? updated : o));
+      notifyOrderStatusUpdated(updated);
       success('Status Updated', `Order ${updated.token} moved to ${newStatus}.`);
       return updated;
     } catch (err) {
       toastError('Update Blocked', err.message);
       throw err;
     }
-  }, [success, toastError]);
+  }, [localDemoMode, success, toastError]);
 
   const cancelOrder = useCallback(async (orderId, reason) => {
     try {
       const updated = await orderService.cancelOrder(orderId, reason);
       setOrders(prev => prev.map(o => o.id === orderId ? updated : o));
+      notifyOrderStatusUpdated(updated);
       info('Order Cancelled', `Order ${updated.token} has been marked as Cancelled.`);
       return updated;
     } catch (err) {

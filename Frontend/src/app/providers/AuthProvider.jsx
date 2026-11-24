@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useMemo, useCall
 import { apiClient } from '../../services/api/apiClient';
 import { API_ENDPOINTS } from '../../services/api/apiEndpoints';
 import { ROLE_PERMISSIONS, ROLES } from '../../constants/permissions';
+import { ENV } from '../../config/env';
 
 const DEMO_USERS = [
   {
@@ -14,6 +15,18 @@ const DEMO_USERS = [
     role: 'Admin',
     roleCode: ROLES.INSTITUTION_ADMIN,
     phoneNumber: '+91 98765 43210',
+    isActive: true,
+    createdAt: '2026-01-01T00:00:00.000Z'
+  },
+  {
+    userId: 5,
+    institutionId: 1,
+    username: 'cashier',
+    email: 'cashier@canteen.edu',
+    password: 'Cashier@123',
+    fullName: 'Rahul Verma',
+    role: 'Cashier',
+    roleCode: ROLES.CASHIER,
     isActive: true,
     createdAt: '2026-01-01T00:00:00.000Z'
   },
@@ -89,87 +102,18 @@ const getLocalUsers = () => {
   }
 };
 
-const parseJwt = (token) => {
-  try {
-    if (!token || typeof token !== 'string') return null;
-    const parts = token.split('.');
-    if (parts.length < 2) return null;
-    const base64Url = parts[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = decodeURIComponent(
-      atob(base64)
-        .split('')
-        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-        .join('')
-    );
-    return JSON.parse(jsonPayload);
-  } catch {
-    return null;
-  }
-};
-
-const normalizeUserProfile = (rawUser, jwtToken = null, inputIdentifier = '') => {
-  const user = (rawUser && typeof rawUser === 'object') ? (rawUser.user || rawUser.data?.user || rawUser) : {};
-  const jwt = parseJwt(jwtToken);
-  const identifier = String(inputIdentifier || user.username || user.email || jwt?.name || '').trim().toLowerCase();
-
-  // Detect raw role from all possible backend variations
-  const rawRoleCandidate =
-    user.role ||
-    user.Role ||
-    user.roleName ||
-    user.RoleName ||
-    user.roleCode ||
-    user.RoleCode ||
-    user.userType ||
-    user.UserType ||
-    (Array.isArray(user.roles) ? user.roles[0] : null) ||
-    (Array.isArray(user.Roles) ? user.Roles[0] : null) ||
-    jwt?.role ||
-    jwt?.Role ||
-    jwt?.['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] ||
-    (Array.isArray(jwt?.roles) ? jwt.roles[0] : null) ||
-    '';
-
-  const roleUpper = String(rawRoleCandidate).toUpperCase();
-
-  let canonicalRole = 'Student';
-  let canonicalRoleCode = ROLES.STUDENT;
-
-  if (roleUpper.includes('STAFF') || identifier === 'staff' || identifier.startsWith('staff@') || identifier.includes('ravi.staff')) {
-    canonicalRole = 'Staff';
-    canonicalRoleCode = ROLES.CANTEEN_STAFF;
-  } else if (roleUpper.includes('ADMIN') || identifier === 'admin' || identifier.startsWith('admin@')) {
-    canonicalRole = 'Admin';
-    canonicalRoleCode = ROLES.INSTITUTION_ADMIN;
-  } else if (roleUpper.includes('FACULTY') || identifier.includes('faculty') || identifier.includes('sunita.rao')) {
-    canonicalRole = 'Faculty';
-    canonicalRoleCode = ROLES.FACULTY;
-  } else if (roleUpper.includes('STUDENT') || identifier === 'student' || identifier === 'aarav' || identifier.startsWith('student@')) {
-    canonicalRole = 'Student';
-    canonicalRoleCode = ROLES.STUDENT;
-  }
-
-  const id = user.id || user.Id || user.userId || user.UserId || jwt?.nameid || jwt?.sub || (canonicalRole === 'Staff' ? 'staff-001' : 'usr-1');
-  const campusId = user.campusId || user.CampusId || user.institutionId || user.InstitutionId || jwt?.campusId || jwt?.institutionId || 1;
-  const username = user.username || user.Username || jwt?.unique_name || (identifier || (canonicalRole === 'Staff' ? 'staff' : 'user'));
-  const fullName = user.fullName || user.FullName || user.name || user.Name || jwt?.name || jwt?.['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'] || (canonicalRole === 'Staff' ? 'Ravi Kumar' : canonicalRole === 'Admin' ? 'Sunitha Sharma' : 'Student User');
-  const email = user.email || user.Email || jwt?.email || (canonicalRole === 'Staff' ? 'ravi.staff@canteen.edu' : 'user@canteen.edu');
-
-  return {
-    ...user,
-    id,
-    userId: id,
-    username,
-    email,
-    fullName,
-    name: fullName,
-    role: canonicalRole,
-    Role: canonicalRole,
-    roleCode: canonicalRoleCode,
-    campusId: Number(campusId) || 1,
-    institutionId: Number(campusId) || 1
-  };
+// Demo access is deliberately restricted to the named fixture accounts and development mode.
+// It exists because a connected backend may not include every frontend demo role.
+const getDemoUser = (usernameOrEmail, password) => {
+  if (!ENV.isDevelopment) return null;
+  const identifier = (usernameOrEmail || '').trim().toLowerCase();
+  const match = DEMO_USERS.find((demoUser) =>
+    demoUser.password === password &&
+    (demoUser.username.toLowerCase() === identifier || demoUser.email.toLowerCase() === identifier)
+  );
+  if (!match) return null;
+  const { password: _password, ...profile } = match;
+  return { ...profile, id: profile.userId, name: profile.fullName, campusId: profile.institutionId };
 };
 
 const createLocalSessionProfile = (usernameOrEmail) => {
@@ -195,6 +139,13 @@ const createLocalSessionProfile = (usernameOrEmail) => {
       role: 'Staff',
       roleCode: ROLES.CANTEEN_STAFF,
       campusId: 1, institutionId: 1
+    };
+  }
+
+  if (identifier === 'cashier' || identifier.startsWith('cashier@')) {
+    return {
+      id: 'cashier-001', username: 'cashier', fullName: 'Rahul Verma', name: 'Rahul Verma',
+      email: 'cashier@cms.edu', role: 'Cashier', roleCode: ROLES.CASHIER, campusId: 1, institutionId: 1
     };
   }
 
@@ -252,23 +203,24 @@ export const AuthProvider = ({ children }) => {
 
       try {
         const response = await apiClient.get(API_ENDPOINTS.AUTH.ME);
-        const payload = response?.data || response;
-        if (payload && (response?.success || payload.id || payload.username || payload.role || payload.Role)) {
-          const normalized = normalizeUserProfile(payload, savedToken);
-          setUser(normalized);
-          localStorage.setItem('auth_user', JSON.stringify(normalized));
-        }
-      } catch (err) {
-        const status = err?.status || err?.raw?.response?.status;
-        if (status === 401) {
-          console.warn('Session expired or token invalid (401):', err.message);
+        if (response && response.success && response.data) {
+          setUser(response.data);
+          localStorage.setItem('auth_user', JSON.stringify(response.data));
+        } else {
           localStorage.removeItem('token');
           localStorage.removeItem('auth_user');
           setUser(null);
           setToken(null);
+        }
+      } catch (err) {
+        if (isNetworkFailure(err) && localStorage.getItem('auth_user')) {
+          console.info('Backend offline — preserving local authenticated session.');
         } else {
-          // 404 (endpoint not implemented) or network error: preserve existing session!
-          console.info('Backend /auth/me not available (' + (status || 'offline') + ') — preserving authenticated session.');
+          console.warn('Session verification failed or token expired:', err.message);
+          localStorage.removeItem('token');
+          localStorage.removeItem('auth_user');
+          setUser(null);
+          setToken(null);
         }
       } finally {
         setLoading(false);
@@ -304,13 +256,18 @@ export const AuthProvider = ({ children }) => {
         password
       });
 
-      // Handle wrapped ({ success, data: { token, user } }) or flat response payloads
-      const payload = response?.data || response;
-      if (payload && (response?.success || payload.token || payload.accessToken || payload.jwtToken || payload.user)) {
-        const jwtToken = payload.token || payload.accessToken || payload.jwtToken || payload.Token || payload.AccessToken || `token-${Date.now()}`;
-        const rawUser = payload.user || payload.User || payload.data?.user || payload;
-        const normalizedUser = normalizeUserProfile(rawUser, jwtToken, usernameOrEmail);
-        return persistSession(jwtToken, normalizedUser);
+      if (response && response.success && response.data) {
+        const { token: jwtToken, user: userProfile } = response.data;
+        localStorage.setItem('token', jwtToken);
+        localStorage.setItem('auth_user', JSON.stringify(userProfile));
+        localStorage.setItem('institution_id', String(userProfile.institutionId || 1));
+        setToken(jwtToken);
+        setUser(userProfile);
+        return response.data;
+      }
+      if (response && response.success && response.data) {
+        const { token: jwtToken, user: userProfile } = response.data;
+        return persistSession(jwtToken, userProfile);
       }
 
       throw new Error(response?.message || 'Login failed.');
@@ -320,6 +277,14 @@ export const AuthProvider = ({ children }) => {
         const localProfile = createLocalSessionProfile(usernameOrEmail);
         const localToken = `local-demo-token-${Date.now()}`;
         return persistSession(localToken, localProfile);
+      }
+      // The backend currently has no Cashier fixture. Permit only exact, local demo
+      // credentials to use the explicitly gated frontend demo session after a 401.
+      if (err?.status === 401) {
+        const demoProfile = getDemoUser(usernameOrEmail, password);
+        if (demoProfile) {
+          return persistSession(`local-demo-token-${Date.now()}`, demoProfile);
+        }
       }
       throw new Error(err?.message || 'Login failed.', { cause: err });
     }
@@ -385,7 +350,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const userRole = useMemo(() => {
-    return user?.role || user?.Role || 'Student';
+    return user?.role || 'Student';
   }, [user]);
 
   const permissions = useMemo(() => {

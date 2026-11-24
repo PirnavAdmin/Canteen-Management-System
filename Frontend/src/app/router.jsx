@@ -40,6 +40,11 @@ const AddCategoryPage = lazy(() => import('../modules/admin/categories/pages/Add
 const EditCategoryPage = lazy(() => import('../modules/admin/categories/pages/EditCategoryPage'));
 const CategoryDetailsPage = lazy(() => import('../modules/admin/categories/pages/CategoryDetailsPage'));
 const SettingsPage = lazy(() => import('../modules/admin/settings/pages/SettingsPage'));
+const CashierLoginPage = lazy(() => import('../modules/cashier/auth/pages/CashierLoginPage'));
+const CashierLayout = lazy(() => import('../modules/cashier/layouts/CashierLayout'));
+const CashierDashboardPage = lazy(() => import('../modules/cashier/pages/CashierDashboardPage'));
+const CashierReportsPage = lazy(() => import('../modules/cashier/pages/CashierReportsPage'));
+const CashierProtectedRoute = lazy(() => import('../modules/cashier/components/CashierProtectedRoute'));
 
 const LazyRoute = ({ children }) => (
   <Suspense fallback={null}>
@@ -80,6 +85,19 @@ import {
 } from '../modules/canteen-staff';
 
 export const router = createBrowserRouter([
+  { path: '/cashier/login', element: <LazyRoute><CashierLoginPage /></LazyRoute> },
+  {
+    path: '/cashier',
+    element: <LazyRoute><CashierProtectedRoute><CashierLayout /></CashierProtectedRoute></LazyRoute>,
+    children: [
+      { index: true, element: <Navigate to="/cashier/dashboard" replace /> },
+      { path: 'dashboard', element: <CashierDashboardPage /> },
+      { path: 'pos', element: <Navigate to="/cashier/dashboard" replace /> },
+      { path: 'orders', element: <LazyRoute><OrderListPage cashierMode /></LazyRoute> },
+      { path: 'reports', element: <CashierReportsPage /> },
+      { path: '*', element: <Navigate to="/cashier/dashboard" replace /> }
+    ]
+  },
   // Public Staff Authentication Route
   {
     path: '/staff/login',

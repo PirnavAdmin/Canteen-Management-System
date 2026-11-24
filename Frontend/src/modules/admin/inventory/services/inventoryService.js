@@ -90,7 +90,9 @@ export const inventoryService = {
         qty: q,
         unit: item.unit || 'kg',
         unitPrice: p,
-        total: Number(item.total) || (q * p)
+        total: Number(item.total) || (q * p),
+        mfgDate: item.mfgDate || null,
+        expiryDate: item.expiryDate || null
       };
     });
 
@@ -148,6 +150,38 @@ export const inventoryService = {
   updateSupplierStatus: async (id, status) => {
     const response = await apiClient.patch(API_ENDPOINTS.INVENTORY.SUPPLIER_STATUS(id), { status });
     return response?.data ?? response;
+  },
+
+  // Kitchen Stock Requisitions
+  getStockRequests: async (params = {}) => {
+    try {
+      const response = await apiClient.get(API_ENDPOINTS.INVENTORY.STOCK_REQUESTS, params);
+      const raw = response?.data ?? response;
+      return Array.isArray(raw)
+        ? raw
+        : (Array.isArray(raw?.requests) ? raw.requests : (Array.isArray(raw?.items) ? raw.items : []));
+    } catch (err) {
+      console.warn('Network issue fetching stock requests:', err.message);
+      return [];
+    }
+  },
+
+  updateStockRequestStatus: async (id, status, notes = '') => {
+    try {
+      const response = await apiClient.patch(API_ENDPOINTS.INVENTORY.STOCK_REQUEST_BY_ID(id), { status, notes });
+      return response?.data ?? response;
+    } catch (err) {
+      return { id, status };
+    }
+  },
+
+  markStockRequestReceived: async (id) => {
+    try {
+      const response = await apiClient.patch(API_ENDPOINTS.INVENTORY.STOCK_REQUEST_RECEIVED(id));
+      return response?.data ?? response;
+    } catch (err) {
+      return { id, status: 'Received' };
+    }
   }
 };
 

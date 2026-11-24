@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { X, Trash2, Plus, Minus, ShoppingBag, ShieldCheck, CreditCard, Banknote, Smartphone, CheckCircle, Store } from 'lucide-react';
 import { SafeImage } from '../../../../components/common/SafeImage';
 import { formatCurrency } from '../../../../utils/formatters';
@@ -24,6 +24,21 @@ export const CartDrawer = ({
   const [customerName, setCustomerName] = useState(() => user?.fullName || user?.name || 'Mrs. Sunitha (Canteen Admin)');
   const [customerPhone, setCustomerPhone] = useState(() => user?.phone || '9876543210');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [gstPercent, setGstPercent] = useState(5.0);
+
+  useEffect(() => {
+    import('../../settings/services/settingsService')
+      .then(m => m.settingsService.getSettings())
+      .then(settings => {
+        if (settings) {
+          const rules = settings.orderRules || settings.OrderRules || settings;
+          const payments = settings.payments || settings.Payments || {};
+          const gst = rules.gstPercent ?? payments.gstPercent ?? rules.GstPercent ?? payments.GstPercent ?? 5.0;
+          setGstPercent(Number(gst) >= 0 ? Number(gst) : 5.0);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Convert cart object to array of entries
   const cartItems = useMemo(() => {
@@ -35,13 +50,20 @@ export const CartDrawer = ({
   }, [cartItems]);
 
   const subtotal = useMemo(() => {
-    return cartItems.reduce((acc, entry) => acc + (Number(entry.item?.price || 0) * entry.quantity), 0);
+    return cartItems.reduce((acc, entry) => {
+      let itemPrice = Number(entry.item?.price || 0);
+      const discount = Number(entry.item?.discountPercent || 0);
+      if (discount > 0) {
+        itemPrice = Math.round(itemPrice * (1 - discount / 100) * 100) / 100;
+      }
+      return acc + (itemPrice * entry.quantity);
+    }, 0);
   }, [cartItems]);
 
-  // GST 5% matching backend Math.Round(subtotal * 0.05m, 2)
+  // Dynamic GST from settings
   const taxAmount = useMemo(() => {
-    return Math.round(subtotal * 0.05 * 100) / 100;
-  }, [subtotal]);
+    return Math.round(subtotal * (gstPercent / 100) * 100) / 100;
+  }, [subtotal, gstPercent]);
 
   const totalAmount = useMemo(() => {
     return subtotal + taxAmount;
@@ -557,7 +579,7 @@ export const CartDrawer = ({
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-secondary)' }}>
-              <span>GST & Taxes (5%)</span>
+              <span>GST ({gstPercent}%)</span>
               <span>{formatCurrency(taxAmount)}</span>
             </div>
 

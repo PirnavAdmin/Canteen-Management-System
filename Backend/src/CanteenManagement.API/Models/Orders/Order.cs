@@ -51,6 +51,9 @@ namespace CanteenManagement.API.Models.Orders
         public decimal TaxAmount { get; set; }
 
         [Column(TypeName = "decimal(10,2)")]
+        public decimal PackagingFee { get; set; }
+
+        [Column(TypeName = "decimal(10,2)")]
         public decimal TotalAmount { get; set; }
 
         [Required]

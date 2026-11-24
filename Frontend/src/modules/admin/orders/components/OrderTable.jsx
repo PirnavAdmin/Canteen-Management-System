@@ -1,5 +1,5 @@
 import React from 'react';
-import { Eye, CheckCircle, ChefHat, BellRing, CheckCheck, ArrowRight, Loader2 } from 'lucide-react';
+import { Eye, CheckCircle, ChefHat, BellRing, CheckCheck, ArrowRight, Loader2, XCircle, Printer } from 'lucide-react';
 import { DataTable } from '../../../../components/tables/DataTable';
 import { StatusBadge } from '../../../../components/common/StatusBadge';
 import { formatCurrency, formatTimeIST, formatDate, isSameIstDate } from '../../../../utils/formatters';
@@ -26,6 +26,8 @@ export const OrderTable = ({
   actionLoadingId = null,
   onView,
   onAdvanceStatus,
+  onCancel,
+  onPrintReceipt,
   footer
 }) => {
   const columns = [
@@ -205,19 +207,19 @@ export const OrderTable = ({
       key: 'actions',
       header: 'Actions',
       align: 'center',
-      width: '110px',
+      width: '105px',
       render: (_, row) => {
         const orderStatus = row?.status || ORDER_STATUS.PLACED;
-        const isPlaced = orderStatus === ORDER_STATUS.PLACED || orderStatus === 'New';
         const nextSteps = ORDER_LIFECYCLE_NEXT_STEPS[orderStatus] || [];
         const nextOperationalStatus = nextSteps.find(s => s !== ORDER_STATUS.CANCELLED && s !== ORDER_STATUS.REFUNDED);
         const StepIcon = nextOperationalStatus ? getStepIcon(nextOperationalStatus) : null;
+        const isCancellable = orderStatus !== ORDER_STATUS.COMPLETED && orderStatus !== ORDER_STATUS.CANCELLED && orderStatus !== ORDER_STATUS.REFUNDED;
 
         return (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
             <button
               type="button"
-              onClick={() => onView && onView(row)}
+              onClick={() => onPrintReceipt && onPrintReceipt(row)}
               style={{
                 background: 'none',
                 border: '1px solid var(--border-color)',
@@ -227,45 +229,26 @@ export const OrderTable = ({
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
-                justifyContent: 'center'
+                justifyContent: 'center',
+                transition: 'all 0.15s ease'
               }}
-              title="View Order Details"
-              aria-label="View Order Details"
+              title="Print Receipt (Thermal / A4)"
+              aria-label="Print Receipt"
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'var(--bg-muted)';
+                e.currentTarget.style.color = 'var(--color-primary)';
+                e.currentTarget.style.borderColor = 'var(--color-primary)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.color = 'var(--text-secondary)';
+                e.currentTarget.style.borderColor = 'var(--border-color)';
+              }}
             >
-              <Eye size={14} />
+              <Printer size={14} />
             </button>
 
-            {isPlaced ? (
-              <button
-                type="button"
-                disabled={actionLoadingId === row.id}
-                onClick={() => onAdvanceStatus(row, ORDER_STATUS.PREPARING)}
-                style={{
-                  background: 'var(--color-primary)',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: '4px',
-                  padding: '4px 8px',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  cursor: actionLoadingId === row.id ? 'not-allowed' : 'pointer',
-                  opacity: actionLoadingId === row.id ? 0.7 : 1,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  whiteSpace: 'nowrap'
-                }}
-                title="Accept Order and Send to Kitchen"
-                aria-label="Accept Order"
-              >
-                {actionLoadingId === row.id ? (
-                  <Loader2 size={12} style={{ animation: 'spin 0.8s linear infinite' }} />
-                ) : (
-                  <CheckCircle size={12} />
-                )}
-                <span>Accept</span>
-              </button>
-            ) : nextOperationalStatus && StepIcon ? (
+            {nextOperationalStatus && StepIcon && (
               <button
                 type="button"
                 disabled={actionLoadingId === row.id}
@@ -280,7 +263,8 @@ export const OrderTable = ({
                   opacity: actionLoadingId === row.id ? 0.7 : 1,
                   display: 'inline-flex',
                   alignItems: 'center',
-                  justifyContent: 'center'
+                  justifyContent: 'center',
+                  transition: 'all 0.15s ease'
                 }}
                 title={`Mark as ${nextOperationalStatus}`}
                 aria-label={`Mark as ${nextOperationalStatus}`}
@@ -291,7 +275,40 @@ export const OrderTable = ({
                   <StepIcon size={14} />
                 )}
               </button>
-            ) : null}
+            )}
+
+            {isCancellable && onCancel && (
+              <button
+                type="button"
+                disabled={actionLoadingId === row.id}
+                onClick={() => onCancel(row)}
+                style={{
+                  background: 'none',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '4px',
+                  padding: '5px',
+                  color: 'var(--color-danger, #ef4444)',
+                  cursor: actionLoadingId === row.id ? 'not-allowed' : 'pointer',
+                  opacity: actionLoadingId === row.id ? 0.7 : 1,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.15s ease'
+                }}
+                title="Cancel Order"
+                aria-label="Cancel Order"
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.08)';
+                  e.currentTarget.style.borderColor = 'var(--color-danger, #ef4444)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.borderColor = 'var(--border-color)';
+                }}
+              >
+                <XCircle size={14} />
+              </button>
+            )}
           </div>
         );
       }

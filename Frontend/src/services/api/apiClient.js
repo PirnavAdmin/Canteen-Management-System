@@ -44,7 +44,7 @@ const BASE_URL = resolveBaseUrl();
 
 export const axiosInstance = axios.create({
   baseURL: BASE_URL,
-  timeout: ENV.apiTimeout || 15000,
+  timeout: ENV.apiTimeout || 60000,
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',

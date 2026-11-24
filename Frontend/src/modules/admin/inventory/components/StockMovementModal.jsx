@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { Button } from '../../../../components/common/Button';
 
-export const StockMovementModal = ({ isOpen, onClose, item, defaultType = 'Stock In', loading = false, onRecordMovement }) => {
+export const StockMovementModal = ({ isOpen, onClose, item, defaultType = 'Stock Out', loading = false, onRecordMovement }) => {
   const [movementType, setMovementType] = useState(defaultType);
   const [quantity, setQuantity] = useState('');
   const [reason, setReason] = useState('');
@@ -124,7 +124,6 @@ export const StockMovementModal = ({ isOpen, onClose, item, defaultType = 'Stock
                   borderRadius: 'var(--border-radius-md)'
                 }}
               >
-                <option value="Stock In">Stock In (+ Inward Receiving)</option>
                 <option value="Stock Out">Stock Out (- Kitchen Issue)</option>
                 <option value="Wastage">Wastage (- Spoilage / Expired)</option>
                 <option value="Adjustment">Adjustment (Physical Audit Variance)</option>

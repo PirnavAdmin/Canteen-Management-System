@@ -1,10 +1,12 @@
 using CanteenManagement.API.DTOs.Orders;
 using CanteenManagement.API.Helpers;
 using CanteenManagement.API.Models.Orders;
+using CanteenManagement.API.Models.Outlets;
 using CanteenManagement.API.Repositories.Interfaces.Menu;
 using CanteenManagement.API.Repositories.Interfaces.Orders;
 using CanteenManagement.API.Services.Interfaces.Common;
 using CanteenManagement.API.Services.Interfaces.Orders;
+using CanteenManagement.API.Services.Interfaces.Settings;
 
 namespace CanteenManagement.API.Services.Implementations.Orders
 {
@@ -12,7 +14,8 @@ namespace CanteenManagement.API.Services.Implementations.Orders
     {
         private readonly IOrderRepository _repository;
         private readonly IMenuRepository _menuRepository;
-                private readonly IAuditLoggingService _auditService;
+        private readonly IAuditLoggingService _auditService;
+        private readonly ISettingsService _settingsService;
 
         private static readonly Dictionary<string, string[]> PermittedNextStates = new()
         {
@@ -29,11 +32,13 @@ namespace CanteenManagement.API.Services.Implementations.Orders
         public OrderService(
             IOrderRepository repository,
             IMenuRepository menuRepository,
-            IAuditLoggingService auditService)
+            IAuditLoggingService auditService,
+            ISettingsService settingsService)
         {
             _repository = repository;
             _menuRepository = menuRepository;
             _auditService = auditService;
+            _settingsService = settingsService;
         }
 
         public async Task<IEnumerable<OrderDto>> GetAllAsync(int campusId, int? outletId = null, string? status = null, string? searchTerm = null, string? dateFilter = null)
@@ -72,6 +77,7 @@ namespace CanteenManagement.API.Services.Implementations.Orders
 
             decimal subtotal = 0;
             var orderItems = new List<OrderItem>();
+            string outletName = "Main Canteen";
 
             foreach (var itemDto in dto.Items)
             {
@@ -79,6 +85,11 @@ namespace CanteenManagement.API.Services.Implementations.Orders
                 if (menuItem == null)
                 {
                     throw new KeyNotFoundException($"Menu item {itemDto.MenuItemId} not found.");
+                }
+
+                if (menuItem.Outlet != null && !string.IsNullOrWhiteSpace(menuItem.Outlet.Name))
+                {
+                    outletName = menuItem.Outlet.Name;
                 }
 
                 if (menuItem.Availability == "SoldOut" || menuItem.RemainingCapacity <= 0)
@@ -96,6 +107,10 @@ namespace CanteenManagement.API.Services.Implementations.Orders
                 {
                     var variant = menuItem.Variants.FirstOrDefault(v => v.Name.Equals(itemDto.VariantName, StringComparison.OrdinalIgnoreCase));
                     if (variant != null) unitPrice = variant.Price;
+                }
+                if (menuItem.DiscountPercent > 0)
+                {
+                    unitPrice = Math.Round(unitPrice * (1 - (menuItem.DiscountPercent / 100m)), 2);
                 }
 
                 decimal itemTotal = unitPrice * itemDto.Quantity;
@@ -116,10 +131,25 @@ namespace CanteenManagement.API.Services.Implementations.Orders
                 await _menuRepository.DeductCapacityAsync(menuItem.MenuItemId, itemDto.Quantity);
             }
 
-            decimal taxAmount = Math.Round(subtotal * 0.05m, 2); // 5% GST
-            decimal totalAmount = subtotal + taxAmount;
+            var settings = await _settingsService.GetSettingsAsync(campusId);
+            decimal gstPercent = settings?.OrderRules?.GstPercent ?? settings?.Payments?.GstPercent ?? 5.0m;
+            decimal packagingFee = 0m;
+            bool packagingEnabled = settings?.OrderRules?.EnablePackagingFee ?? true;
+            if (packagingEnabled)
+            {
+                decimal configuredFee = settings?.OrderRules?.PackagingFee ?? 5.0m;
+                if (dto.PackagingFee.HasValue)
+                {
+                    packagingFee = dto.PackagingFee.Value;
+                }
+                else
+                {
+                    packagingFee = subtotal > 200 || subtotal == 0 ? 0 : configuredFee;
+                }
+            }
 
-            
+            decimal taxAmount = Math.Round(subtotal * (gstPercent / 100m), 2);
+            decimal totalAmount = subtotal + taxAmount + packagingFee;
 
             var order = new Order
             {
@@ -136,6 +166,7 @@ namespace CanteenManagement.API.Services.Implementations.Orders
                 Notes = dto.Notes?.Trim(),
                 Subtotal = subtotal,
                 TaxAmount = taxAmount,
+                PackagingFee = packagingFee,
                 TotalAmount = totalAmount,
                 Status = "Placed",
                 OrderDate = now,
@@ -168,18 +199,30 @@ namespace CanteenManagement.API.Services.Implementations.Orders
 
             var created = await _repository.CreateAsync(order);
 
-            await _auditService.LogActionAsync(
-                campusId,
-                null,
-                performedBy,
-                "CREATE_ORDER",
-                "Order",
-                created.OrderId,
-                $"Order {created.OrderId} placed with token {created.Token}. Total: {created.TotalAmount}."
-            );
+            try
+            {
+                await _auditService.LogActionAsync(
+                    campusId,
+                    null,
+                    performedBy,
+                    "CREATE_ORDER",
+                    "Order",
+                    created.OrderId,
+                    $"Order {created.OrderId} placed with token {created.Token}. Total: {created.TotalAmount}."
+                );
+            }
+            catch
+            {
+                // Non-blocking audit failure
+            }
 
-            var loaded = await _repository.GetByIdAsync(created.OrderId, campusId);
-            return MapToDto(loaded ?? created);
+            created.Outlet = new CanteenOutlet
+            {
+                OutletId = dto.OutletId,
+                Name = outletName
+            };
+
+            return MapToDto(created);
         }
 
         public async Task<OrderDto> UpdateStatusAsync(string id, UpdateOrderStatusDto dto, int campusId, string performedBy)
@@ -326,6 +369,50 @@ namespace CanteenManagement.API.Services.Implementations.Orders
             return MapToDto(updated);
         }
 
+        public async Task<bool> DeleteAsync(string id, int campusId)
+        {
+            var order = await _repository.GetByIdAsync(id, campusId);
+            if (order == null) return false;
+
+            // Restore capacity if order was active
+            if (order.Status != "Cancelled" && order.Status != "Collected" && order.Status != "Completed" && order.Items != null)
+            {
+                foreach (var item in order.Items)
+                {
+                    try { await _menuRepository.RestoreCapacityAsync(item.MenuItemId, item.Quantity); } catch { }
+                }
+            }
+
+            return await _repository.DeleteAsync(id, campusId);
+        }
+
+        public async Task<int> DeleteTestOrdersAsync(int campusId)
+        {
+            var testOrderIds = new[]
+            {
+                "ORD-2026-3125",
+                "ORD-2026-4631",
+                "ORD-2026-2743",
+                "ORD-2026-4291",
+                "ORD-2026-7142",
+                "ORD-2026-8399",
+                "ORD-2026-6972",
+                "ORD-2026-6343",
+                "ORD-2026-7469",
+                "ORD-2026-5951"
+            };
+
+            int count = 0;
+            foreach (var id in testOrderIds)
+            {
+                if (await DeleteAsync(id, campusId))
+                {
+                    count++;
+                }
+            }
+            return count;
+        }
+
         private static OrderDto MapToDto(Order o)
         {
             var payment = o.Payments.FirstOrDefault();
@@ -363,6 +450,7 @@ namespace CanteenManagement.API.Services.Implementations.Orders
                 }).ToList(),
                 Subtotal = o.Subtotal,
                 TaxAmount = o.TaxAmount,
+                PackagingFee = o.PackagingFee,
                 TotalAmount = o.TotalAmount,
                 OrderDate = o.OrderDate,
                 Status = o.Status,

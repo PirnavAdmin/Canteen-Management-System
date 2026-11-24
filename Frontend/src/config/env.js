@@ -19,8 +19,8 @@ export const ENV = {
   institutionId: getEnv('VITE_CAMPUS_ID', getEnv('VITE_INSTITUTION_ID', 'CAMPUS-01')),
 
   // API Config
-  apiBaseUrl: getEnv('VITE_API_BASE_URL', "https://whiff-lyrics-debug.ngrok-free.dev"),
-  apiTimeout: Number(getEnv('VITE_API_TIMEOUT', 15000)),
+  apiBaseUrl: getEnv('VITE_API_BASE_URL', "https://heroics-ambush-baton.ngrok-free.dev"),
+  apiTimeout: Number(getEnv('VITE_API_TIMEOUT', 60000)),
 
   // Public Feature Flags
   features: {

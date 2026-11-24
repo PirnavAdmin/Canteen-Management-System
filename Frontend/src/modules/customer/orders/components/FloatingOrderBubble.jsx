@@ -5,11 +5,12 @@ import { useAuth } from '../../../../app/providers/AuthProvider';
 import { customerOrderService } from '../services/customerOrderService';
 import { customerMenuService } from '../../menu/services/customerMenuService';
 import { SafeImage } from '../../../../components/common/SafeImage';
+import { subscribeToOrderSync } from '../../../../utils/orderSync';
 
 const getStatusBadgeStyle = (status) => {
   const s = String(status || '').toLowerCase();
   if (s.includes('ready') || s.includes('pickup')) {
-    return { bg: '#10b981', color: '#ffffff', border: '#059669', label: 'Ready' };
+    return { bg: '#10b981', color: '#ffffff', border: '#059669', label: 'Ready for Pickup' };
   }
   if (s.includes('prep') || s.includes('kitchen') || s.includes('cook')) {
     return { bg: '#f59e0b', color: '#ffffff', border: '#d97706', label: 'Preparing' };
@@ -28,7 +29,7 @@ export const FloatingOrderBubble = () => {
   const [activeItemIndex, setActiveItemIndex] = useState(0);
   const [menuImages, setMenuImages] = useState({});
 
-  // Poll live orders every 5 seconds
+  // Poll live orders every 3 seconds & synchronously listen to live status updates
   useEffect(() => {
     let isMounted = true;
     const fetchOrders = async () => {
@@ -46,18 +47,36 @@ export const FloatingOrderBubble = () => {
 
     fetchOrders();
 
-    const handleOrderEvent = () => fetchOrders();
-    window.addEventListener('cms:order_created', handleOrderEvent);
-    window.addEventListener('cms:order_status_updated', handleOrderEvent);
-    window.addEventListener('focus', handleOrderEvent);
-    const handleVisibility = () => { if (!document.hidden) handleOrderEvent(); };
+    const handleOrderEvent = (updatedOrder) => {
+      if (updatedOrder && (updatedOrder.id || updatedOrder.orderId)) {
+        setActiveOrder(prev => {
+          if (!prev) return prev;
+          const isMatch = String(prev.id) === String(updatedOrder.id) ||
+                          String(prev.orderId) === String(updatedOrder.orderId) ||
+                          String(prev.token) === String(updatedOrder.token);
+          if (isMatch) {
+            if (['Completed', 'Collected', 'Cancelled', 'Refunded'].includes(updatedOrder.status)) {
+              return null;
+            }
+            return { ...prev, ...updatedOrder };
+          }
+          return prev;
+        });
+      }
+      fetchOrders();
+    };
+
+    const unsubscribe = subscribeToOrderSync(handleOrderEvent, fetchOrders);
+    const pollInterval = setInterval(fetchOrders, 3000);
+    window.addEventListener('focus', fetchOrders);
+    const handleVisibility = () => { if (!document.hidden) fetchOrders(); };
     document.addEventListener('visibilitychange', handleVisibility);
 
     return () => {
       isMounted = false;
-      window.removeEventListener('cms:order_created', handleOrderEvent);
-      window.removeEventListener('cms:order_status_updated', handleOrderEvent);
-      window.removeEventListener('focus', handleOrderEvent);
+      unsubscribe();
+      clearInterval(pollInterval);
+      window.removeEventListener('focus', fetchOrders);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, [user]);

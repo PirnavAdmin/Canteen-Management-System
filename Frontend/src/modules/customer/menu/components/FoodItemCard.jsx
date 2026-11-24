@@ -109,6 +109,24 @@ export const FoodItemCard = ({ item }) => {
           <span style={{ color: '#334155' }}>{item.foodType}</span>
         </div>
 
+        {/* Discount Badge */}
+        {Number(item.discountPercent || 0) > 0 && (
+          <div style={{
+            position: 'absolute',
+            bottom: '10px',
+            left: '10px',
+            backgroundColor: '#dc2626',
+            color: '#ffffff',
+            padding: '2px 8px',
+            borderRadius: 'var(--border-radius-xs)',
+            fontSize: '11px',
+            fontWeight: 800,
+            boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+          }}>
+            {item.discountPercent}% OFF
+          </div>
+        )}
+
         {/* Rating badge */}
         <div style={{
           position: 'absolute',
@@ -197,9 +215,20 @@ export const FoodItemCard = ({ item }) => {
         }}>
           <div>
             <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>Price</span>
-            <span style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-primary)' }}>
-              ₹{Number(item.price).toFixed(2)}
-            </span>
+            {Number(item.discountPercent || 0) > 0 ? (
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+                <span style={{ fontSize: '17px', fontWeight: 700, color: '#16a34a' }}>
+                  ₹{(Number(item.price) * (1 - Number(item.discountPercent) / 100)).toFixed(2)}
+                </span>
+                <span style={{ fontSize: '12px', textDecoration: 'line-through', color: 'var(--text-muted)' }}>
+                  ₹{Number(item.price).toFixed(2)}
+                </span>
+              </div>
+            ) : (
+              <span style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                ₹{Number(item.price).toFixed(2)}
+              </span>
+            )}
           </div>
 
           {!isAvailable ? (

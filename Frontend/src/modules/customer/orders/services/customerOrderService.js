@@ -6,6 +6,7 @@
 import { storageService } from '../../../../services/storageService';
 import { orderService } from '../../../admin/orders/services/orderService';
 import { ORDER_STATUS, PAYMENT_STATUS } from '../../../../constants/appConstants';
+import { notifyOrderCreated } from '../../../../utils/orderSync';
 
 const ORDERS_STORAGE_KEY = 'cms_canteen_management_orders';
 
@@ -37,13 +38,28 @@ export const customerOrderService = {
       const response = await orderService.getAll();
       remoteOrders = Array.isArray(response) ? response : [];
     } catch (err) {
-      console.warn('Live order list unavailable; using locally saved customer orders.', err);
+      // Gracefully handle live order list unavailability without polluting console with timeout warnings
+      remoteOrders = [];
+    }
+
+    // When live remote orders are available, purge any obsolete client-only fake orders from local storage
+    if (remoteOrders.length > 0) {
+      const validRemoteIds = new Set(remoteOrders.map(o => String(o.id || o.orderId)));
+      const cleanedLocal = (Array.isArray(locallySaved) ? locallySaved : []).filter(o => validRemoteIds.has(String(o.id || o.orderId)));
+      if (cleanedLocal.length !== (locallySaved?.length || 0)) {
+        storageService.setItem(ORDERS_STORAGE_KEY, cleanedLocal);
+      }
     }
 
     const uniqueOrders = new Map();
-    // 1. Seed with locally saved orders (fallback bridge)
+    // 1. Seed with locally saved orders (only if confirmed by backend or during offline fallback)
     (Array.isArray(locallySaved) ? locallySaved : [])
       .filter(belongsToCurrentUser)
+      .filter((o) => {
+        if (!remoteOrders.length) return true;
+        const id = String(o.id || o.orderId || '');
+        return remoteOrders.some(r => String(r.id || r.orderId) === id);
+      })
       .forEach((order) => uniqueOrders.set(String(order.id || order.orderId), order));
 
     // 2. Overwrite with live backend database orders (authoritative live status!)
@@ -55,8 +71,10 @@ export const customerOrderService = {
         uniqueOrders.set(key, {
           ...local,
           ...remoteOrder,
-          notes: remoteOrder.notes || local.notes || local.cookingNotes || '',
-          cookingNotes: remoteOrder.notes || local.notes || local.cookingNotes || ''
+          id: remoteOrder.orderId || remoteOrder.id,
+          orderId: remoteOrder.orderId || remoteOrder.id,
+          notes: remoteOrder.notes || local.notes || local.cookingNotes || remoteOrder.cookingNotes || '',
+          cookingNotes: remoteOrder.notes || local.notes || local.cookingNotes || remoteOrder.cookingNotes || ''
         });
       });
 
@@ -423,7 +441,8 @@ export const customerOrderService = {
     }
     storageService.setItem(ORDERS_STORAGE_KEY, allOrders);
 
-    // Notify all app components on this client of the new order
+    // Notify all app components locally and across browser tabs of the new order
+    notifyOrderCreated(completedOrder);
     window.dispatchEvent(new CustomEvent('cms:order_created', { detail: completedOrder }));
 
     return completedOrder;

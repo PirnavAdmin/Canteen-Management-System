@@ -150,6 +150,26 @@ namespace CanteenManagement.API.Controllers.V1
                 return BadRequest(ApiResponse<string>.ErrorResponse(ex.Message));
             }
         }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Delete(string id)
+        {
+            var campusId = User.ResolveCampusId();
+            var deleted = await _orderService.DeleteAsync(id, campusId);
+            if (!deleted)
+            {
+                return NotFound(ApiResponse<string>.ErrorResponse($"Order with ID {id} was not found."));
+            }
+            return Ok(ApiResponse<string>.SuccessResponse(id, $"Order {id} removed successfully."));
+        }
+
+        [HttpDelete("cleanup/test-orders")]
+        public async Task<IActionResult> DeleteTestOrders()
+        {
+            var campusId = User.ResolveCampusId();
+            var count = await _orderService.DeleteTestOrdersAsync(campusId);
+            return Ok(ApiResponse<int>.SuccessResponse(count, $"Successfully removed {count} test orders."));
+        }
     }
 }
 

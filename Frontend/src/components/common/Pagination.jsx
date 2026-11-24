@@ -7,35 +7,18 @@ export const Pagination = ({
   pageSize = 5,
   onPageChange,
   onPageSizeChange,
-  pageSizeOptions = [5, 10, 20, 50]
+  pageSizeOptions = [5, 10, 15, 20]
 }) => {
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const [isCustom, setIsCustom] = React.useState(![5, 10, 15, 20].includes(pageSize));
+  const [customInput, setCustomInput] = React.useState(pageSize || '');
 
-  const getPageNumbers = () => {
-    const pages = [];
-    const maxVisible = 5;
-
-    if (totalPages <= maxVisible) {
-      for (let i = 1; i <= totalPages; i++) pages.push(i);
-    } else {
-      pages.push(1);
-      let start = Math.max(2, currentPage - 1);
-      let end = Math.min(totalPages - 1, currentPage + 1);
-
-      if (currentPage <= 3) {
-        end = 4;
-      }
-      if (currentPage >= totalPages - 2) {
-        start = totalPages - 3;
-      }
-
-      if (start > 2) pages.push('...');
-      for (let i = start; i <= end; i++) pages.push(i);
-      if (end < totalPages - 1) pages.push('...');
-      pages.push(totalPages);
+  React.useEffect(() => {
+    if (![5, 10, 15, 20].includes(pageSize)) {
+      setIsCustom(true);
+      setCustomInput(pageSize);
     }
-    return pages;
-  };
+  }, [pageSize]);
 
   return (
     <div style={{
@@ -50,13 +33,23 @@ export const Pagination = ({
       borderBottomLeftRadius: 'var(--border-radius-lg)',
       borderBottomRightRadius: 'var(--border-radius-lg)'
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12.5px', color: 'var(--text-secondary)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '12.5px', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
         {onPageSizeChange && (
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
             <span>Show:</span>
             <select
-              value={pageSize}
-              onChange={(e) => onPageSizeChange(Number(e.target.value))}
+              value={isCustom ? 'custom' : pageSize}
+              onChange={(e) => {
+                if (e.target.value === 'custom') {
+                  setIsCustom(true);
+                  if (customInput && Number(customInput) > 0) {
+                    onPageSizeChange(Number(customInput));
+                  }
+                } else {
+                  setIsCustom(false);
+                  onPageSizeChange(Number(e.target.value));
+                }
+              }}
               aria-label="Items per page"
               style={{
                 padding: '3px 8px',
@@ -68,33 +61,71 @@ export const Pagination = ({
                 cursor: 'pointer'
               }}
             >
-              {pageSizeOptions.map((opt) => (
+              {[5, 10, 15, 20].map((opt) => (
                 <option key={opt} value={opt}>
                   {opt}
                 </option>
               ))}
+              <option value="custom">Custom</option>
             </select>
+
+            {isCustom && (
+              <input
+                type="number"
+                min="1"
+                max="500"
+                placeholder="Qty"
+                value={customInput}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setCustomInput(val);
+                  const num = parseInt(val, 10);
+                  if (num > 0) {
+                    onPageSizeChange(num);
+                  }
+                }}
+                style={{
+                  width: '58px',
+                  padding: '3px 6px',
+                  fontSize: '12px',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: 'var(--border-radius-sm)',
+                  backgroundColor: 'var(--bg-surface)',
+                  color: 'var(--text-primary)',
+                  outline: 'none'
+                }}
+                aria-label="Custom page size"
+              />
+            )}
           </div>
         )}
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+      {/* Pagination controls: prev {current page / total number of pages} next */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <button
           type="button"
           disabled={currentPage <= 1}
-          onClick={() => onPageChange(currentPage - 1)}
+          onClick={() => {
+            if (currentPage > 1) {
+              onPageChange(currentPage - 1);
+            }
+          }}
           style={{
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '6px 10px',
+            padding: '6px 12px',
             borderRadius: 'var(--border-radius-sm)',
             border: '1px solid var(--border-color)',
-            backgroundColor: 'var(--bg-surface)',
-            color: currentPage <= 1 ? 'var(--text-placeholder)' : 'var(--text-primary)',
+            backgroundColor: currentPage <= 1 ? 'var(--bg-muted, #f1f5f9)' : 'var(--bg-surface)',
+            color: currentPage <= 1 ? 'var(--text-muted, #94a3b8)' : 'var(--text-primary)',
             cursor: currentPage <= 1 ? 'not-allowed' : 'pointer',
+            opacity: currentPage <= 1 ? 0.45 : 1,
             fontSize: '12.5px',
-            gap: '4px'
+            fontWeight: 500,
+            gap: '4px',
+            transition: 'all 0.15s ease'
           }}
           aria-label="Previous page"
         >
@@ -102,56 +133,45 @@ export const Pagination = ({
           <span>Prev</span>
         </button>
 
-        {getPageNumbers().map((page, idx) => {
-          if (page === '...') {
-            return (
-              <span key={`dots-${idx}`} style={{ padding: '0 6px', color: 'var(--text-muted)' }}>
-                ...
-              </span>
-            );
-          }
-          const isActive = page === currentPage;
-          return (
-            <button
-              key={page}
-              type="button"
-              onClick={() => onPageChange(page)}
-              style={{
-                minWidth: '32px',
-                height: '32px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: 'var(--border-radius-sm)',
-                border: isActive ? '1px solid var(--color-primary)' : '1px solid transparent',
-                backgroundColor: isActive ? 'var(--color-primary)' : 'transparent',
-                color: isActive ? '#ffffff' : 'var(--text-primary)',
-                fontWeight: isActive ? 600 : 400,
-                fontSize: '13px',
-                cursor: 'pointer'
-              }}
-            >
-              {page}
-            </button>
-          );
-        })}
-
-        <button
-          type="button"
-          disabled={currentPage >= totalPages}
-          onClick={() => onPageChange(currentPage + 1)}
+        <span
           style={{
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '6px 10px',
+            padding: '4px 10px',
+            fontSize: '12.5px',
+            fontWeight: 600,
+            color: 'var(--text-primary)',
+            minWidth: '50px',
+            userSelect: 'none'
+          }}
+        >
+          {currentPage} / {totalPages}
+        </span>
+
+        <button
+          type="button"
+          disabled={currentPage >= totalPages}
+          onClick={() => {
+            if (currentPage < totalPages) {
+              onPageChange(currentPage + 1);
+            }
+          }}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '6px 12px',
             borderRadius: 'var(--border-radius-sm)',
             border: '1px solid var(--border-color)',
-            backgroundColor: 'var(--bg-surface)',
-            color: currentPage >= totalPages ? 'var(--text-placeholder)' : 'var(--text-primary)',
+            backgroundColor: currentPage >= totalPages ? 'var(--bg-muted, #f1f5f9)' : 'var(--bg-surface)',
+            color: currentPage >= totalPages ? 'var(--text-muted, #94a3b8)' : 'var(--text-primary)',
             cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer',
+            opacity: currentPage >= totalPages ? 0.45 : 1,
             fontSize: '12.5px',
-            gap: '4px'
+            fontWeight: 500,
+            gap: '4px',
+            transition: 'all 0.15s ease'
           }}
           aria-label="Next page"
         >
