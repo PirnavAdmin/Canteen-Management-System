@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { staffInventoryService } from '../services/staffInventoryService';
 import { useAuth } from '../../../app/providers/AuthProvider';
 
-export const useStaffInventory = (outletId = 'canteen-001') => {
+export const useStaffInventory = (outletId = 1) => {
   const { user } = useAuth();
   const [inventory, setInventory] = useState([]);
   const [lowStockItems, setLowStockItems] = useState([]);
@@ -40,14 +40,22 @@ export const useStaffInventory = (outletId = 'canteen-001') => {
       loadData();
     };
 
+    const handleStorageEvent = (e) => {
+      if (e.key === 'cms_stock_request_sync_timestamp' || e.key === 'cms_inventory_sync_timestamp') {
+        loadData();
+      }
+    };
+
     window.addEventListener('cms:inventory_updated', handleUpdate);
     window.addEventListener('cms:stock_request_created', handleUpdate);
     window.addEventListener('cms:stock_request_updated', handleUpdate);
+    window.addEventListener('storage', handleStorageEvent);
 
     return () => {
       window.removeEventListener('cms:inventory_updated', handleUpdate);
       window.removeEventListener('cms:stock_request_created', handleUpdate);
       window.removeEventListener('cms:stock_request_updated', handleUpdate);
+      window.removeEventListener('storage', handleStorageEvent);
     };
   }, [loadData]);
 

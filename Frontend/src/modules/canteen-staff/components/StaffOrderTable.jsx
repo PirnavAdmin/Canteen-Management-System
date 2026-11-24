@@ -16,6 +16,14 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { ORDER_STATUS } from '../../../constants/appConstants';
+import {
+  isStatusPlaced,
+  isStatusAccepted,
+  isStatusPreparing,
+  isStatusReady,
+  isStatusCompleted,
+  isStatusCancelled
+} from '../services/staffOrderService';
 
 export const StaffOrderTable = ({
   orders = [],
@@ -27,9 +35,27 @@ export const StaffOrderTable = ({
   onAccept,
   onStartCooking,
   onMarkReady,
+  onCompleteOrder,
   onVerifyPickup,
   onReject
 }) => {
+  const [currentTime, setCurrentTime] = React.useState(new Date());
+
+  React.useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const getElapsedPrep = (prepStartedAt) => {
+    if (!prepStartedAt) return null;
+    const startMs = new Date(prepStartedAt).getTime();
+    if (isNaN(startMs)) return null;
+    const diffSecs = Math.max(0, Math.floor((currentTime.getTime() - startMs) / 1000));
+    const m = Math.floor(diffSecs / 60);
+    const s = diffSecs % 60;
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  };
+
   // Format Date and Time
   const formatDateTime = (dateString) => {
     if (!dateString) return { date: '—', time: '—' };
@@ -101,7 +127,10 @@ export const StaffOrderTable = ({
   };
 
   // Order Lifecycle Status Badge
-  const renderOrderStatusBadge = (status) => {
+  const renderOrderStatusBadge = (order) => {
+    const status = typeof order === 'object' ? order?.status : order;
+    const prepStartedAt = typeof order === 'object' ? order?.prepStartedAt : null;
+    const prepDurationFormatted = typeof order === 'object' ? order?.prepDurationFormatted : null;
     const norm = String(status || '').toLowerCase();
     let bg = 'var(--bg-muted)';
     let color = 'var(--text-secondary)';
@@ -126,19 +155,20 @@ export const StaffOrderTable = ({
       color = '#8b5cf6';
       border = '#ddd6fe';
       IconComp = ChefHat;
-      label = 'Preparing';
+      const elapsed = prepStartedAt ? getElapsedPrep(prepStartedAt) : null;
+      label = elapsed ? `Preparing (${elapsed})` : 'Preparing';
     } else if (norm.includes('ready')) {
       bg = '#ecfdf5';
       color = '#059669';
       border = '#a7f3d0';
       IconComp = BellRing;
-      label = 'Ready for Pickup';
+      label = prepDurationFormatted ? `Ready (${prepDurationFormatted})` : 'Ready for Pickup';
     } else if (norm === 'completed' || norm === 'collected') {
       bg = '#ecfdf5';
       color = '#10b981';
       border = '#a7f3d0';
       IconComp = CheckCheck;
-      label = 'Completed';
+      label = 'Collected';
     } else if (norm === 'cancelled' || norm === 'rejected') {
       bg = '#fef2f2';
       color = '#dc2626';
@@ -244,12 +274,12 @@ export const StaffOrderTable = ({
                 const serialNumber = (currentPage - 1) * pageSize + index + 1;
                 const { date, time } = formatDateTime(order.orderDate || order.createdAt);
 
-                const isPlaced = order.status === ORDER_STATUS.PLACED;
-                const isAccepted = order.status === ORDER_STATUS.ACCEPTED;
-                const isPreparing = order.status === ORDER_STATUS.PREPARING;
-                const isReady = order.status === ORDER_STATUS.READY_FOR_PICKUP || order.status === 'Ready for Pickup';
-                const isCompleted = order.status === ORDER_STATUS.COMPLETED;
-                const isCancelled = order.status === ORDER_STATUS.CANCELLED || order.status === ORDER_STATUS.REFUNDED;
+                const isPlaced = isStatusPlaced(order.status);
+                const isAccepted = isStatusAccepted(order.status);
+                const isPreparing = isStatusPreparing(order.status);
+                const isReady = isStatusReady(order.status);
+                const isCompleted = isStatusCompleted(order.status);
+                const isCancelled = isStatusCancelled(order.status);
 
                 const isActionLoading = actionLoadingId === order.id;
 
@@ -367,7 +397,7 @@ export const StaffOrderTable = ({
 
                     {/* COLUMN 5: ORDER STATUS */}
                     <td style={{ padding: '12px 14px', textAlign: 'center' }}>
-                      {renderOrderStatusBadge(order.status)}
+                      {renderOrderStatusBadge(order)}
                     </td>
 
                     {/* COLUMN 6: DYNAMIC ACTIONS PER ORDER STATUS */}
@@ -447,18 +477,18 @@ export const StaffOrderTable = ({
                           </>
                         )}
 
-                        {/* STATUS 2: ACCEPTED -> Send to Kitchen */}
-                        {isAccepted && (
+                        {/* STATUS 2: PREPARING (or ACCEPTED) -> Mark Ready */}
+                        {(isPreparing || isAccepted) && (
                           <button
                             type="button"
                             disabled={isActionLoading}
-                            onClick={() => onStartCooking(order.id)}
-                            title="Send order to kitchen for cooking"
+                            onClick={() => onMarkReady(order.id)}
+                            title="Mark food preparation complete and ready for counter pickup"
                             style={{
                               padding: '5px 12px',
                               borderRadius: '6px',
                               border: 'none',
-                              backgroundColor: '#ea580c',
+                              backgroundColor: '#059669',
                               color: '#ffffff',
                               fontSize: '11px',
                               fontWeight: 700,
@@ -468,80 +498,35 @@ export const StaffOrderTable = ({
                               gap: '4px'
                             }}
                           >
-                            <ChefHat size={12} />
-                            {isActionLoading ? 'Sending...' : 'Send to Kitchen'}
+                            <BellRing size={12} />
+                            {isActionLoading ? 'Saving...' : 'Mark Ready'}
                           </button>
                         )}
 
-                        {/* STATUS 3: PREPARING -> Open KDS & Mark Ready */}
-                        {isPreparing && (
-                          <>
-                            <Link
-                              to="/staff/kitchen"
-                              title="Open Kitchen Display (KDS)"
-                              style={{
-                                width: '30px',
-                                height: '30px',
-                                borderRadius: '6px',
-                                border: '1px solid #fed7aa',
-                                backgroundColor: '#fff7ed',
-                                color: '#ea580c',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                textDecoration: 'none'
-                              }}
-                            >
-                              <Flame size={14} />
-                            </Link>
-
-                            <button
-                              type="button"
-                              disabled={isActionLoading}
-                              onClick={() => onMarkReady(order.id)}
-                              title="Mark food preparation complete and ready for counter pickup"
-                              style={{
-                                padding: '5px 10px',
-                                borderRadius: '6px',
-                                border: 'none',
-                                backgroundColor: '#059669',
-                                color: '#ffffff',
-                                fontSize: '11px',
-                                fontWeight: 700,
-                                cursor: isActionLoading ? 'wait' : 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px'
-                              }}
-                            >
-                              <BellRing size={12} />
-                              {isActionLoading ? 'Saving...' : 'Mark Ready'}
-                            </button>
-                          </>
-                        )}
-
-                        {/* STATUS 4: READY FOR PICKUP -> Verify Pickup (Mandatory Verification) */}
+                        {/* STATUS 3: READY FOR PICKUP -> Mark Collected */}
                         {isReady && (
                           <button
                             type="button"
-                            onClick={() => onVerifyPickup(order)}
-                            title="Verify customer counter token/QR and handover meal"
+                            disabled={isActionLoading}
+                            onClick={() => onCompleteOrder && onCompleteOrder(order.id)}
+                            title="Customer collecting food: Mark order as Collected"
                             style={{
                               padding: '5px 12px',
                               borderRadius: '6px',
                               border: 'none',
-                              backgroundColor: '#10b981',
+                              backgroundColor: '#059669',
                               color: '#ffffff',
                               fontSize: '11px',
                               fontWeight: 700,
-                              cursor: 'pointer',
+                              cursor: isActionLoading ? 'wait' : 'pointer',
                               display: 'inline-flex',
                               alignItems: 'center',
-                              gap: '4px'
+                              gap: '4px',
+                              boxShadow: 'var(--shadow-xs)'
                             }}
                           >
-                            <QrCode size={12} />
-                            Verify Pickup
+                            <CheckCircle2 size={12} />
+                            {isActionLoading ? 'Saving...' : 'Mark Collected'}
                           </button>
                         )}
 

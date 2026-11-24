@@ -335,7 +335,9 @@ export const OrderDetailsModal = ({
                   loading={loading}
                   onClick={() => onUpdateStatus(order.id, nextSt)}
                 >
-                  Mark as {nextSt}
+                  {nextSt === ORDER_STATUS.PREPARING && order.status === ORDER_STATUS.PLACED
+                    ? 'Accept Order'
+                    : `Mark as ${nextSt}`}
                 </Button>
               );
             })}

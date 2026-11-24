@@ -45,8 +45,9 @@ export const ProtectedRoute = ({ allowedRoles = null, children }) => {
 
   // Role Guard Check
   if (allowedRoles && allowedRoles.length > 0) {
-    const userRole = role || user?.role || 'Student';
+    const userRole = role || user?.role || user?.Role || 'Student';
     const isCustomer = userRole.toLowerCase() === 'student' || userRole.toLowerCase() === 'faculty';
+    const isStaff = userRole.toLowerCase().includes('staff');
 
     // If a Customer (Student or Faculty) arrives at any administrative route,
     // seamlessly and immediately route them to their dedicated Customer Dashboard.
@@ -54,10 +55,16 @@ export const ProtectedRoute = ({ allowedRoles = null, children }) => {
       return <Navigate to="/customer/dashboard" replace />;
     }
 
+    // If a Canteen Staff member arrives at any administrative route,
+    // seamlessly and immediately route them to their dedicated Canteen Staff Dashboard.
+    if (isStaff) {
+      return <Navigate to="/staff/dashboard" replace />;
+    }
+
     const hasRole = allowedRoles.some(r => r.toLowerCase() === userRole.toLowerCase());
 
     if (!hasRole) {
-      const dashboardTarget = isCustomer ? '/customer/dashboard' : '/admin/dashboard';
+      const dashboardTarget = isCustomer ? '/customer/dashboard' : isStaff ? '/staff/dashboard' : '/admin/dashboard';
 
       return (
         <div style={{

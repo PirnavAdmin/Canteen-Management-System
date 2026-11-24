@@ -13,7 +13,7 @@ export const useOrders = () => {
       setLoading(true);
       setError(null);
       const data = await orderService.getAll();
-      setOrders(data);
+      setOrders(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Failed to load orders:', err);
       setError(err.message || 'Error loading orders');
@@ -26,9 +26,22 @@ export const useOrders = () => {
   useEffect(() => {
     loadOrders();
     const handleOrderEvent = () => loadOrders();
+    const handleStorageEvent = (e) => {
+      if (e.key === 'cms_order_sync_timestamp') {
+        loadOrders();
+      }
+    };
+
     window.addEventListener('cms:order_created', handleOrderEvent);
+    window.addEventListener('cms:order_status_updated', handleOrderEvent);
+    window.addEventListener('cms:order_updated', handleOrderEvent);
+    window.addEventListener('storage', handleStorageEvent);
+
     return () => {
       window.removeEventListener('cms:order_created', handleOrderEvent);
+      window.removeEventListener('cms:order_status_updated', handleOrderEvent);
+      window.removeEventListener('cms:order_updated', handleOrderEvent);
+      window.removeEventListener('storage', handleStorageEvent);
     };
   }, [loadOrders]);
 
@@ -36,7 +49,6 @@ export const useOrders = () => {
     try {
       const updated = await orderService.updateStatus(orderId, newStatus, note);
       setOrders(prev => prev.map(o => o.id === orderId ? updated : o));
-      window.dispatchEvent(new CustomEvent('cms:order_status_updated', { detail: updated }));
       success('Status Updated', `Order ${updated.token} moved to ${newStatus}.`);
       return updated;
     } catch (err) {
@@ -49,7 +61,6 @@ export const useOrders = () => {
     try {
       const updated = await orderService.cancelOrder(orderId, reason);
       setOrders(prev => prev.map(o => o.id === orderId ? updated : o));
-      window.dispatchEvent(new CustomEvent('cms:order_status_updated', { detail: updated }));
       info('Order Cancelled', `Order ${updated.token} has been marked as Cancelled.`);
       return updated;
     } catch (err) {

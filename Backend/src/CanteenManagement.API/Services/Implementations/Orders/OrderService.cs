@@ -16,7 +16,7 @@ namespace CanteenManagement.API.Services.Implementations.Orders
 
         private static readonly Dictionary<string, string[]> PermittedNextStates = new()
         {
-            ["Placed"] = new[] { "Accepted", "Cancelled" },
+            ["Placed"] = new[] { "Accepted", "Preparing", "Cancelled" },
             ["Accepted"] = new[] { "Preparing", "Cancelled" },
             ["Preparing"] = new[] { "Ready for Pickup", "Cancelled" },
             ["Ready for Pickup"] = new[] { "Collected", "Completed", "Cancelled" },

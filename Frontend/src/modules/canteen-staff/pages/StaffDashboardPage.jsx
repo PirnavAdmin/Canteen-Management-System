@@ -17,6 +17,15 @@ import { useStaffOrders } from '../hooks/useStaffOrders';
 import { useStaffInventory } from '../hooks/useStaffInventory';
 import { STAFF_APP_CONFIG } from '../constants/staffNavigation';
 import { ORDER_STATUS } from '../../../constants/appConstants';
+import {
+  isStatusPlaced,
+  isStatusAccepted,
+  isStatusPreparing,
+  isStatusReady,
+  isStatusCompleted,
+  isStatusCancelled,
+  isOrderCompletedToday
+} from '../services/staffOrderService';
 import { PageHeader } from '../../../components/common/PageHeader';
 import { Button } from '../../../components/common/Button';
 import { formatNumber } from '../../../utils/formatters';
@@ -45,25 +54,24 @@ export const StaffDashboardPage = () => {
 
   // 1. Calculate Exact Order Status Counts (No double counting)
   const newOrdersCount = useMemo(() => {
-    return orders.filter(o => o.status === ORDER_STATUS.PLACED).length;
+    return orders.filter(o => isStatusPlaced(o.status)).length;
   }, [orders]);
 
   const acceptedOrdersCount = useMemo(() => {
-    return orders.filter(o => o.status === ORDER_STATUS.ACCEPTED).length;
+    return orders.filter(o => isStatusAccepted(o.status)).length;
   }, [orders]);
 
   const preparingOrdersCount = useMemo(() => {
-    return orders.filter(o => o.status === ORDER_STATUS.PREPARING).length;
+    return orders.filter(o => isStatusPreparing(o.status)).length;
   }, [orders]);
 
   const readyOrdersCount = useMemo(() => {
-    return orders.filter(
-      o => o.status === ORDER_STATUS.READY_FOR_PICKUP || o.status === 'Ready for Pickup'
-    ).length;
+    return orders.filter(o => isStatusReady(o.status)).length;
   }, [orders]);
 
+  // Collected Today strictly checks local IST business date
   const completedOrdersCount = useMemo(() => {
-    return orders.filter(o => o.status === ORDER_STATUS.COMPLETED).length;
+    return orders.filter(o => isOrderCompletedToday(o)).length;
   }, [orders]);
 
   // 2. Calculate Inventory Alerts (Low stock, critical stock, out of stock, expiring)
@@ -153,7 +161,7 @@ export const StaffDashboardPage = () => {
   // 3. Live Order Activity Stream (Active orders only, sorted newest first)
   const activeOrders = useMemo(() => {
     return orders
-      .filter(o => o.status !== ORDER_STATUS.COMPLETED && o.status !== ORDER_STATUS.CANCELLED && o.status !== ORDER_STATUS.REFUNDED)
+      .filter(o => !isStatusCompleted(o.status) && !isStatusCancelled(o.status))
       .sort((a, b) => new Date(b.orderDate || b.createdAt || 0) - new Date(a.orderDate || a.createdAt || 0))
       .slice(0, 5);
   }, [orders]);
@@ -783,10 +791,10 @@ export const StaffDashboardPage = () => {
               paddingRight: '2px'
             }}>
               {activeOrders.map(order => {
-                const isReady = order.status === ORDER_STATUS.READY_FOR_PICKUP || order.status === 'Ready for Pickup';
-                const isPrep = order.status === ORDER_STATUS.PREPARING;
-                const isPlaced = order.status === ORDER_STATUS.PLACED;
-                const isAccepted = order.status === ORDER_STATUS.ACCEPTED;
+                const isReady = isStatusReady(order.status);
+                const isPrep = isStatusPreparing(order.status);
+                const isPlaced = isStatusPlaced(order.status);
+                const isAccepted = isStatusAccepted(order.status);
 
                 return (
                   <div

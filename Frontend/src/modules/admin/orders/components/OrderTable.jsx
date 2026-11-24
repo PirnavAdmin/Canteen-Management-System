@@ -205,9 +205,10 @@ export const OrderTable = ({
       key: 'actions',
       header: 'Actions',
       align: 'center',
-      width: '80px',
+      width: '110px',
       render: (_, row) => {
         const orderStatus = row?.status || ORDER_STATUS.PLACED;
+        const isPlaced = orderStatus === ORDER_STATUS.PLACED || orderStatus === 'New';
         const nextSteps = ORDER_LIFECYCLE_NEXT_STEPS[orderStatus] || [];
         const nextOperationalStatus = nextSteps.find(s => s !== ORDER_STATUS.CANCELLED && s !== ORDER_STATUS.REFUNDED);
         const StepIcon = nextOperationalStatus ? getStepIcon(nextOperationalStatus) : null;
@@ -234,7 +235,37 @@ export const OrderTable = ({
               <Eye size={14} />
             </button>
 
-            {nextOperationalStatus && StepIcon && (
+            {isPlaced ? (
+              <button
+                type="button"
+                disabled={actionLoadingId === row.id}
+                onClick={() => onAdvanceStatus(row, ORDER_STATUS.PREPARING)}
+                style={{
+                  background: 'var(--color-primary)',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '4px',
+                  padding: '4px 8px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: actionLoadingId === row.id ? 'not-allowed' : 'pointer',
+                  opacity: actionLoadingId === row.id ? 0.7 : 1,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  whiteSpace: 'nowrap'
+                }}
+                title="Accept Order and Send to Kitchen"
+                aria-label="Accept Order"
+              >
+                {actionLoadingId === row.id ? (
+                  <Loader2 size={12} style={{ animation: 'spin 0.8s linear infinite' }} />
+                ) : (
+                  <CheckCircle size={12} />
+                )}
+                <span>Accept</span>
+              </button>
+            ) : nextOperationalStatus && StepIcon ? (
               <button
                 type="button"
                 disabled={actionLoadingId === row.id}
@@ -260,7 +291,7 @@ export const OrderTable = ({
                   <StepIcon size={14} />
                 )}
               </button>
-            )}
+            ) : null}
           </div>
         );
       }

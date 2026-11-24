@@ -47,6 +47,34 @@ export const inventoryService = {
     return response?.data ?? response;
   },
 
+  // Stock Requests
+  getStockRequests: async (params = {}) => {
+    const response = await apiClient.get(API_ENDPOINTS.INVENTORY.STOCK_REQUESTS, params);
+    const raw = response?.data ?? response;
+    return Array.isArray(raw) ? raw : (Array.isArray(raw?.data) ? raw.data : (Array.isArray(raw?.requests) ? raw.requests : (Array.isArray(raw?.items) ? raw.items : [])));
+  },
+
+  approveStockRequest: async (id) => {
+    const response = await apiClient.patch(API_ENDPOINTS.INVENTORY.STOCK_REQUEST_RECEIVED(id));
+    const raw = response?.data ?? response;
+    window.dispatchEvent(new CustomEvent('cms:stock_request_updated', { detail: { id, status: 'Fulfilled', request: raw } }));
+    window.dispatchEvent(new CustomEvent('cms:inventory_updated', { detail: { id } }));
+    try {
+      localStorage.setItem('cms_stock_request_sync_timestamp', Date.now().toString());
+    } catch {}
+    return raw;
+  },
+
+  rejectStockRequest: async (id) => {
+    const response = await apiClient.delete(API_ENDPOINTS.INVENTORY.STOCK_REQUEST_BY_ID(id));
+    const raw = response?.data ?? response;
+    window.dispatchEvent(new CustomEvent('cms:stock_request_updated', { detail: { id, status: 'Rejected', request: raw } }));
+    try {
+      localStorage.setItem('cms_stock_request_sync_timestamp', Date.now().toString());
+    } catch {}
+    return raw;
+  },
+
   // Purchase Orders
   getPurchaseOrders: async (params = {}) => {
     const response = await apiClient.get(API_ENDPOINTS.INVENTORY.PURCHASE_ORDERS, params);

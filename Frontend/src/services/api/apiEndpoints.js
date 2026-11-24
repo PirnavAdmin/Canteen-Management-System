@@ -67,7 +67,7 @@ export const API_ENDPOINTS = {
   // Inventory
   INVENTORY: {
     ITEMS: '/canteen-inventory/items',
-    BATCHES: '/canteen-inventory/batches',
+    BATCHES: '/canteen-inventory/items',
     STOCK_MOVEMENT: '/canteen-inventory/movements',
     LEDGER: '/canteen-inventory/ledger',
     STOCK_REQUESTS: '/canteen-inventory/stock-requests',

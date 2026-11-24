@@ -7,6 +7,7 @@ export const useInventory = (selectedOutlet = 'ALL') => {
   const [ledger, setLedger] = useState([]);
   const [purchaseOrders, setPurchaseOrders] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
+  const [stockRequests, setStockRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { success, error: toastError, info } = useToast();
@@ -16,16 +17,18 @@ export const useInventory = (selectedOutlet = 'ALL') => {
       setLoading(true);
       setError(null);
       const outletParams = selectedOutlet && selectedOutlet !== 'ALL' && Number(selectedOutlet) > 0 ? { outletId: Number(selectedOutlet) } : {};
-      const [itms, ledg, pos, sups] = await Promise.all([
+      const [itms, ledg, pos, sups, reqs] = await Promise.all([
         inventoryService.getItems(outletParams),
         inventoryService.getLedger(outletParams),
         inventoryService.getPurchaseOrders(outletParams),
-        inventoryService.getSuppliers()
+        inventoryService.getSuppliers(),
+        inventoryService.getStockRequests(outletParams)
       ]);
       setItems(itms);
       setLedger(ledg);
       setPurchaseOrders(pos);
       setSuppliers(sups);
+      setStockRequests(reqs);
     } catch (err) {
       console.error('Failed to load inventory data:', err);
       setError(err.message || 'Error loading inventory');
@@ -37,6 +40,25 @@ export const useInventory = (selectedOutlet = 'ALL') => {
 
   useEffect(() => {
     loadAll();
+
+    const handleUpdate = () => loadAll();
+    const handleStorage = (e) => {
+      if (e.key === 'cms_stock_request_sync_timestamp' || e.key === 'cms_inventory_sync_timestamp') {
+        loadAll();
+      }
+    };
+
+    window.addEventListener('cms:stock_request_created', handleUpdate);
+    window.addEventListener('cms:stock_request_updated', handleUpdate);
+    window.addEventListener('cms:inventory_updated', handleUpdate);
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      window.removeEventListener('cms:stock_request_created', handleUpdate);
+      window.removeEventListener('cms:stock_request_updated', handleUpdate);
+      window.removeEventListener('cms:inventory_updated', handleUpdate);
+      window.removeEventListener('storage', handleStorage);
+    };
   }, [loadAll]);
 
   const recordMovement = useCallback(async (movementData) => {
@@ -69,7 +91,6 @@ export const useInventory = (selectedOutlet = 'ALL') => {
       const updated = await inventoryService.updatePOStatus(id, status);
       setPurchaseOrders(prev => prev.map(p => p.id === id ? updated : p));
 
-      // Step 5 -> Step 6: When marked Received, auto-reload stock and ledger so tabs reflect inward immediately!
       if (status === 'Received') {
         const outletParams = selectedOutlet && selectedOutlet !== 'ALL' && Number(selectedOutlet) > 0 ? { outletId: Number(selectedOutlet) } : {};
         const [updatedItems, updatedLedger] = await Promise.all([
@@ -88,7 +109,31 @@ export const useInventory = (selectedOutlet = 'ALL') => {
       toastError('Status Failed', err.message);
       throw err;
     }
-  }, [info, success, toastError]);
+  }, [info, success, toastError, selectedOutlet]);
+
+  const approveStockRequest = useCallback(async (id) => {
+    try {
+      const res = await inventoryService.approveStockRequest(id);
+      success('Requisition Approved & Inwarded', `Stock request ${id} approved and ingredients received into inventory!`);
+      await loadAll();
+      return res;
+    } catch (err) {
+      toastError('Approval Failed', err.message || 'Failed to approve stock request.');
+      throw err;
+    }
+  }, [loadAll, success, toastError]);
+
+  const rejectStockRequest = useCallback(async (id) => {
+    try {
+      const res = await inventoryService.rejectStockRequest(id);
+      info('Requisition Rejected', `Stock request ${id} has been rejected.`);
+      await loadAll();
+      return res;
+    } catch (err) {
+      toastError('Rejection Failed', err.message || 'Failed to reject stock request.');
+      throw err;
+    }
+  }, [loadAll, info, toastError]);
 
   const createSupplier = useCallback(async (supData) => {
     try {
@@ -159,11 +204,14 @@ export const useInventory = (selectedOutlet = 'ALL') => {
     ledger,
     purchaseOrders,
     suppliers,
+    stockRequests,
     loading,
     error,
     recordMovement,
     createPO,
     updatePOStatus,
+    approveStockRequest,
+    rejectStockRequest,
     createSupplier,
     updateSupplier,
     deleteSupplier,

@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { dashboardService } from '../services/dashboardService';
 import { useToast } from '../../../../app/providers/ToastProvider';
+import { useAuth } from '../../../../app/providers/AuthProvider';
 
 export const useDashboard = (selectedOutlet = 'ALL') => {
+  const { role } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [summary, setSummary] = useState(null);
@@ -14,6 +16,12 @@ export const useDashboard = (selectedOutlet = 'ALL') => {
   const { error: toastError } = useToast();
 
   const fetchDashboardData = useCallback(async () => {
+    const roleStr = String(role || '').toUpperCase();
+    if (roleStr && !roleStr.includes('ADMIN')) {
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -35,11 +43,14 @@ export const useDashboard = (selectedOutlet = 'ALL') => {
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
       setError(err.message || 'Error loading dashboard metrics');
-      toastError('Dashboard Error', 'Could not retrieve operational metrics.');
+      const status = err?.status || err?.raw?.response?.status;
+      if (status !== 401 && status !== 403) {
+        toastError('Dashboard Error', 'Could not retrieve operational metrics.');
+      }
     } finally {
       setLoading(false);
     }
-  }, [selectedOutlet, toastError]);
+  }, [selectedOutlet, toastError, role]);
 
   useEffect(() => {
     fetchDashboardData();

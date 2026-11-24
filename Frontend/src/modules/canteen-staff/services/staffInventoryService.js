@@ -7,6 +7,28 @@
 import { apiClient, API_ENDPOINTS } from '../../../services/api';
 
 /**
+ * Safely parses and normalizes outlet ID to positive integer for backend model binding.
+ * Returns undefined for 'all', null, non-numeric strings to avoid 400 Bad Request.
+ */
+export const cleanOutletId = (raw) => {
+  if (raw === null || raw === undefined || raw === 'all' || raw === '') return undefined;
+  if (typeof raw === 'number' && !isNaN(raw) && raw > 0) return raw;
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    if (/^\d+$/.test(trimmed)) {
+      const num = parseInt(trimmed, 10);
+      return num > 0 ? num : undefined;
+    }
+    const match = trimmed.match(/\d+/);
+    if (match) {
+      const num = parseInt(match[0], 10);
+      return num > 0 ? num : undefined;
+    }
+  }
+  return undefined;
+};
+
+/**
  * Normalizes backend inventory item into consistent shape expected by Staff UI components.
  * Supports both PascalCase (.NET DTOs) and camelCase properties.
  */
@@ -84,17 +106,19 @@ export const normalizeBatch = (raw) => {
 export const normalizeStockRequest = (raw) => {
   if (!raw || typeof raw !== 'object') return raw;
 
-  const id = raw.id ?? raw.Id ?? raw.requestId ?? '';
-  const itemCode = raw.itemCode ?? raw.ItemCode ?? 'ING-REQ';
-  const itemName = raw.itemName ?? raw.ItemName ?? raw.ingredientName ?? 'Stock Item';
-  const category = raw.category ?? raw.Category ?? 'General Kitchen Supplies';
-  const requestedQuantity = Number(raw.requestedQuantity ?? raw.RequestedQuantity ?? raw.quantity ?? 0);
-  const unit = raw.unit ?? raw.Unit ?? 'kg';
+  const firstItem = Array.isArray(raw.items) && raw.items.length > 0 ? raw.items[0] : null;
+
+  const id = raw.id ?? raw.Id ?? raw.requestId ?? raw.poNumber ?? '';
+  const itemCode = raw.itemCode ?? raw.ItemCode ?? (raw.poNumber ? String(raw.poNumber) : (id ? `REQ-${id}` : 'ING-REQ'));
+  const itemName = raw.itemName ?? raw.ItemName ?? raw.ingredientName ?? (firstItem?.ingredientName || 'Stock Item');
+  const category = raw.category ?? raw.Category ?? (raw.supplierName ? `Supplier: ${raw.supplierName}` : 'General Kitchen Supplies');
+  const requestedQuantity = Number(raw.requestedQuantity ?? raw.RequestedQuantity ?? raw.quantity ?? firstItem?.qty ?? firstItem?.quantity ?? 0);
+  const unit = raw.unit ?? raw.Unit ?? (firstItem?.unit || 'kg');
   const urgency = raw.urgency ?? raw.Urgency ?? 'Normal';
-  const status = raw.status ?? raw.Status ?? 'Pending Review';
-  const adminNotes = raw.adminNotes ?? raw.AdminNotes ?? raw.notes ?? raw.Notes ?? '';
+  const status = raw.status ?? raw.Status ?? 'Pending';
+  const adminNotes = raw.adminNotes ?? raw.AdminNotes ?? raw.notes ?? raw.Notes ?? (raw.supplierName ? `Supplier: ${raw.supplierName}` : '');
   const notes = raw.notes ?? raw.Notes ?? '';
-  const requiredByDate = raw.requiredByDate ?? raw.RequiredByDate ?? new Date().toISOString().split('T')[0];
+  const requiredByDate = raw.requiredByDate ?? raw.RequiredByDate ?? raw.expectedDelivery ?? new Date().toISOString().split('T')[0];
   const requestedBy = raw.requestedBy ?? raw.RequestedBy ?? 'Staff Attendant';
   const createdAt = raw.createdAt ?? raw.CreatedAt ?? new Date().toISOString();
 
@@ -113,7 +137,7 @@ export const normalizeStockRequest = (raw) => {
     requiredByDate,
     requestedBy,
     createdAt,
-    outletId: raw.outletId ?? raw.OutletId ?? 1
+    outletId: cleanOutletId(raw.outletId ?? raw.OutletId) || 1
   };
 };
 
@@ -125,8 +149,9 @@ export const staffInventoryService = {
   getAllInventory: async (outletId = null, params = {}) => {
     try {
       const queryParams = { ...params };
-      if (outletId && outletId !== 'all') {
-        queryParams.outletId = outletId;
+      const validOutletId = cleanOutletId(outletId);
+      if (validOutletId) {
+        queryParams.outletId = validOutletId;
       }
 
       const response = await apiClient.get(API_ENDPOINTS.INVENTORY.ITEMS, queryParams);
@@ -163,11 +188,17 @@ export const staffInventoryService = {
 
   /**
    * GET /api/v1/canteen-inventory/batches
-   * Retrieve all live ingredient batch lots from backend
+   * Retrieve all live ingredient batch lots from backend (maps to /canteen-inventory/items)
    */
   getInventoryBatches: async (params = {}) => {
     try {
-      const response = await apiClient.get(API_ENDPOINTS.INVENTORY.BATCHES, params);
+      const queryParams = { ...params };
+      if (queryParams.outletId) {
+        const cleaned = cleanOutletId(queryParams.outletId);
+        if (cleaned) queryParams.outletId = cleaned;
+        else delete queryParams.outletId;
+      }
+      const response = await apiClient.get(API_ENDPOINTS.INVENTORY.BATCHES, queryParams);
       const raw = response?.data ?? response;
       const list = Array.isArray(raw)
         ? raw
@@ -187,11 +218,12 @@ export const staffInventoryService = {
     today.setHours(0, 0, 0, 0);
 
     let candidates = [];
+    const validOutletId = cleanOutletId(outletId);
 
     // 1. Try to fetch live batches from GET /api/v1/canteen-inventory/batches
     try {
       const batches = await staffInventoryService.getInventoryBatches({
-        outletId: outletId && outletId !== 'all' ? outletId : undefined
+        outletId: validOutletId
       });
       if (Array.isArray(batches) && batches.length > 0) {
         candidates = batches;
@@ -202,7 +234,7 @@ export const staffInventoryService = {
 
     // 2. If no batches returned, fall back to preloadedItems / all items
     if (candidates.length === 0) {
-      candidates = preloadedItems || await staffInventoryService.getAllInventory(outletId);
+      candidates = preloadedItems || await staffInventoryService.getAllInventory(validOutletId);
     }
 
     return candidates
@@ -272,8 +304,9 @@ export const staffInventoryService = {
   getStockRequests: async (outletId = null, params = {}) => {
     try {
       const queryParams = { ...params };
-      if (outletId && outletId !== 'all') {
-        queryParams.outletId = outletId;
+      const validOutletId = cleanOutletId(outletId);
+      if (validOutletId) {
+        queryParams.outletId = validOutletId;
       }
 
       const response = await apiClient.get(API_ENDPOINTS.INVENTORY.STOCK_REQUESTS, queryParams);
@@ -297,17 +330,21 @@ export const staffInventoryService = {
       throw new Error('Please specify an item name and required quantity.');
     }
 
+    const qty = Number(requestData.requestedQuantity) || 1;
+    const outletId = cleanOutletId(requestData.outletId) || 1;
+
     const payload = {
+      outletId,
+      outletName: requestData.outletName || 'Central Dining Hall',
       itemCode: requestData.itemCode || 'ING-REQ',
-      itemName: requestData.itemName,
+      itemName: requestData.itemName.trim(),
       category: requestData.category || 'General Kitchen Supplies',
-      requestedQuantity: Number(requestData.requestedQuantity),
+      requestedQuantity: qty,
       unit: requestData.unit || 'kg',
       urgency: requestData.urgency || 'Normal',
       requiredByDate: requestData.requiredByDate || new Date().toISOString().split('T')[0],
-      notes: requestData.notes || '',
-      requestedBy: requestData.requestedBy || 'Staff Attendant',
-      outletId: Number(requestData.outletId) || 1
+      notes: requestData.notes ? requestData.notes.trim() : '',
+      requestedBy: requestData.requestedBy || 'Staff Attendant'
     };
 
     const response = await apiClient.post(API_ENDPOINTS.INVENTORY.STOCK_REQUESTS, payload);
@@ -317,13 +354,19 @@ export const staffInventoryService = {
     window.dispatchEvent(new CustomEvent('cms:stock_request_created', {
       detail: { request: created }
     }));
+    window.dispatchEvent(new CustomEvent('cms:stock_request_updated', {
+      detail: { request: created }
+    }));
+    try {
+      localStorage.setItem('cms_stock_request_sync_timestamp', Date.now().toString());
+    } catch {}
 
     return created;
   },
 
   /**
    * PATCH /api/v1/canteen-inventory/stock-requests/{id}/received
-   * Mark a stock request as received/fulfilled at the counter
+   * Mark a stock request as received/fulfilled at the counter and inward to inventory
    */
   markStockReceived: async (requestId) => {
     const response = await apiClient.patch(API_ENDPOINTS.INVENTORY.STOCK_REQUEST_RECEIVED(requestId));
@@ -333,13 +376,19 @@ export const staffInventoryService = {
     window.dispatchEvent(new CustomEvent('cms:stock_request_updated', {
       detail: { request: updated }
     }));
+    window.dispatchEvent(new CustomEvent('cms:inventory_updated', {
+      detail: { updatedStockRequest: updated }
+    }));
+    try {
+      localStorage.setItem('cms_stock_request_sync_timestamp', Date.now().toString());
+    } catch {}
 
     return updated;
   },
 
   /**
    * DELETE /api/v1/canteen-inventory/stock-requests/{id}
-   * Delete a stock requisition record from live backend
+   * Delete / reject a stock requisition record from live backend
    */
   deleteStockRequest: async (requestId) => {
     await apiClient.delete(API_ENDPOINTS.INVENTORY.STOCK_REQUEST_BY_ID(requestId));
@@ -347,6 +396,9 @@ export const staffInventoryService = {
     window.dispatchEvent(new CustomEvent('cms:stock_request_updated', {
       detail: { deletedRequestId: requestId }
     }));
+    try {
+      localStorage.setItem('cms_stock_request_sync_timestamp', Date.now().toString());
+    } catch {}
 
     return true;
   }
