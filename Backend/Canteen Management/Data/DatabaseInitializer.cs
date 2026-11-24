@@ -1,5 +1,6 @@
 using System.Data;
 using System.Text.RegularExpressions;
+using CanteenManagement.API.Helpers;
 using Dapper;
 using Microsoft.Extensions.Logging;
 using MySqlConnector;
@@ -62,6 +63,27 @@ namespace CanteenManagement.API.Data
                 catch (Exception ex)
                 {
                     logger.LogInformation("Database column schema verification: {Message}", ex.Message);
+                }
+
+                // Ensure default Cashier user exists safely
+                try
+                {
+                    using var userConn = new MySqlConnection(activeCs);
+                    await userConn.OpenAsync();
+                    var cashierExists = await userConn.ExecuteScalarAsync<int>("SELECT COUNT(1) FROM Users WHERE Username = 'cashier' OR Email = 'cashier@canteen.edu';");
+                    if (cashierExists == 0)
+                    {
+                        var cashierHash = PasswordHasher.HashPassword("Cashier@123");
+                        await userConn.ExecuteAsync(@"
+                            INSERT INTO Users (CampusId, Username, Email, PasswordHash, FullName, Role, PhoneNumber, IsActive, CreatedAt)
+                            VALUES (1, 'cashier', 'cashier@canteen.edu', @PasswordHash, 'Rahul Verma (Cashier)', 'Cashier', '+91 98765 43215', 1, UTC_TIMESTAMP());",
+                            new { PasswordHash = cashierHash });
+                        logger.LogInformation("Default Cashier account 'cashier' seeded successfully.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogInformation("Cashier user verification: {Message}", ex.Message);
                 }
 
                 // Cloud database on Hostinger is already deployed and verified.
