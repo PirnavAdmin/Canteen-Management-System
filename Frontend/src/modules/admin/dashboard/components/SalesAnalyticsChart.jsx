@@ -86,14 +86,22 @@ export const SalesAnalyticsChart = ({ salesData = {}, loading = false }) => {
           </div>
           <div className="skeleton-box" style={{ width: '120px', height: '28px', borderRadius: '4px' }} />
         </div>
-        {/* Bars Skeleton */}
+        {/* Bars Skeleton with Y-axis */}
         <div style={{ flex: 1, display: 'flex', alignItems: 'flex-end', gap: '8px', paddingBottom: '20px' }}>
-          {[40, 65, 30, 80, 50, 90, 45].map((h, i) => (
-            <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
-              <div className="skeleton-box" style={{ width: '100%', maxWidth: '28px', height: `${h}%`, borderRadius: '4px 4px 0 0' }} />
-              <div className="skeleton-box" style={{ width: '20px', height: '8px' }} />
-            </div>
-          ))}
+          <div style={{ width: '28px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+            <div className="skeleton-box" style={{ width: '20px', height: '10px' }} />
+            <div className="skeleton-box" style={{ width: '20px', height: '10px' }} />
+            <div className="skeleton-box" style={{ width: '20px', height: '10px' }} />
+            <div className="skeleton-box" style={{ width: '12px', height: '10px' }} />
+          </div>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'flex-end', gap: '8px', height: '100%' }}>
+            {[40, 65, 30, 80, 50, 90, 45].map((h, i) => (
+              <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+                <div className="skeleton-box" style={{ width: '100%', maxWidth: '28px', height: `${h}%`, borderRadius: '4px 4px 0 0' }} />
+                <div className="skeleton-box" style={{ width: '20px', height: '8px' }} />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -125,7 +133,33 @@ export const SalesAnalyticsChart = ({ salesData = {}, loading = false }) => {
 
   const values = chartData.map(d => Number(d.sales ?? 0));
   const totalSales = values.reduce((acc, v) => acc + v, 0);
-  const maxVal = Math.max(...values, 1);
+
+  // Compute clean Y-axis scale based on No. of Orders
+  const orderCounts = chartData.map(d => Number(d.orders ?? 0));
+  const maxOrdersRaw = Math.max(...orderCounts, 0);
+
+  let yMax = 5;
+  if (maxOrdersRaw <= 5) {
+    yMax = 5;
+  } else if (maxOrdersRaw <= 10) {
+    yMax = 10;
+  } else if (maxOrdersRaw <= 20) {
+    yMax = 20;
+  } else if (maxOrdersRaw <= 40) {
+    yMax = 40;
+  } else if (maxOrdersRaw <= 60) {
+    yMax = 60;
+  } else {
+    yMax = Math.ceil(maxOrdersRaw / 10) * 10;
+  }
+
+  const yTicks = [
+    yMax,
+    Math.round((yMax * 2) / 3),
+    Math.round(yMax / 3),
+    0
+  ];
+
   const chartHeight = 150;
 
   return (
@@ -243,88 +277,158 @@ export const SalesAnalyticsChart = ({ salesData = {}, loading = false }) => {
         </div>
       </div>
 
-      {/* Bar / Column Chart Body (Representing Sales in Rupees) */}
+      {/* Chart Body: Y-Axis on Left + Bar Chart Area */}
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', position: 'relative' }}>
         <div style={{
           display: 'flex',
           alignItems: 'flex-end',
-          gap: '6px',
           height: `${chartHeight}px`,
-          borderBottom: '1px solid var(--border-color)',
-          paddingBottom: '2px'
+          position: 'relative'
         }}>
-          {chartData.map((item, idx) => {
-            const currentVal = Number(item.sales ?? 0);
-            const hasValue = currentVal > 0;
-            const barHeightPercent = hasValue ? Math.max(12, Math.round((currentVal / (maxVal || 1)) * 100)) : 4;
-            const isHovered = hoveredPoint === idx;
+          {/* Y-Axis Column (Showing No. of Orders) */}
+          <div style={{
+            width: '28px',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            alignItems: 'flex-end',
+            paddingRight: '6px',
+            paddingBottom: '2px',
+            fontSize: '9px',
+            color: 'var(--text-muted)',
+            fontWeight: 600,
+            userSelect: 'none',
+            flexShrink: 0
+          }}>
+            {yTicks.map((tick, idx) => (
+              <span key={idx} style={{ lineHeight: 1 }} title={`${tick} orders`}>
+                {tick}
+              </span>
+            ))}
+          </div>
 
-            return (
-              <div
-                key={idx}
-                onMouseEnter={() => setHoveredPoint(idx)}
-                onMouseLeave={() => setHoveredPoint(null)}
-                style={{
-                  flex: 1,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  height: '100%',
-                  justifyContent: 'flex-end',
-                  position: 'relative',
-                  cursor: 'pointer'
-                }}
-              >
-                {/* Floating Tooltip displaying BOTH Sales in Rupees and Items Sold */}
-                {isHovered && (
-                  <div style={{
-                    position: 'absolute',
-                    bottom: `${Math.min(85, barHeightPercent + 10)}%`,
-                    backgroundColor: '#0f172a',
-                    color: '#ffffff',
-                    padding: '5px 9px',
-                    borderRadius: '4px',
-                    fontSize: '10.5px',
-                    whiteSpace: 'nowrap',
-                    zIndex: 30,
-                    pointerEvents: 'none',
-                    boxShadow: 'var(--shadow-md)',
-                    textAlign: 'center'
-                  }}>
-                    <div style={{ fontWeight: 600, borderBottom: '1px solid rgba(255,255,255,0.2)', paddingBottom: '2px', marginBottom: '2px' }}>
-                      {item.fullLabel || item.label}
-                    </div>
-                    <div>Sales: <strong>{formatCurrency(item.sales || 0)}</strong></div>
-                    <div>Items Sold: <strong>{formatNumber(item.items || 0)}</strong> ({formatNumber(item.orders || 0)} orders)</div>
-                  </div>
-                )}
-
-                {/* Bar Element */}
+          {/* Bar Chart Area with Guide Lines */}
+          <div style={{
+            flex: 1,
+            height: '100%',
+            position: 'relative',
+            borderLeft: '1px solid var(--border-color)',
+            borderBottom: '1px solid var(--border-color)',
+            display: 'flex',
+            alignItems: 'flex-end',
+            gap: '6px',
+            paddingBottom: '2px',
+            paddingLeft: '4px',
+            paddingRight: '4px'
+          }}>
+            {/* Horizontal Dashed Guide Lines */}
+            <div style={{
+              position: 'absolute',
+              inset: 0,
+              pointerEvents: 'none',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between'
+            }}>
+              {yTicks.map((_, idx) => (
                 <div
+                  key={idx}
                   style={{
                     width: '100%',
-                    maxWidth: '30px',
-                    height: `${barHeightPercent}%`,
-                    backgroundColor: isHovered
-                      ? 'var(--color-primary)'
-                      : item.isToday
-                        ? '#2563eb'
-                        : hasValue
-                          ? 'var(--color-accent)'
-                          : 'var(--border-color)',
-                    opacity: hasValue ? 1 : 0.45,
-                    borderRadius: '3px 3px 0 0',
-                    transition: 'all 160ms ease',
-                    boxShadow: item.isToday ? '0 0 0 1px var(--color-primary)' : 'none'
+                    borderTop: idx === yTicks.length - 1 ? 'none' : '1px dashed var(--border-color-subtle, rgba(200,200,200,0.25))',
+                    height: 0
                   }}
                 />
-              </div>
-            );
-          })}
+              ))}
+            </div>
+
+            {/* Bars scaled to No. of Orders */}
+            {chartData.map((item, idx) => {
+              const orderVal = Number(item.orders ?? 0);
+              const hasOrders = orderVal > 0;
+              const barHeightPercent = hasOrders
+                ? Math.min(100, Math.max(10, Math.round((orderVal / (yMax || 1)) * 100)))
+                : (item.sales > 0 ? 8 : 4);
+              const isHovered = hoveredPoint === idx;
+
+              return (
+                <div
+                  key={idx}
+                  onMouseEnter={() => setHoveredPoint(idx)}
+                  onMouseLeave={() => setHoveredPoint(null)}
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    height: '100%',
+                    justifyContent: 'flex-end',
+                    position: 'relative',
+                    cursor: 'pointer',
+                    zIndex: 2
+                  }}
+                >
+                  {/* Floating Tooltip displaying Orders, Sales in Rupees, and Items Sold */}
+                  {isHovered && (
+                    <div style={{
+                      position: 'absolute',
+                      bottom: `${Math.min(85, barHeightPercent + 10)}%`,
+                      backgroundColor: '#0f172a',
+                      color: '#ffffff',
+                      padding: '5px 9px',
+                      borderRadius: '4px',
+                      fontSize: '10.5px',
+                      whiteSpace: 'nowrap',
+                      zIndex: 30,
+                      pointerEvents: 'none',
+                      boxShadow: 'var(--shadow-md)',
+                      textAlign: 'center'
+                    }}>
+                      <div style={{ fontWeight: 600, borderBottom: '1px solid rgba(255,255,255,0.2)', paddingBottom: '2px', marginBottom: '2px' }}>
+                        {item.fullLabel || item.label}
+                      </div>
+                      <div>Orders: <strong>{formatNumber(item.orders || 0)} orders</strong></div>
+                      <div>Sales: <strong>{formatCurrency(item.sales || 0)}</strong></div>
+                      <div>Items Sold: <strong>{formatNumber(item.items || 0)}</strong></div>
+                    </div>
+                  )}
+
+                  {/* Bar Element */}
+                  <div
+                    style={{
+                      width: '100%',
+                      maxWidth: '30px',
+                      height: `${barHeightPercent}%`,
+                      backgroundColor: isHovered
+                        ? 'var(--color-primary)'
+                        : item.isToday
+                          ? '#2563eb'
+                          : hasOrders
+                            ? 'var(--color-accent)'
+                            : 'var(--border-color)',
+                      opacity: hasOrders ? 1 : 0.45,
+                      borderRadius: '3px 3px 0 0',
+                      transition: 'all 160ms ease',
+                      boxShadow: item.isToday ? '0 0 0 1px var(--color-primary)' : 'none'
+                    }}
+                  />
+                </div>
+              );
+            })}
+          </div>
         </div>
 
-        {/* X-axis labels */}
-        <div style={{ display: 'flex', gap: '6px', marginTop: '4px', paddingTop: '2px' }}>
+        {/* X-axis labels (offset with marginLeft to align right under the bars) */}
+        <div style={{
+          display: 'flex',
+          marginLeft: '28px',
+          paddingLeft: '4px',
+          paddingRight: '4px',
+          gap: '6px',
+          marginTop: '4px',
+          paddingTop: '2px'
+        }}>
           {chartData.map((item, idx) => (
             <div
               key={idx}
