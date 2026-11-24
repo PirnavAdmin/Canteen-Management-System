@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { X } from 'lucide-react';
 import { Button } from '../../../../components/common/Button';
+import { IngredientMultiSelectDropdown } from './IngredientMultiSelectDropdown';
 
 export const SupplierModal = ({
   isOpen,
@@ -16,34 +17,53 @@ export const SupplierModal = ({
     email: '',
     phone: '',
     address: '',
-    suppliedCategories: ''
+    suppliedCategories: '',
+    status: 'Active'
   });
   const [error, setError] = useState('');
 
   const isEdit = Boolean(initialData);
 
   useEffect(() => {
-    if (initialData) {
-      setFormData({
-        name: initialData.name || initialData.contactPerson || '',
-        contactPerson: initialData.contactPerson || initialData.name || '',
-        email: initialData.email || '',
-        phone: initialData.phone || '',
-        address: initialData.address || '',
-        suppliedCategories: initialData.suppliedCategories || ''
-      });
-    } else {
-      setFormData({
-        name: '',
-        contactPerson: '',
-        email: '',
-        phone: '',
-        address: '',
-        suppliedCategories: ''
-      });
+    if (isOpen) {
+      if (initialData) {
+        setFormData({
+          name: initialData.name || initialData.contactPerson || '',
+          contactPerson: initialData.contactPerson || initialData.name || '',
+          email: initialData.email || '',
+          phone: initialData.phone || '',
+          address: initialData.address || '',
+          suppliedCategories: initialData.suppliedCategories || '',
+          status: initialData.status || 'Active'
+        });
+      } else {
+        setFormData({
+          name: '',
+          contactPerson: '',
+          email: '',
+          phone: '',
+          address: '',
+          suppliedCategories: '',
+          status: 'Active'
+        });
+      }
+      setError('');
     }
-    setError('');
   }, [initialData, isOpen]);
+
+  const handleClose = () => {
+    setFormData({
+      name: '',
+      contactPerson: '',
+      email: '',
+      phone: '',
+      address: '',
+      suppliedCategories: '',
+      status: 'Active'
+    });
+    setError('');
+    onClose();
+  };
 
   if (!isOpen) return null;
 
@@ -55,13 +75,14 @@ export const SupplierModal = ({
     }
     const payload = {
       ...formData,
-      status: initialData?.status || 'Active'
+      status: formData.status || 'Active'
     };
     if (onSaveSupplier) {
       await onSaveSupplier(payload);
+      handleClose();
     } else if (onAddSupplier) {
       await onAddSupplier(payload);
-      onClose();
+      handleClose();
     }
   };
 
@@ -102,7 +123,7 @@ export const SupplierModal = ({
               {isEdit ? 'Update existing supplier fields and raw material mappings.' : 'Add a trusted kitchen raw material supplier.'}
             </p>
           </div>
-          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>
+          <button type="button" onClick={handleClose} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>
             <X size={18} />
           </button>
         </div>
@@ -149,29 +170,58 @@ export const SupplierModal = ({
             </div>
           </div>
 
-          <div>
-            <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
-              Email Address
-            </label>
-            <input
-              type="email"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              placeholder="e.g. orders@supplier.com"
-              style={{ width: '100%', height: '36px', padding: '0 8px', fontSize: '13px', border: '1px solid var(--border-color)', borderRadius: 'var(--border-radius-md)' }}
-            />
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '12px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
+                Email Address
+              </label>
+              <input
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                placeholder="e.g. orders@supplier.com"
+                style={{ width: '100%', height: '36px', padding: '0 8px', fontSize: '13px', border: '1px solid var(--border-color)', borderRadius: 'var(--border-radius-md)', backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)' }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
+                Status *
+              </label>
+              <select
+                value={formData.status}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                style={{
+                  width: '100%',
+                  height: '36px',
+                  padding: '0 8px',
+                  fontSize: '13px',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: 'var(--border-radius-md)',
+                  backgroundColor: 'var(--bg-surface)',
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </select>
+            </div>
           </div>
 
           <div>
             <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
               Supplied Categories / Ingredients
             </label>
-            <input
-              type="text"
-              value={formData.suppliedCategories}
-              onChange={(e) => setFormData({ ...formData, suppliedCategories: e.target.value })}
-              placeholder="e.g. Dairy Products, Milk, Paneer, Butter"
-              style={{ width: '100%', height: '36px', padding: '0 8px', fontSize: '13px', border: '1px solid var(--border-color)', borderRadius: 'var(--border-radius-md)' }}
+            <IngredientMultiSelectDropdown
+              placeholder="Search or select supplied ingredients (e.g. Dairy, Milk, Rice...)"
+              selected={formData.suppliedCategories ? formData.suppliedCategories.split(',').map(s => s.trim()).filter(Boolean) : []}
+              onChange={(newSelected) => {
+                setFormData(prev => ({
+                  ...prev,
+                  suppliedCategories: newSelected.join(', ')
+                }));
+              }}
             />
           </div>
 
@@ -191,11 +241,11 @@ export const SupplierModal = ({
           {error && <div style={{ fontSize: '11.5px', color: 'var(--color-danger)' }}>{error}</div>}
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px', borderTop: '1px solid var(--border-color)', paddingTop: '14px' }}>
-            <Button variant="secondary" onClick={onClose} type="button" disabled={loading}>
+            <Button variant="secondary" onClick={handleClose} type="button" disabled={loading}>
               Cancel
             </Button>
             <Button variant="primary" type="submit" loading={loading}>
-              {isEdit ? 'Edit Supplier' : 'Register Supplier'}
+              {isEdit ? 'Save Changes' : 'Register Supplier'}
             </Button>
           </div>
         </form>

@@ -14,19 +14,60 @@ const demoAccounts = [
 ];
 
 export const LoginPage = () => {
-  const navigate = useNavigate(); const location = useLocation(); const { login } = useAuth();
-  const [usernameOrEmail, setUsernameOrEmail] = useState(''); const [password, setPassword] = useState(''); const [loading, setLoading] = useState(false); const [error, setError] = useState('');
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { login } = useAuth();
+  const [usernameOrEmail, setUsernameOrEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const from = location.state?.from?.pathname || '/admin/dashboard';
-  const getDestination = (loggedUser) => {
-    let userRole = loggedUser?.role || loggedUser?.roleCode || loggedUser?.userType;
-    if (!userRole) { try { const stored = JSON.parse(localStorage.getItem('auth_user') || '{}'); userRole = stored.role || stored.roleCode || stored.userType; } catch { userRole = ''; } }
+
+  const getDestination = (loggedUser, inputUser = '') => {
+    let userRole = loggedUser?.role || loggedUser?.Role || loggedUser?.roleCode || loggedUser?.roleName || loggedUser?.userType || (Array.isArray(loggedUser?.roles) ? loggedUser.roles[0] : null);
+    if (!userRole) {
+      try {
+        const stored = JSON.parse(localStorage.getItem('auth_user') || '{}');
+        userRole = stored.role || stored.Role || stored.roleCode || stored.roleName || stored.userType || (Array.isArray(stored.roles) ? stored.roles[0] : null);
+      } catch { userRole = ''; }
+    }
+    const lowerInput = String(inputUser).trim().toLowerCase();
+    if (!userRole) {
+      if (lowerInput === 'cashier' || lowerInput.startsWith('cashier@')) userRole = 'Cashier';
+      else if (lowerInput === 'staff' || lowerInput.startsWith('staff@')) userRole = 'Staff';
+      else if (lowerInput === 'aarav' || lowerInput === 'student' || lowerInput.startsWith('student@')) userRole = 'Student';
+      else if (lowerInput.includes('faculty') || lowerInput.includes('sunita.rao')) userRole = 'Faculty';
+      else if (lowerInput === 'admin' || lowerInput.startsWith('admin@')) userRole = 'Admin';
+    }
     const role = String(userRole || '').toUpperCase();
-    if (role.includes('CASHIER')) return '/cashier/dashboard'; if (role.includes('STUDENT') || role.includes('FACULTY')) return '/customer/dashboard'; if (role.includes('STAFF')) return '/staff/dashboard';
-    return from && from !== '/' && !from.startsWith('/customer') ? from : '/admin/dashboard';
+    if (role.includes('CASHIER')) return '/cashier/dashboard';
+    if (role.includes('STUDENT') || role.includes('FACULTY')) return '/customer/dashboard';
+    if (role.includes('STAFF')) return '/staff/dashboard';
+    if (role.includes('ADMIN')) return '/admin/dashboard';
+    return from && from !== '/' && !from.startsWith('/customer') && !from.startsWith('/staff') ? from : '/admin/dashboard';
   };
-  const signIn = async (username, userPassword) => { try { setLoading(true); setError(''); const authData = await login(username.trim(), userPassword); navigate(getDestination(authData?.user), { replace: true }); } catch (err) { setError(err.message || 'Invalid username or password. Please try again.'); } finally { setLoading(false); } };
-  const handleSubmit = (event) => { event.preventDefault(); if (!usernameOrEmail.trim() || !password) { setError('Please enter both username/email and password.'); return; } signIn(usernameOrEmail, password); };
-  const handleQuickLogin = (username, userPassword) => { setUsernameOrEmail(username); setPassword(userPassword); signIn(username, userPassword); };
+
+  const signIn = async (username, userPassword) => {
+    try {
+      setLoading(true);
+      setError('');
+      const authData = await login(username.trim(), userPassword);
+      navigate(getDestination(authData?.user || authData, username), { replace: true });
+    } catch (err) {
+      setError(err.message || 'Invalid username or password. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    if (!usernameOrEmail.trim() || !password) {
+      setError('Please enter both username/email and password.');
+      return;
+    }
+    signIn(usernameOrEmail, password);
+  };
 
   return <main className={styles.page}><section className={styles.shell} aria-label="Canteen Management sign in">
     <aside className={styles.illustrationPanel}>
@@ -36,7 +77,7 @@ export const LoginPage = () => {
     </aside>
     <section className={styles.formPanel}>
       <header className={styles.branding}><div className={styles.logo}><Utensils size={35} strokeWidth={2.2} /></div><h1>Canteen Management</h1><p>Sign in to access SMS &amp; CMS portal controls</p></header>
-      <div className={styles.demoBox}><p>⚡ <strong>Quick Demo Accounts (Click to Sign In):</strong></p><div className={styles.demoButtons}>{demoAccounts.map(([username, userPassword, label]) => <button key={username} type="button" disabled={loading} onClick={() => handleQuickLogin(username, userPassword)}>{label}</button>)}</div></div>
+      <div className={styles.demoBox}><p>⚡ <strong>Quick Demo Accounts (Click to Sign In):</strong></p><div className={styles.demoButtons}>{demoAccounts.map(([username, userPassword, label]) => <button key={username} type="button" disabled={loading} onClick={() => signIn(username, userPassword)}>{label}</button>)}</div></div>
       {error && <div className={styles.error}><AlertCircle size={17} /><span>{error}</span></div>}
       <form className={styles.form} onSubmit={handleSubmit}>
         <label><span>Username or Email</span><div className={styles.inputWrap}><UserRound size={25} /><input type="text" value={usernameOrEmail} onChange={(event) => setUsernameOrEmail(event.target.value)} placeholder="Enter username or email" autoComplete="username" required /></div></label>

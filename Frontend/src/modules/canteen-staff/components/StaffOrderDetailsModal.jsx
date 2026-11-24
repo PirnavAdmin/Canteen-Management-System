@@ -1,6 +1,14 @@
 import React from 'react';
-import { X, Clock, ShoppingBag, ChefHat } from 'lucide-react';
+import { X, Clock, ShoppingBag, ChefHat, CheckCircle2 } from 'lucide-react';
 import { ORDER_STATUS } from '../../../constants/appConstants';
+import {
+  isStatusPlaced,
+  isStatusAccepted,
+  isStatusPreparing,
+  isStatusReady,
+  isStatusCompleted,
+  isStatusCancelled
+} from '../services/staffOrderService';
 
 export const StaffOrderDetailsModal = ({
   isOpen,
@@ -9,6 +17,7 @@ export const StaffOrderDetailsModal = ({
   onAccept,
   onStartCooking,
   onMarkReady,
+  onCompleteOrder,
   onVerifyPickup,
   onReject
 }) => {
@@ -36,12 +45,12 @@ export const StaffOrderDetailsModal = ({
     ? d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
     : '—';
 
-  const isPlaced = status === ORDER_STATUS.PLACED;
-  const isAccepted = status === ORDER_STATUS.ACCEPTED;
-  const isPreparing = status === ORDER_STATUS.PREPARING;
-  const isReady = status === ORDER_STATUS.READY_FOR_PICKUP || status === 'Ready for Pickup';
-  const isCompleted = status === ORDER_STATUS.COMPLETED;
-  const isCancelled = status === ORDER_STATUS.CANCELLED || status === ORDER_STATUS.REFUNDED;
+  const isPlaced = isStatusPlaced(status);
+  const isAccepted = isStatusAccepted(status);
+  const isPreparing = isStatusPreparing(status);
+  const isReady = isStatusReady(status);
+  const isCompleted = isStatusCompleted(status);
+  const isCancelled = isStatusCancelled(status);
 
   const totalPortions = items.reduce((sum, item) => sum + (Number(item.quantity) || 1), 0);
 
@@ -404,29 +413,13 @@ export const StaffOrderDetailsModal = ({
               </button>
             )}
 
-            {isAccepted && (
+            {(isPreparing || isAccepted) && (
               <button
                 type="button"
-                onClick={() => onStartCooking(order.id)}
-                style={{
-                  padding: '6px 16px',
-                  borderRadius: '6px',
-                  border: 'none',
-                  backgroundColor: '#ea580c',
-                  color: '#ffffff',
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  cursor: 'pointer'
+                onClick={() => {
+                  onClose();
+                  onMarkReady(order.id);
                 }}
-              >
-                Start Preparation (Cook)
-              </button>
-            )}
-
-            {isPreparing && (
-              <button
-                type="button"
-                onClick={() => onMarkReady(order.id)}
                 style={{
                   padding: '6px 16px',
                   borderRadius: '6px',
@@ -443,22 +436,50 @@ export const StaffOrderDetailsModal = ({
             )}
 
             {isReady && (
-              <button
-                type="button"
-                onClick={() => onVerifyPickup(order)}
-                style={{
-                  padding: '6px 16px',
-                  borderRadius: '6px',
-                  border: 'none',
-                  backgroundColor: '#10b981',
-                  color: '#ffffff',
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{
                   fontSize: '12px',
+                  color: '#059669',
                   fontWeight: 700,
-                  cursor: 'pointer'
-                }}
-              >
-                Verify Pickup Token & Complete
-              </button>
+                  padding: '6px 14px',
+                  borderRadius: '6px',
+                  backgroundColor: '#ecfdf5',
+                  border: '1px solid #a7f3d0',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}>
+                  <CheckCircle2 size={15} />
+                  <span>Ready for Pickup {order.prepDurationFormatted ? `(${order.prepDurationFormatted})` : ''}</span>
+                </div>
+
+                {onCompleteOrder && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onCompleteOrder(order.id);
+                    }}
+                    style={{
+                      padding: '6px 16px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      backgroundColor: '#059669',
+                      color: '#ffffff',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      boxShadow: 'var(--shadow-xs)'
+                    }}
+                  >
+                    <CheckCircle2 size={14} />
+                    <span>Mark Collected</span>
+                  </button>
+                )}
+              </div>
             )}
 
             {isCompleted && (

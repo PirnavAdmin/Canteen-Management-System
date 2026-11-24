@@ -148,5 +148,138 @@ namespace CanteenManagement.API.DTOs.Inventory
         public int LinkedPOCount { get; set; }
         public string Message { get; set; } = string.Empty;
     }
+
+    public class CreateInventoryItemDto
+    {
+        [Required]
+        [MaxLength(100)]
+        public string IngredientName { get; set; } = string.Empty;
+
+        [MaxLength(50)]
+        public string Category { get; set; } = "Groceries";
+
+        public decimal AvailableQuantity { get; set; } = 0;
+
+        [MaxLength(20)]
+        public string Unit { get; set; } = "kg";
+
+        public decimal ReorderLevel { get; set; } = 10;
+
+        public decimal CostPerUnit { get; set; } = 0;
+
+        public int? OutletId { get; set; } = 1;
+
+        [MaxLength(50)]
+        public string? BatchNumber { get; set; }
+
+        public DateTime? ExpiryDate { get; set; }
+
+        [MaxLength(30)]
+        public string Status { get; set; } = "In Stock";
+    }
+
+    public class UpdateInventoryItemDto
+    {
+        [MaxLength(100)]
+        public string? IngredientName { get; set; }
+
+        [MaxLength(50)]
+        public string? Category { get; set; }
+
+        public decimal? AvailableQuantity { get; set; }
+
+        [MaxLength(20)]
+        public string? Unit { get; set; }
+
+        public decimal? ReorderLevel { get; set; }
+
+        public decimal? CostPerUnit { get; set; }
+
+        public int? OutletId { get; set; }
+
+        [MaxLength(50)]
+        public string? BatchNumber { get; set; }
+
+        public DateTime? ExpiryDate { get; set; }
+
+        [MaxLength(30)]
+        public string? Status { get; set; }
+    }
+
+    public class StockRequestDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public string RequestId { get => Id; set => Id = value; }
+        public int CampusId { get; set; }
+        public int OutletId { get; set; }
+        public string OutletName { get; set; } = "Kitchen Outlet";
+        public int? SourceOutletId { get; set; }
+        public int? ItemId { get; set; }
+        public string ItemCode { get; set; } = "ING-REQ";
+        public string ItemName { get; set; } = string.Empty;
+        public string IngredientName => ItemName;
+        public string Category { get; set; } = "Groceries";
+        public decimal RequestedQuantity { get; set; }
+        public decimal Quantity => RequestedQuantity;
+        public decimal? IssuedQuantity { get; set; }
+        public string Unit { get; set; } = "kg";
+        public string Urgency { get; set; } = "Normal";
+        public string Status { get; set; } = "Pending Review";
+        public string? Notes { get; set; }
+        public string? AdminNotes { get; set; }
+        public string? RequiredByDate { get; set; }
+        public string RequestedBy { get; set; } = string.Empty;
+        public string? DispatchedBy { get; set; }
+        public string? ReceivedBy { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime? DispatchedAt { get; set; }
+        public DateTime? ReceivedAt { get; set; }
+    }
+
+    public class CreateStockRequestDto
+    {
+        [Required]
+        public int OutletId { get; set; }
+
+        public int? ItemId { get; set; }
+
+        public string? ItemCode { get; set; }
+
+        [Required]
+        [MaxLength(100)]
+        public string ItemName { get; set; } = string.Empty;
+
+        [MaxLength(50)]
+        public string? Category { get; set; } = "Groceries";
+
+        [Required]
+        public decimal RequestedQuantity { get; set; }
+
+        [MaxLength(20)]
+        public string? Unit { get; set; } = "kg";
+
+        [MaxLength(20)]
+        public string? Urgency { get; set; } = "Normal";
+
+        public string? Notes { get; set; }
+
+        public DateTime? RequiredByDate { get; set; }
+
+        public string? RequestedBy { get; set; }
+    }
+
+    public class DispatchStockRequestDto
+    {
+        [Required]
+        public decimal IssuedQuantity { get; set; }
+
+        public string? AdminNotes { get; set; }
+    }
+
+    public class RejectStockRequestDto
+    {
+        [Required]
+        public string Reason { get; set; } = string.Empty;
+    }
 }
 

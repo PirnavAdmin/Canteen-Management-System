@@ -3,6 +3,22 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { AppLayout } from '../components/layout/AppLayout';
 import { NotFoundPage } from '../components/common/NotFoundPage';
 import { ProtectedRoute } from '../modules/auth/components/ProtectedRoute';
+import { useAuth } from './providers/AuthProvider';
+
+// Dynamic role-aware entry redirect
+const RoleBasedHomeRedirect = () => {
+  const { user, role, loading } = useAuth();
+  if (loading) return null;
+
+  const userRole = String(role || user?.role || user?.Role || '').toUpperCase();
+  if (userRole.includes('STAFF')) {
+    return <Navigate to="/staff/dashboard" replace />;
+  }
+  if (userRole.includes('STUDENT') || userRole.includes('FACULTY')) {
+    return <Navigate to="/customer/dashboard" replace />;
+  }
+  return <Navigate to="/admin/dashboard" replace />;
+};
 
 // Lazy-loaded Auth Pages
 const LoginPage = lazy(() => import('../modules/auth/pages/LoginPage'));
@@ -264,11 +280,11 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <Navigate to="/admin/dashboard" replace />
+        element: <RoleBasedHomeRedirect />
       },
       {
         path: 'dashboard',
-        element: <Navigate to="/admin/dashboard" replace />
+        element: <RoleBasedHomeRedirect />
       },
       {
         path: 'admin',

@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Search,
   RefreshCw,
@@ -12,18 +13,29 @@ import {
   Calendar,
   RotateCcw,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  History,
+  Flame
 } from 'lucide-react';
 import { useStaffOrders } from '../hooks/useStaffOrders';
 import { STAFF_APP_CONFIG } from '../constants/staffNavigation';
 import { ORDER_STATUS } from '../../../constants/appConstants';
+import {
+  isStatusPlaced,
+  isStatusAccepted,
+  isStatusPreparing,
+  isStatusReady,
+  isStatusCompleted,
+  isStatusCancelled
+} from '../services/staffOrderService';
+import { isSameIstDate, isWithinDaysIST } from '../../../utils/formatters';
 import { PageHeader } from '../../../components/common/PageHeader';
 import { Button } from '../../../components/common/Button';
 import { Pagination } from '../../../components/common/Pagination';
 import { StaffOrderTable } from '../components/StaffOrderTable';
+import { StaffOrderHistoryTable } from '../components/StaffOrderHistoryTable';
 import { StaffOrderDetailsModal } from '../components/StaffOrderDetailsModal';
 import { StaffOrderStatusModal } from '../components/StaffOrderStatusModal';
-import { StaffVerifyPickupModal } from '../components/StaffVerifyPickupModal';
 
 export const StaffOrderBoardPage = () => {
   const {
@@ -34,12 +46,16 @@ export const StaffOrderBoardPage = () => {
     acceptOrder,
     startPreparation,
     markReadyForPickup,
+    completeOrder,
     rejectOrder
   } = useStaffOrders();
 
+  // View Mode: 'active' (Operational Orders) | 'history' (Completed Orders)
+  const [viewMode, setViewMode] = useState('active');
+
   // Filter States
   const [searchQuery, setSearchQuery] = useState('');
-  const [dateFilter, setDateFilter] = useState('ALL'); // 'ALL' | 'TODAY' | 'WEEK' | 'MONTH'
+  const [dateFilter, setDateFilter] = useState('TODAY'); // 'ALL' | 'TODAY' | 'WEEK' | 'MONTH' (defaults to 'TODAY')
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [orderTypeFilter, setOrderTypeFilter] = useState('ALL');
 
@@ -65,57 +81,87 @@ export const StaffOrderBoardPage = () => {
     }, 4500);
   };
 
-  // 1. Calculate Exact Summary Metrics from backend order records
-  const summaryMetrics = useMemo(() => {
-    const total = orders.length;
-    const newOrders = orders.filter(o => o.status === ORDER_STATUS.PLACED).length;
-    const accepted = orders.filter(o => o.status === ORDER_STATUS.ACCEPTED).length;
-    const preparing = orders.filter(o => o.status === ORDER_STATUS.PREPARING).length;
-    const ready = orders.filter(
-      o => o.status === ORDER_STATUS.READY_FOR_PICKUP || o.status === 'Ready for Pickup'
-    ).length;
-    const completed = orders.filter(o => o.status === ORDER_STATUS.COMPLETED).length;
-
-    return { total, newOrders, accepted, preparing, ready, completed };
-  }, [orders]);
-
-  // 2. Filter Orders based on Search & Toolbar controls
-  const filteredOrders = useMemo(() => {
-    const now = new Date();
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    const sevenDaysAgo = startOfToday - 7 * 24 * 60 * 60 * 1000;
-    const thirtyDaysAgo = startOfToday - 30 * 24 * 60 * 60 * 1000;
+  // 1. Filter Orders by Date Range (Local IST / Business Date)
+  const dateFilteredOrders = useMemo(() => {
+    if (dateFilter === 'ALL') return orders;
 
     return orders.filter(order => {
-      // Search matching (Order ID or Token)
+      const orderDateVal = order.orderDate || order.createdAt;
+      if (!orderDateVal) return false;
+
+      if (dateFilter === 'TODAY') {
+        return isSameIstDate(orderDateVal);
+      }
+      if (dateFilter === 'WEEK') {
+        return isWithinDaysIST(orderDateVal, 7) || isSameIstDate(orderDateVal);
+      }
+      if (dateFilter === 'MONTH') {
+        return isWithinDaysIST(orderDateVal, 30) || isSameIstDate(orderDateVal);
+      }
+      return true;
+    });
+  }, [orders, dateFilter]);
+
+  // Operational Active Orders (exclude completed orders)
+  const activeOrders = useMemo(() => {
+    return dateFilteredOrders.filter(o => !isStatusCompleted(o.status));
+  }, [dateFilteredOrders]);
+
+  // Completed Orders for Order History
+  const completedOrders = useMemo(() => {
+    return dateFilteredOrders.filter(o => isStatusCompleted(o.status));
+  }, [dateFilteredOrders]);
+
+  // 2. Summary Metrics follows Required Logic:
+  // - Total Orders: Based on selected date and outlet
+  // - New Orders: Orders with Placed status
+  // - Preparing: Orders currently being prepared
+  // - Ready for Pickup: Orders waiting for collection
+  // - Collected: Collected / completed orders in the current scope
+  const summaryMetrics = useMemo(() => {
+    const total = dateFilteredOrders.length;
+    const newOrders = dateFilteredOrders.filter(o => isStatusPlaced(o.status)).length;
+    const preparing = dateFilteredOrders.filter(o => isStatusPreparing(o.status) || isStatusAccepted(o.status)).length;
+    const ready = dateFilteredOrders.filter(o => isStatusReady(o.status)).length;
+    const completed = dateFilteredOrders.filter(o => isStatusCompleted(o.status)).length;
+    const cancelled = dateFilteredOrders.filter(o => isStatusCancelled(o.status)).length;
+
+    return { total, newOrders, preparing, ready, completed, cancelled };
+  }, [dateFilteredOrders]);
+
+  // 3. Current Scope Orders for Active / History view
+  const currentScopeOrders = viewMode === 'active' ? activeOrders : completedOrders;
+
+  // 4. Filter Orders based on Search, Status, and Order Type
+  const filteredOrders = useMemo(() => {
+    return currentScopeOrders.filter(order => {
+      // Search matching (Order ID or Token or Customer Name)
       const q = searchQuery.trim().toLowerCase();
       if (q) {
         const id = String(order.id || '').toLowerCase();
         const token = String(order.token || '').toLowerCase();
+        const customerName = String(order.customer?.name || order.customerName || '').toLowerCase();
 
-        const matchesSearch = id.includes(q) || token.includes(q);
+        const matchesSearch = id.includes(q) || token.includes(q) || customerName.includes(q);
         if (!matchesSearch) return false;
       }
 
-      // Date Range Filter
-      if (dateFilter !== 'ALL') {
-        const orderDateVal = order.orderDate || order.createdAt;
-        if (!orderDateVal) return false;
-        const time = new Date(orderDateVal).getTime();
-        if (isNaN(time)) return false;
-
-        if (dateFilter === 'TODAY' && time < startOfToday) return false;
-        if (dateFilter === 'WEEK' && time < sevenDaysAgo) return false;
-        if (dateFilter === 'MONTH' && time < thirtyDaysAgo) return false;
-      }
-
-      // Order Status Filter
-      if (statusFilter !== 'ALL') {
-        const normSt = String(order.status || '').toLowerCase();
+      // Order Status Filter (only applies in Active view; History is always completed)
+      if (viewMode === 'active' && statusFilter !== 'ALL') {
         const targetSt = String(statusFilter).toLowerCase();
-        if (targetSt === 'ready for pickup') {
-          if (!normSt.includes('ready')) return false;
-        } else if (normSt !== targetSt) {
+        if (targetSt === 'placed' || targetSt === 'new') {
+          if (!isStatusPlaced(order.status)) return false;
+        } else if (targetSt === 'accepted') {
+          if (!isStatusAccepted(order.status)) return false;
+        } else if (targetSt === 'preparing') {
+          if (!isStatusPreparing(order.status)) return false;
+        } else if (targetSt === 'ready for pickup' || targetSt === 'ready') {
+          if (!isStatusReady(order.status)) return false;
+        } else if (targetSt === 'completed' || targetSt === 'collected') {
+          if (!isStatusCompleted(order.status)) return false;
+        } else if (targetSt === 'cancelled' || targetSt === 'refunded') {
+          if (!isStatusCancelled(order.status)) return false;
+        } else if (String(order.status || '').toLowerCase() !== targetSt) {
           return false;
         }
       }
@@ -130,9 +176,9 @@ export const StaffOrderBoardPage = () => {
 
       return true;
     });
-  }, [orders, searchQuery, dateFilter, statusFilter, orderTypeFilter]);
+  }, [currentScopeOrders, searchQuery, statusFilter, orderTypeFilter, viewMode]);
 
-  // 3. Paginated Data Slice
+  // 5. Paginated Data Slice
   const paginatedOrders = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return filteredOrders.slice(start, start + pageSize);
@@ -146,7 +192,7 @@ export const StaffOrderBoardPage = () => {
 
   const handleClearFilters = () => {
     setSearchQuery('');
-    setDateFilter('ALL');
+    setDateFilter('TODAY');
     setStatusFilter('ALL');
     setOrderTypeFilter('ALL');
     setCurrentPage(1);
@@ -154,8 +200,8 @@ export const StaffOrderBoardPage = () => {
 
   const hasActiveFilters = Boolean(
     searchQuery ||
-    dateFilter !== 'ALL' ||
-    statusFilter !== 'ALL' ||
+    dateFilter !== 'TODAY' ||
+    (viewMode === 'active' && statusFilter !== 'ALL') ||
     orderTypeFilter !== 'ALL'
   );
 
@@ -163,8 +209,9 @@ export const StaffOrderBoardPage = () => {
   const handleAcceptOrder = async (orderId) => {
     try {
       setActionLoadingId(orderId);
+      // Directly moves to Preparing stage without separate kitchen transfer
       const updated = await acceptOrder(orderId);
-      showNotification('success', 'Order Accepted & Sent to Kitchen', `Order #${updated.token || orderId} is now Preparing and queued in Kitchen Display.`);
+      showNotification('success', 'Order Accepted', `Order #${updated.token || orderId} accepted and cooking started.`);
       if (selectedOrderForView && String(selectedOrderForView.id) === String(orderId)) {
         setSelectedOrderForView(updated);
       }
@@ -179,7 +226,7 @@ export const StaffOrderBoardPage = () => {
     try {
       setActionLoadingId(orderId);
       const updated = await startPreparation(orderId);
-      showNotification('success', 'Cooking Started', `Order #${updated.token || orderId} moved to Preparing. Visible in Kitchen Display.`);
+      showNotification('success', 'Cooking Started', `Order #${updated.token || orderId} moved to Preparing.`);
       if (selectedOrderForView && String(selectedOrderForView.id) === String(orderId)) {
         setSelectedOrderForView(updated);
       }
@@ -194,12 +241,28 @@ export const StaffOrderBoardPage = () => {
     try {
       setActionLoadingId(orderId);
       const updated = await markReadyForPickup(orderId);
-      showNotification('success', 'Marked Ready', `Order #${updated.token || orderId} is plated and waiting for counter pickup.`);
+      showNotification('success', 'Marked Ready', `Order #${updated.token || orderId} is ready for customer pickup.`);
       if (selectedOrderForView && String(selectedOrderForView.id) === String(orderId)) {
         setSelectedOrderForView(updated);
       }
     } catch (err) {
       showNotification('error', 'Action Error', err.message || 'Failed to mark order ready.');
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  // Simplified Order Completion Handler (No QR / PIN verification required)
+  const handleCompleteOrder = async (orderId) => {
+    try {
+      setActionLoadingId(orderId);
+      const updated = await completeOrder(orderId);
+      showNotification('success', 'Order Completed', `Order #${updated.token || orderId} completed and moved to Order History.`);
+      if (selectedOrderForView && String(selectedOrderForView.id) === String(orderId)) {
+        setSelectedOrderForView(updated);
+      }
+    } catch (err) {
+      showNotification('error', 'Completion Error', err.message || 'Failed to complete order.');
     } finally {
       setActionLoadingId(null);
     }
@@ -306,14 +369,37 @@ export const StaffOrderBoardPage = () => {
           </div>
         }
         actions={
-          <Button
-            variant="secondary"
-            icon={RefreshCw}
-            onClick={refreshOrders}
-            loading={loading}
-          >
-            Refresh
-          </Button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Link to="/staff/kitchen" style={{ textDecoration: 'none' }}>
+              <Button variant="secondary" icon={Flame}>
+                Kitchen Display (KDS)
+              </Button>
+            </Link>
+            <Button
+              variant={viewMode === 'history' ? 'primary' : 'secondary'}
+              icon={History}
+              onClick={() => {
+                if (viewMode === 'active') {
+                  setViewMode('history');
+                  setDateFilter('ALL');
+                } else {
+                  setViewMode('active');
+                  setDateFilter('TODAY');
+                }
+                setCurrentPage(1);
+              }}
+            >
+              {viewMode === 'active' ? 'Order History' : 'Back to Active Orders'}
+            </Button>
+            <Button
+              variant="secondary"
+              icon={RefreshCw}
+              onClick={refreshOrders}
+              loading={loading}
+            >
+              Refresh
+            </Button>
+          </div>
         }
       />
 
@@ -344,6 +430,50 @@ export const StaffOrderBoardPage = () => {
             style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0 }}
           >
             <X size={15} />
+          </button>
+        </div>
+      )}
+
+      {/* Order History Mode Banner */}
+      {viewMode === 'history' && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          backgroundColor: 'var(--bg-surface)',
+          padding: '12px 18px',
+          borderRadius: 'var(--border-radius-md)',
+          border: '1px solid var(--border-color)',
+          boxShadow: 'var(--shadow-xs)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <History size={18} style={{ color: 'var(--color-primary)' }} />
+            <div>
+              <strong style={{ fontSize: '13px', color: 'var(--text-primary)' }}>Order History (Completed Orders)</strong>
+              <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: '8px' }}>
+                — Historical completed orders saved in database
+              </span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setViewMode('active');
+              setDateFilter('TODAY');
+              setCurrentPage(1);
+            }}
+            style={{
+              padding: '6px 14px',
+              borderRadius: '6px',
+              border: '1px solid var(--border-color)',
+              backgroundColor: 'var(--bg-app)',
+              color: 'var(--color-primary)',
+              fontSize: '12px',
+              fontWeight: 700,
+              cursor: 'pointer'
+            }}
+          >
+            ← Back to Active Orders
           </button>
         </div>
       )}
@@ -490,17 +620,25 @@ export const StaffOrderBoardPage = () => {
           </div>
         </div>
 
-        {/* Completed Orders */}
-        <div style={{
-          backgroundColor: 'var(--bg-surface)',
-          border: '1px solid var(--border-color)',
-          borderRadius: 'var(--border-radius-lg)',
-          padding: '12px 16px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          boxShadow: 'var(--shadow-xs)'
-        }}>
+        {/* Collected Orders */}
+        <div
+          onClick={() => {
+            setViewMode('history');
+            setCurrentPage(1);
+          }}
+          style={{
+            backgroundColor: 'var(--bg-surface)',
+            border: '1px solid var(--border-color)',
+            borderRadius: 'var(--border-radius-lg)',
+            padding: '12px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            boxShadow: 'var(--shadow-xs)',
+            cursor: 'pointer'
+          }}
+          title="Click to view Completed / Collected Order History"
+        >
           <div style={{
             width: '38px',
             height: '38px',
@@ -516,7 +654,7 @@ export const StaffOrderBoardPage = () => {
           </div>
           <div>
             <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-              Completed
+              Collected
             </div>
             <div style={{ fontSize: '20px', fontWeight: 800, color: '#10b981', lineHeight: 1.2 }}>
               {summaryMetrics.completed}
@@ -584,7 +722,7 @@ export const StaffOrderBoardPage = () => {
           {/* Result Count and Clear Filters */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto' }}>
             <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-              Showing <strong>{filteredOrders.length}</strong> of {orders.length} orders
+              Showing <strong>{filteredOrders.length}</strong> of {currentScopeOrders.length} {viewMode === 'active' ? 'active' : 'completed'} orders
             </span>
 
             {hasActiveFilters && (
@@ -646,36 +784,37 @@ export const StaffOrderBoardPage = () => {
             </select>
           </div>
 
-          {/* Order Status Filter */}
-          <div>
-            <label style={{ display: 'block', fontSize: '10.5px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '3px' }}>
-              Order Status
-            </label>
-            <select
-              value={statusFilter}
-              onChange={(e) => handleFilterChange(setStatusFilter, e.target.value)}
-              style={{
-                width: '100%',
-                height: '34px',
-                padding: '0 8px',
-                fontSize: '12px',
-                borderRadius: '6px',
-                border: '1px solid var(--border-color)',
-                backgroundColor: 'var(--bg-app)',
-                color: 'var(--text-primary)',
-                outline: 'none',
-                cursor: 'pointer'
-              }}
-            >
-              <option value="ALL">All Order Statuses</option>
-              <option value={ORDER_STATUS.PLACED}>Placed (New)</option>
-              <option value={ORDER_STATUS.ACCEPTED}>Accepted</option>
-              <option value={ORDER_STATUS.PREPARING}>Preparing</option>
-              <option value={ORDER_STATUS.READY_FOR_PICKUP}>Ready for Pickup</option>
-              <option value={ORDER_STATUS.COMPLETED}>Completed</option>
-              <option value={ORDER_STATUS.CANCELLED}>Cancelled</option>
-            </select>
-          </div>
+          {/* Order Status Filter (active mode only; in history view all orders are completed) */}
+          {viewMode === 'active' && (
+            <div>
+              <label style={{ display: 'block', fontSize: '10.5px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '3px' }}>
+                Order Status
+              </label>
+              <select
+                value={statusFilter}
+                onChange={(e) => handleFilterChange(setStatusFilter, e.target.value)}
+                style={{
+                  width: '100%',
+                  height: '34px',
+                  padding: '0 8px',
+                  fontSize: '12px',
+                  borderRadius: '6px',
+                  border: '1px solid var(--border-color)',
+                  backgroundColor: 'var(--bg-app)',
+                  color: 'var(--text-primary)',
+                  outline: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="ALL">All Order Statuses</option>
+                <option value={ORDER_STATUS.PLACED}>Placed (New)</option>
+                <option value={ORDER_STATUS.ACCEPTED}>Accepted</option>
+                <option value={ORDER_STATUS.PREPARING}>Preparing</option>
+                <option value={ORDER_STATUS.READY_FOR_PICKUP}>Ready for Pickup</option>
+                <option value={ORDER_STATUS.CANCELLED}>Cancelled</option>
+              </select>
+            </div>
+          )}
 
           {/* Order Type Filter */}
           <div>
@@ -708,20 +847,30 @@ export const StaffOrderBoardPage = () => {
         </div>
       </div>
 
-      {/* 4. Structured 9-Column Order Management Data Table */}
-      <StaffOrderTable
-        orders={paginatedOrders}
-        loading={loading}
-        actionLoadingId={actionLoadingId}
-        currentPage={currentPage}
-        pageSize={pageSize}
-        onViewDetails={(order) => setSelectedOrderForView(order)}
-        onAccept={handleAcceptOrder}
-        onStartCooking={handleStartCooking}
-        onMarkReady={handleMarkReady}
-        onVerifyPickup={handleOpenVerifyModal}
-        onReject={handleOpenReject}
-      />
+      {/* 4. Structured Order Management Data Table / Order History Table */}
+      {viewMode === 'active' ? (
+        <StaffOrderTable
+          orders={paginatedOrders}
+          loading={loading}
+          actionLoadingId={actionLoadingId}
+          currentPage={currentPage}
+          pageSize={pageSize}
+          onViewDetails={(order) => setSelectedOrderForView(order)}
+          onAccept={handleAcceptOrder}
+          onStartCooking={handleStartCooking}
+          onMarkReady={handleMarkReady}
+          onCompleteOrder={handleCompleteOrder}
+          onReject={handleOpenReject}
+        />
+      ) : (
+        <StaffOrderHistoryTable
+          orders={paginatedOrders}
+          loading={loading}
+          currentPage={currentPage}
+          pageSize={pageSize}
+          onViewDetails={(order) => setSelectedOrderForView(order)}
+        />
+      )}
 
       {/* 5. Pagination Bar */}
       {filteredOrders.length > 0 && (
@@ -747,7 +896,7 @@ export const StaffOrderBoardPage = () => {
           onAccept={handleAcceptOrder}
           onStartCooking={handleStartCooking}
           onMarkReady={handleMarkReady}
-          onVerifyPickup={handleOpenVerifyModal}
+          onCompleteOrder={handleCompleteOrder}
           onReject={handleOpenReject}
         />
       )}
@@ -759,16 +908,6 @@ export const StaffOrderBoardPage = () => {
           onClose={() => setSelectedOrderForEdit(null)}
           order={selectedOrderForEdit}
           onConfirm={handleUpdateStatusConfirm}
-        />
-      )}
-
-      {/* 8. Dedicated Verify Pickup Modal (Mandatory Token/Code Authentication) */}
-      {selectedOrderForVerify && (
-        <StaffVerifyPickupModal
-          isOpen={Boolean(selectedOrderForVerify)}
-          onClose={() => setSelectedOrderForVerify(null)}
-          order={selectedOrderForVerify}
-          onConfirmSuccess={handleVerifySuccess}
         />
       )}
 

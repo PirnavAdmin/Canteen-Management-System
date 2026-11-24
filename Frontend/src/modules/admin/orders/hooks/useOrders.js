@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { orderService } from '../services/orderService';
 import { useToast } from '../../../../app/providers/ToastProvider';
+import { notifyOrderStatusUpdated } from '../../../../utils/orderSync';
 
 export const useOrders = ({ localDemoMode = false } = {}) => {
   const [orders, setOrders] = useState([]);
@@ -50,7 +51,7 @@ export const useOrders = ({ localDemoMode = false } = {}) => {
       }
       const updated = await orderService.updateStatus(orderId, newStatus, note);
       setOrders(prev => prev.map(o => o.id === orderId ? updated : o));
-      window.dispatchEvent(new CustomEvent('cms:order_status_updated', { detail: updated }));
+      notifyOrderStatusUpdated(updated);
       success('Status Updated', `Order ${updated.token} moved to ${newStatus}.`);
       return updated;
     } catch (err) {
@@ -63,7 +64,7 @@ export const useOrders = ({ localDemoMode = false } = {}) => {
     try {
       const updated = await orderService.cancelOrder(orderId, reason);
       setOrders(prev => prev.map(o => o.id === orderId ? updated : o));
-      window.dispatchEvent(new CustomEvent('cms:order_status_updated', { detail: updated }));
+      notifyOrderStatusUpdated(updated);
       info('Order Cancelled', `Order ${updated.token} has been marked as Cancelled.`);
       return updated;
     } catch (err) {

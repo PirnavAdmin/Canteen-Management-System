@@ -32,6 +32,7 @@ namespace CanteenManagement.API.Data
         public DbSet<PaymentTransaction> PaymentTransactions => Set<PaymentTransaction>();
         public DbSet<InventoryItem> InventoryItems => Set<InventoryItem>();
         public DbSet<StockMovement> StockMovements => Set<StockMovement>();
+        public DbSet<StockRequest> StockRequests => Set<StockRequest>();
         public DbSet<Supplier> Suppliers => Set<Supplier>();
         public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
         public DbSet<FeedbackTicket> FeedbackTickets => Set<FeedbackTicket>();

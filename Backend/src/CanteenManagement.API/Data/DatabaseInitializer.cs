@@ -1,5 +1,6 @@
 using System.Data;
 using System.Text.RegularExpressions;
+using CanteenManagement.API.Helpers;
 using Dapper;
 using Microsoft.Extensions.Logging;
 using MySqlConnector;
@@ -58,14 +59,78 @@ namespace CanteenManagement.API.Data
                     await alterConn.ExecuteAsync("ALTER TABLE Orders ADD COLUMN IF NOT EXISTS Notes VARCHAR(500) NULL;");
                     await alterConn.ExecuteAsync("ALTER TABLE Orders ADD COLUMN IF NOT EXISTS PackagingFee DECIMAL(10,2) NOT NULL DEFAULT 0.00;");
                     await alterConn.ExecuteAsync("ALTER TABLE MenuItems ADD COLUMN IF NOT EXISTS DiscountPercent DECIMAL(5,2) NOT NULL DEFAULT 0.00;");
+
+                    // Ensure StockRequests table exists safely
+                    await alterConn.ExecuteAsync(@"
+                        CREATE TABLE IF NOT EXISTS StockRequests (
+                            RequestId INT AUTO_INCREMENT PRIMARY KEY,
+                            CampusId INT NOT NULL DEFAULT 1,
+                            OutletId INT NOT NULL,
+                            SourceOutletId INT NULL,
+                            ItemId INT NULL,
+                            ItemCode VARCHAR(50) NULL,
+                            ItemName VARCHAR(100) NOT NULL,
+                            Category VARCHAR(50) NOT NULL DEFAULT 'Groceries',
+                            RequestedQuantity DECIMAL(10,2) NOT NULL,
+                            IssuedQuantity DECIMAL(10,2) NULL,
+                            Unit VARCHAR(20) NOT NULL DEFAULT 'kg',
+                            Urgency VARCHAR(20) NOT NULL DEFAULT 'Normal',
+                            Status VARCHAR(30) NOT NULL DEFAULT 'Pending Review',
+                            Notes TEXT NULL,
+                            AdminNotes TEXT NULL,
+                            RequiredByDate DATE NULL,
+                            RequestedBy VARCHAR(100) NOT NULL,
+                            DispatchedBy VARCHAR(100) NULL,
+                            ReceivedBy VARCHAR(100) NULL,
+                            CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            DispatchedAt DATETIME NULL,
+                            ReceivedAt DATETIME NULL,
+                            UpdatedAt DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
+                            CONSTRAINT fk_stockrequest_outlet FOREIGN KEY (OutletId) REFERENCES CanteenOutlets (OutletId)
+                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
                 }
                 catch (Exception ex)
                 {
                     logger.LogInformation("Database column schema verification: {Message}", ex.Message);
                 }
 
+                // Ensure default Cashier user exists safely
+                try
+                {
+                    using var userConn = new MySqlConnection(activeCs);
+                    await userConn.OpenAsync();
+                    var cashierExists = await userConn.ExecuteScalarAsync<int>("SELECT COUNT(1) FROM Users WHERE Username = 'cashier' OR Email = 'cashier@canteen.edu';");
+                    if (cashierExists == 0)
+                    {
+                        var cashierHash = PasswordHasher.HashPassword("Cashier@123");
+                        await userConn.ExecuteAsync(@"
+                            INSERT INTO Users (CampusId, Username, Email, PasswordHash, FullName, Role, PhoneNumber, IsActive, CreatedAt)
+                            VALUES (1, 'cashier', 'cashier@canteen.edu', @PasswordHash, 'Rahul Verma (Cashier)', 'Cashier', '+91 98765 43215', 1, UTC_TIMESTAMP());",
+                            new { PasswordHash = cashierHash });
+                        logger.LogInformation("Default Cashier account 'cashier' seeded successfully.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogInformation("Cashier user verification: {Message}", ex.Message);
+                }
+
+                // Ensure latest Stored Procedures from Database/StoredProcedures are up-to-date
+                try
+                {
+                    using var spConn = new MySqlConnection(activeCs);
+                    await spConn.OpenAsync();
+                    var dbDir = ResolveDatabaseDirectory();
+                    logger.LogInformation("Verifying and deploying latest Stored Procedures from {Path}...", dbDir);
+                    await DeployStoredProceduresFromFilesAsync(spConn, dbDir, logger);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning("Notice deploying latest Stored Procedures: {Message}", ex.Message);
+                }
+
                 // Cloud database on Hostinger is already deployed and verified.
-                // We only run full schema & stored procedure migrations if explicitly requested via INIT_DATABASE=true.
+                // We only run full schema & seed migrations if explicitly requested via INIT_DATABASE=true.
                 var shouldDeploy = string.Equals(Environment.GetEnvironmentVariable("INIT_DATABASE"), "true", StringComparison.OrdinalIgnoreCase);
                 if (shouldDeploy)
                 {
@@ -75,7 +140,6 @@ namespace CanteenManagement.API.Data
                     logger.LogInformation("Running database deployment from {Path}...", dbDir);
                     await DeployTablesFromSchemaFileAsync(connection, dbDir, logger);
                     await DeploySeedsFromFileAsync(connection, dbDir, logger);
-                    await DeployStoredProceduresFromFilesAsync(connection, dbDir, logger);
                     logger.LogInformation("Database deployment completed successfully.");
                 }
             }

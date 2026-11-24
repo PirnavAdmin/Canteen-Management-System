@@ -82,6 +82,13 @@ namespace CanteenManagement.API.Repositories.Implementations.Inventory
         {
             try
             {
+                item.CreatedAt = DateTime.UtcNow;
+                await _dbContext.InventoryItems.AddAsync(item);
+                await _dbContext.SaveChangesAsync();
+                return item;
+            }
+            catch
+            {
                 using var connection = _connectionFactory.CreateConnection();
                 var created = await connection.QueryFirstOrDefaultAsync<InventoryItem>(
                     "sp_AddInventoryItem",
@@ -103,16 +110,32 @@ namespace CanteenManagement.API.Repositories.Implementations.Inventory
 
                 return created ?? item;
             }
-            catch
-            {
-                await _dbContext.InventoryItems.AddAsync(item);
-                await _dbContext.SaveChangesAsync();
-                return item;
-            }
         }
 
         public async Task<InventoryItem> UpdateItemAsync(InventoryItem item)
         {
+            try
+            {
+                var existing = await _dbContext.InventoryItems.FirstOrDefaultAsync(i => i.ItemId == item.ItemId && i.CampusId == item.CampusId);
+                if (existing != null)
+                {
+                    existing.IngredientName = item.IngredientName;
+                    existing.Category = item.Category;
+                    existing.AvailableQuantity = item.AvailableQuantity;
+                    existing.Unit = item.Unit;
+                    existing.ReorderLevel = item.ReorderLevel;
+                    existing.CostPerUnit = item.CostPerUnit;
+                    existing.BatchNumber = item.BatchNumber;
+                    existing.ExpiryDate = item.ExpiryDate;
+                    existing.Status = item.Status;
+                    if (item.OutletId > 0) existing.OutletId = item.OutletId;
+                    existing.UpdatedAt = DateTime.UtcNow;
+                    await _dbContext.SaveChangesAsync();
+                    return existing;
+                }
+            }
+            catch { }
+
             try
             {
                 using var connection = _connectionFactory.CreateConnection();
@@ -135,6 +158,26 @@ namespace CanteenManagement.API.Repositories.Implementations.Inventory
                 _dbContext.InventoryItems.Update(item);
                 await _dbContext.SaveChangesAsync();
                 return item;
+            }
+        }
+
+        public async Task<bool> DeleteItemAsync(int id, int campusId)
+        {
+            try
+            {
+                var item = await _dbContext.InventoryItems.FirstOrDefaultAsync(i => i.ItemId == id && i.CampusId == campusId);
+                if (item == null) return false;
+
+                var movements = _dbContext.StockMovements.Where(m => m.ItemId == id);
+                _dbContext.StockMovements.RemoveRange(movements);
+
+                _dbContext.InventoryItems.Remove(item);
+                await _dbContext.SaveChangesAsync();
+                return true;
+            }
+            catch
+            {
+                return false;
             }
         }
 
@@ -476,6 +519,60 @@ namespace CanteenManagement.API.Repositories.Implementations.Inventory
                 await _dbContext.SaveChangesAsync();
                 return supplier;
             }
+        }
+
+        public async Task<IEnumerable<StockRequest>> GetStockRequestsAsync(int campusId, int? outletId = null, string? status = null)
+        {
+            var query = _dbContext.StockRequests
+                .Include(r => r.Outlet)
+                .Include(r => r.Item)
+                .Where(r => r.CampusId == campusId);
+
+            if (outletId.HasValue && outletId.Value > 0)
+            {
+                query = query.Where(r => r.OutletId == outletId.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(status) && !string.Equals(status, "ALL", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(r => r.Status == status);
+            }
+
+            return await query.OrderByDescending(r => r.CreatedAt).AsNoTracking().ToListAsync();
+        }
+
+        public async Task<StockRequest?> GetStockRequestByIdAsync(int id, int campusId)
+        {
+            return await _dbContext.StockRequests
+                .Include(r => r.Outlet)
+                .Include(r => r.Item)
+                .FirstOrDefaultAsync(r => r.RequestId == id && r.CampusId == campusId);
+        }
+
+        public async Task<StockRequest> CreateStockRequestAsync(StockRequest request)
+        {
+            request.CreatedAt = DateTime.UtcNow;
+            await _dbContext.StockRequests.AddAsync(request);
+            await _dbContext.SaveChangesAsync();
+            return request;
+        }
+
+        public async Task<StockRequest> UpdateStockRequestAsync(StockRequest request)
+        {
+            request.UpdatedAt = DateTime.UtcNow;
+            _dbContext.StockRequests.Update(request);
+            await _dbContext.SaveChangesAsync();
+            return request;
+        }
+
+        public async Task<bool> DeleteStockRequestAsync(int id, int campusId)
+        {
+            var req = await _dbContext.StockRequests.FirstOrDefaultAsync(r => r.RequestId == id && r.CampusId == campusId);
+            if (req == null) return false;
+
+            _dbContext.StockRequests.Remove(req);
+            await _dbContext.SaveChangesAsync();
+            return true;
         }
     }
 }
