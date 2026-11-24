@@ -68,6 +68,9 @@ export const InventoryPage = () => {
   const [posPage, setPosPage] = useState(1);
   const [posPageSize, setPosPageSize] = useState(5);
 
+  const [kitchenRequestsPage, setKitchenRequestsPage] = useState(1);
+  const [kitchenRequestsPageSize, setKitchenRequestsPageSize] = useState(5);
+
   const paginatedItems = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return items.slice(start, start + pageSize);
@@ -82,6 +85,11 @@ export const InventoryPage = () => {
     const start = (posPage - 1) * posPageSize;
     return purchaseOrders.slice(start, start + posPageSize);
   }, [purchaseOrders, posPage, posPageSize]);
+
+  const paginatedKitchenRequests = useMemo(() => {
+    const start = (kitchenRequestsPage - 1) * kitchenRequestsPageSize;
+    return kitchenRequests.slice(start, start + kitchenRequestsPageSize);
+  }, [kitchenRequests, kitchenRequestsPage, kitchenRequestsPageSize]);
 
   // Modals & action loading state
   const [movementModal, setMovementModal] = useState({ isOpen: false, item: null, type: 'Stock Out' });
@@ -290,6 +298,7 @@ export const InventoryPage = () => {
               setCurrentPage(1);
               setLedgerPage(1);
               setPosPage(1);
+              setKitchenRequestsPage(1);
             }}
             style={{
               height: '38px',
@@ -561,10 +570,20 @@ export const InventoryPage = () => {
 
       {activeTab === 'kitchen-requests' && (
         <KitchenRequestsTable
-          requests={kitchenRequests}
+          requests={paginatedKitchenRequests}
           loading={loading}
           onOpenApprove={(req) => setApproveModal({ isOpen: true, request: req })}
           onMarkReceived={markKitchenRequestReceived}
+          footer={
+            <Pagination
+              currentPage={kitchenRequestsPage}
+              totalItems={kitchenRequests.length}
+              pageSize={kitchenRequestsPageSize}
+              onPageChange={setKitchenRequestsPage}
+              onPageSizeChange={(sz) => { setKitchenRequestsPageSize(sz); setKitchenRequestsPage(1); }}
+              pageSizeOptions={[5, 10, 15, 20]}
+            />
+          }
         />
       )}
 

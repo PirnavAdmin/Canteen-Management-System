@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowDownRight, ArrowUpRight, AlertTriangle, Sliders, MoreVertical, Edit2, Trash2, Plus } from 'lucide-react';
+import { ArrowUpRight, AlertTriangle, Sliders, MoreVertical, Edit2, Trash2 } from 'lucide-react';
 import { DataTable } from '../../../../components/tables/DataTable';
 import { StatusBadge } from '../../../../components/common/StatusBadge';
 import { formatDate } from '../../../../utils/formatters';
@@ -140,29 +140,9 @@ export const StockTable = ({
       key: 'actions',
       header: 'Actions',
       align: 'center',
-      width: '90px',
+      width: '80px',
       render: (_, row) => (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-          <button
-            type="button"
-            onClick={() => onOpenMovement(row, 'Stock In')}
-            style={{
-              background: 'var(--color-success-bg, rgba(16, 185, 129, 0.1))',
-              border: '1px solid var(--color-success-border, rgba(16, 185, 129, 0.3))',
-              borderRadius: 'var(--border-radius-sm)',
-              padding: '5px',
-              color: 'var(--color-success, #10b981)',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-            title="Quick Stock In (+ Add Stock)"
-            aria-label="Quick Stock In"
-          >
-            <Plus size={14} />
-          </button>
-
           <button
             type="button"
             onClick={() => onEditItem ? onEditItem(row) : null}
@@ -247,34 +227,6 @@ export const StockTable = ({
               gap: '2px'
             }}
           >
-            <button
-              type="button"
-              onClick={() => {
-                setPopoverState(null);
-                if (onEditItem) onEditItem(targetRow);
-              }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '7px 10px',
-                borderRadius: 'var(--border-radius-sm)',
-                border: 'none',
-                background: 'none',
-                color: 'var(--text-primary)',
-                fontSize: '12.5px',
-                fontWeight: 500,
-                cursor: 'pointer',
-                width: '100%',
-                textAlign: 'left'
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-muted)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-            >
-              <Edit2 size={14} />
-              <span>Edit Details</span>
-            </button>
-
             <button
               type="button"
               onClick={() => {
