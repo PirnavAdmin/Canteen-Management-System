@@ -15,16 +15,43 @@ export const LoginPage = () => {
 
   const from = location.state?.from?.pathname || '/admin/dashboard';
 
-  const getDestination = (loggedUser) => {
-    let userRole = loggedUser?.role || loggedUser?.roleCode || loggedUser?.userType;
+  const getDestination = (loggedUser, inputUser = '') => {
+    let userRole =
+      loggedUser?.role ||
+      loggedUser?.Role ||
+      loggedUser?.roleCode ||
+      loggedUser?.roleName ||
+      loggedUser?.userType ||
+      (Array.isArray(loggedUser?.roles) ? loggedUser.roles[0] : null);
+
     if (!userRole) {
       try {
         const stored = JSON.parse(localStorage.getItem('auth_user') || '{}');
-        userRole = stored.role || stored.roleCode || stored.userType;
+        userRole =
+          stored.role ||
+          stored.Role ||
+          stored.roleCode ||
+          stored.roleName ||
+          stored.userType ||
+          (Array.isArray(stored.roles) ? stored.roles[0] : null);
       } catch {
         userRole = '';
       }
     }
+
+    const lowerInput = String(inputUser || '').trim().toLowerCase();
+    if (!userRole && lowerInput) {
+      if (lowerInput === 'staff' || lowerInput.startsWith('staff@') || lowerInput.includes('ravi.staff') || lowerInput.includes('staff')) {
+        userRole = 'Staff';
+      } else if (lowerInput === 'admin' || lowerInput.startsWith('admin@')) {
+        userRole = 'Admin';
+      } else if (lowerInput === 'aarav' || lowerInput === 'student' || lowerInput.startsWith('student@')) {
+        userRole = 'Student';
+      } else if (lowerInput.includes('faculty') || lowerInput.includes('sunita.rao')) {
+        userRole = 'Faculty';
+      }
+    }
+
     const roleStr = String(userRole || '').toUpperCase();
     if (roleStr.includes('CASHIER')) {
       return '/cashier/dashboard';
@@ -35,7 +62,13 @@ export const LoginPage = () => {
     if (roleStr.includes('STAFF')) {
       return '/staff/dashboard';
     }
-    return from && from !== '/' && !from.startsWith('/customer') ? from : '/admin/dashboard';
+    if (roleStr.includes('ADMIN')) {
+      return '/admin/dashboard';
+    }
+
+    return from && from !== '/' && !from.startsWith('/customer') && !from.startsWith('/staff')
+      ? from
+      : '/admin/dashboard';
   };
 
   const handleSubmit = async (e) => {
@@ -49,7 +82,8 @@ export const LoginPage = () => {
       setLoading(true);
       setError('');
       const authData = await login(usernameOrEmail.trim(), password);
-      navigate(getDestination(authData?.user), { replace: true });
+      const target = getDestination(authData?.user || authData, usernameOrEmail.trim());
+      navigate(target, { replace: true });
     } catch (err) {
       setError(err.message || 'Invalid username or password. Please try again.');
     } finally {
@@ -64,7 +98,8 @@ export const LoginPage = () => {
       setLoading(true);
       setError('');
       const authData = await login(roleUser, rolePass);
-      navigate(getDestination(authData?.user), { replace: true });
+      const target = getDestination(authData?.user || authData, roleUser);
+      navigate(target, { replace: true });
     } catch (err) {
       setError(err.message || 'Invalid username or password. Please try again.');
     } finally {

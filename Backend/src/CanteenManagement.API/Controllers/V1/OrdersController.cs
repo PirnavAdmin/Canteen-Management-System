@@ -31,6 +31,14 @@ namespace CanteenManagement.API.Controllers.V1
             return Ok(ApiResponse<IEnumerable<OrderDto>>.SuccessResponse(orders));
         }
 
+        [HttpGet("kds")]
+        public async Task<IActionResult> GetKdsOrders([FromQuery] int? outletId)
+        {
+            var campusId = User.ResolveCampusId();
+            var orders = await _orderService.GetAllAsync(campusId, outletId, "Preparing", null, null);
+            return Ok(ApiResponse<IEnumerable<OrderDto>>.SuccessResponse(orders));
+        }
+
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(string id)
         {

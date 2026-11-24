@@ -8,9 +8,17 @@ import axios from 'axios';
 import { ENV } from '../../config/env';
 
 const resolveBaseUrl = () => {
-  const envBase = import.meta.env.VITE_API_BASE_URL;
+  // 1. In browser running on local dev server (localhost / 127.0.0.1):
+  // ALWAYS route through Vite's same-origin proxy '/api/v1' to completely eliminate CORS errors.
+  if (typeof window !== 'undefined' && window.location) {
+    const host = window.location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0' || host === '::1') {
+      return '/api/v1';
+    }
+  }
 
-  // 1. If explicit API base URL is configured in .env (e.g., https://whiff-lyrics-debug.ngrok-free.dev)
+  // 2. If explicit API base URL is configured in .env (e.g., https://heroics-ambush-baton.ngrok-free.dev)
+  const envBase = import.meta.env.VITE_API_BASE_URL;
   if (envBase && typeof envBase === 'string' && envBase.trim()) {
     const trimmed = envBase.trim();
     if (typeof window !== 'undefined' && window.location) {
@@ -24,13 +32,12 @@ const resolveBaseUrl = () => {
     return trimmed.includes('/api/v') ? trimmed : `${trimmed.replace(/\/+$/, '')}/api/v1`;
   }
 
-  // 2. In browser dev server (e.g., localhost:5173/5174), route through Vite's dev proxy '/api/v1'
+  // 3. Fallback relative path
   if (typeof window !== 'undefined' && window.location) {
     return '/api/v1';
   }
 
-  // 3. Fallback default
-  return 'https://whiff-lyrics-debug.ngrok-free.dev/api/v1';
+  return 'https://heroics-ambush-baton.ngrok-free.dev/api/v1';
 };
 
 const BASE_URL = resolveBaseUrl();
@@ -72,7 +79,8 @@ axiosInstance.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    const campusId = localStorage.getItem('campus_id') || localStorage.getItem('institution_id') || '1';
+    const rawCampusId = localStorage.getItem('campus_id') || localStorage.getItem('institution_id') || '1';
+    const campusId = /^\d+$/.test(String(rawCampusId).trim()) ? String(rawCampusId).trim() : '1';
     config.headers['X-Campus-Id'] = campusId;
     config.headers['X-Institution-Id'] = campusId;
 
@@ -81,30 +89,15 @@ axiosInstance.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response Interceptor: Standardize Response format, handle 401s, and fallback /api/v1 -> /api on 404
+// Response Interceptor: Standardize Response format and handle 401s
 axiosInstance.interceptors.response.use(
   (response) => {
     // Backend returns { success: true/false, message: "...", data: ... }
     return response.data;
   },
   async (error) => {
-    const config = error.config;
     const status = error.response ? error.response.status : null;
     const responseData = error.response ? error.response.data : null;
-
-    // Smart 404 Route Fallback:
-    // If backend controller is mapped at /api/[controller] instead of /api/v1/[controller], retry once with /api
-    if (status === 404 && config && !config._retry404) {
-      config._retry404 = true;
-      if (config.baseURL && config.baseURL.includes('/api/v1')) {
-        config.baseURL = config.baseURL.replace('/api/v1', '/api');
-        return axiosInstance(config);
-      }
-      if (config.url && config.url.includes('/api/v1/')) {
-        config.url = config.url.replace('/api/v1/', '/api/');
-        return axiosInstance(config);
-      }
-    }
 
     if (status === 401) {
       localStorage.removeItem('token');

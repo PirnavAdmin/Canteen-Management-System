@@ -146,7 +146,7 @@ export const Header = ({ onOpenSidebar }) => {
         </button>
 
         {/* Sidebar Modules Search Bar */}
-        <div style={{ position: 'relative', width: '260px', maxWidth: '48vw' }}>
+        <div style={{ position: 'relative', width: '240px', maxWidth: '36vw', minWidth: '100px', flexShrink: 1 }}>
           <Search
             size={14}
             style={{
@@ -307,7 +307,9 @@ export const Header = ({ onOpenSidebar }) => {
               border: '1px solid var(--border-color)',
               cursor: 'pointer',
               transition: 'all var(--transition-fast)',
-              maxWidth: '150px'
+              maxWidth: '140px',
+              minWidth: 0,
+              flexShrink: 1
             }}
             title="Institutional campus location"
             aria-label="Select institutional campus"
@@ -455,7 +457,9 @@ export const Header = ({ onOpenSidebar }) => {
               border: selectedOutlet !== 'ALL' ? '1px solid var(--color-primary-border, var(--border-color))' : '1px solid var(--border-color)',
               cursor: 'pointer',
               transition: 'all var(--transition-fast)',
-              maxWidth: '180px'
+              maxWidth: '160px',
+              minWidth: 0,
+              flexShrink: 1
             }}
             title="Active Canteen / Dining Outlet"
             aria-label="Select Canteen Outlet"

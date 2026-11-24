@@ -64,7 +64,7 @@ export const STAFF_APP_CONFIG = {
   portalName: 'Canteen Staff Portal',
   campusName: 'Apex Institute of Technology & Sciences',
   canteenOutlet: 'Central Dining Hall',
-  outletId: 'canteen-001',
+  outletId: 1,
   counterName: 'Counter 02 (Express Pickup)',
   activeStation: 'Hot Meals & Express Counter'
 };
