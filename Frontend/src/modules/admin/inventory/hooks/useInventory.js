@@ -4,6 +4,7 @@ import { useToast } from '../../../../app/providers/ToastProvider';
 
 export const useInventory = (selectedOutlet = 'ALL') => {
   const [items, setItems] = useState([]);
+  const [centralItems, setCentralItems] = useState([]);
   const [ledger, setLedger] = useState([]);
   const [purchaseOrders, setPurchaseOrders] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
@@ -17,14 +18,16 @@ export const useInventory = (selectedOutlet = 'ALL') => {
       setLoading(true);
       setError(null);
       const outletParams = selectedOutlet && selectedOutlet !== 'ALL' && Number(selectedOutlet) > 0 ? { outletId: Number(selectedOutlet) } : {};
-      const [itms, ledg, pos, sups, reqs] = await Promise.all([
+      const [itms, ledg, pos, sups, reqs, cItems] = await Promise.all([
         inventoryService.getItems(outletParams),
         inventoryService.getLedger(outletParams),
         inventoryService.getPurchaseOrders(outletParams),
         inventoryService.getSuppliers(),
-        inventoryService.getStockRequests(outletParams)
+        inventoryService.getStockRequests(outletParams),
+        inventoryService.getItems({ outletId: 4 }).catch(() => [])
       ]);
       setItems(itms);
+      setCentralItems(Array.isArray(cItems) && cItems.length > 0 ? cItems : itms);
       setLedger(ledg);
       setPurchaseOrders(pos);
       setSuppliers(sups);
@@ -202,73 +205,45 @@ export const useInventory = (selectedOutlet = 'ALL') => {
 
   const approveKitchenRequest = useCallback(async (request, issuedQty) => {
     try {
-      const reqId = request.id || request.requestId;
-      try {
-        await inventoryService.dispatchStockRequest(reqId, {
-          issuedQuantity: Number(issuedQty),
-          adminNotes: 'Approved & Dispatched from Central Warehouse'
-        });
-        await loadAll();
-      } catch (backendErr) {
-        console.warn('Backend dispatch endpoint fallback:', backendErr);
-        // 1. Find matching raw material item
-        const reqItemName = (request.itemName || request.ingredientName || '').trim().toLowerCase();
-        const reqItemCode = (request.itemCode || '').trim().toLowerCase();
-        const matchedItem = items.find(i =>
-          (request.ingredientId && String(i.id) === String(request.ingredientId)) ||
-          (reqItemName && (i.ingredientName || '').trim().toLowerCase() === reqItemName) ||
-          (reqItemCode && (i.itemCode || '').trim().toLowerCase() === reqItemCode)
-        );
-
-        if (!matchedItem) {
-          throw new Error(`Ingredient "${request.itemName || request.ingredientName || 'requested item'}" was not found in raw materials inventory.`);
-        }
-
-        if (Number(issuedQty) > Number(matchedItem.availableQuantity)) {
-          throw new Error(`Issued quantity (${issuedQty} ${matchedItem.unit}) cannot exceed available stock (${matchedItem.availableQuantity} ${matchedItem.unit}).`);
-        }
-
-        // 2. Record stock movement to subtract from raw materials
-        await inventoryService.recordMovement({
-          ingredientId: matchedItem.id,
-          movementType: 'Stock Out',
-          quantity: -Math.abs(Number(issuedQty)),
-          reason: `Stock issued to ${request.outletName || (request.outletId === 1 ? 'Main Canteen' : `Outlet #${request.outletId}`)} Kitchen (Req #${reqId})`,
-          reference: `REQ-${reqId}`,
-          performedBy: 'Mrs. Sunitha (Canteen Admin)'
-        });
-
-        await loadAll();
+      const reqId = request?.requestId || request?.id;
+      if (!reqId || !String(reqId).trim()) {
+        toastError('Approval Failed', 'Stock requisition ID is missing or invalid. Please refresh the list.');
+        return false;
       }
 
-      success('Stock Issued & Dispatched', `Successfully dispatched ${issuedQty} ${request.unit || 'units'} of ${request.itemName || request.ingredientName}. Raw materials inventory updated.`);
+      await inventoryService.dispatchStockRequest(reqId, {
+        issuedQuantity: Number(issuedQty),
+        adminNotes: 'Approved & Dispatched from Central Warehouse'
+      });
+      await loadAll();
+
+      success('Stock Issued & Dispatched', `Successfully dispatched ${issuedQty} ${request.unit || 'units'} of ${request.itemName || request.ingredientName} from Central Warehouse.`);
       return true;
     } catch (err) {
-      toastError('Approval Failed', err.message);
+      console.error('Approval dispatch error:', err);
+      toastError('Approval Failed', err.message || 'Failed to dispatch stock request.');
       throw err;
     }
-  }, [items, loadAll, success, toastError]);
+  }, [loadAll, success, toastError]);
 
   const markKitchenRequestReceived = useCallback(async (request) => {
     try {
-      try {
-        await inventoryService.markStockRequestReceived(request.id || request.requestId);
-      } catch (err) {
-        console.warn('Backend mark received fallback handled locally');
+      const reqId = request?.requestId || request?.id;
+      if (!reqId || !String(reqId).trim()) {
+        toastError('Update Failed', 'Stock requisition ID is missing or invalid.');
+        return false;
       }
 
-      setKitchenRequests(prev => prev.map(r =>
-        (String(r.id) === String(request.id) || String(r.requestId) === String(request.requestId))
-          ? { ...r, status: 'Received' }
-          : r
-      ));
+      await inventoryService.markStockRequestReceived(reqId);
+      await loadAll();
 
-      success('Stock Confirmed Received', `Kitchen request #${request.id || request.requestId} marked as Received by Kitchen.`);
+      success('Stock Confirmed Received', `Kitchen request #${reqId} marked as Received into Kitchen Inventory.`);
+      return true;
     } catch (err) {
-      toastError('Update Failed', err.message);
+      toastError('Update Failed', err.message || 'Failed to confirm stock receipt.');
       throw err;
     }
-  }, [success, toastError]);
+  }, [loadAll, success, toastError]);
 
   const createItem = useCallback(async (itemData) => {
     try {
@@ -310,6 +285,7 @@ export const useInventory = (selectedOutlet = 'ALL') => {
 
   return {
     items,
+    centralItems,
     ledger,
     purchaseOrders,
     suppliers,

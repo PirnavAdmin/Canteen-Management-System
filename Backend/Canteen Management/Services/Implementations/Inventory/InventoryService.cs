@@ -656,7 +656,6 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
         {
             var req = new StockRequest
             {
-                RequestId = $"REQ-{DateTime.UtcNow:yyyyMMdd}-{Random.Shared.Next(1000, 9999)}",
                 CampusId = campusId,
                 OutletId = dto.OutletId,
                 ItemId = dto.ItemId,
@@ -681,7 +680,7 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
                 requestedBy,
                 "CREATE_STOCK_REQUEST",
                 "StockRequest",
-                created.RequestId,
+                created.RequestId.ToString(),
                 $"Kitchen requisition submitted for {created.RequestedQuantity} {created.Unit} of '{created.ItemName}' ({created.Urgency} urgency)."
             );
 
@@ -704,11 +703,15 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
 
             var issuedQty = dto.IssuedQuantity > 0 ? dto.IssuedQuantity : req.RequestedQuantity;
 
-            // Find matching item in Central / Main Inventory (either ItemId match or Name match across campus)
+            // Find matching item in Central / Main Inventory (prioritize Central Warehouse Outlet #4 / WH-01)
             var centralItems = await _repository.GetItemsAsync(campusId);
             var centralItem = centralItems.FirstOrDefault(i =>
+                (i.OutletId == 4 || i.Outlet?.Code == "WH-01" || (i.Outlet?.Name ?? "").Contains("Warehouse")) &&
+                (string.Equals(i.IngredientName.Trim(), req.ItemName.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                 (req.ItemId.HasValue && i.ItemId == req.ItemId.Value)))
+                ?? centralItems.FirstOrDefault(i =>
                 (req.ItemId.HasValue && i.ItemId == req.ItemId.Value) ||
-                string.Equals(i.IngredientName, req.ItemName, StringComparison.OrdinalIgnoreCase));
+                string.Equals(i.IngredientName.Trim(), req.ItemName.Trim(), StringComparison.OrdinalIgnoreCase));
 
             if (centralItem != null)
             {
@@ -756,7 +759,7 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
                 performedBy,
                 "DISPATCH_STOCK_REQUEST",
                 "StockRequest",
-                req.RequestId,
+                req.RequestId.ToString(),
                 $"Stock dispatched: {issuedQty} {req.Unit} of '{req.ItemName}' issued to {req.Outlet?.Name ?? $"Outlet #{req.OutletId}"} Kitchen."
             );
 
@@ -857,7 +860,7 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
                 performedBy,
                 "RECEIVE_STOCK_REQUEST",
                 "StockRequest",
-                req.RequestId,
+                req.RequestId.ToString(),
                 $"Stock receipt confirmed by {performedBy}: {receivedQty} {req.Unit} of '{req.ItemName}' added to kitchen inventory."
             );
 
@@ -884,7 +887,7 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
                 performedBy,
                 "REJECT_STOCK_REQUEST",
                 "StockRequest",
-                req.RequestId,
+                req.RequestId.ToString(),
                 $"Stock request #{req.RequestId} rejected by {performedBy}. Reason: {reason}."
             );
 
@@ -905,7 +908,7 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
                     performedBy,
                     "DELETE_STOCK_REQUEST",
                     "StockRequest",
-                    id,
+                    id.ToString(),
                     $"Deleted stock requisition #{id} ('{req.ItemName}')."
                 );
             }
@@ -917,7 +920,7 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
             Id = r.RequestId,
             CampusId = r.CampusId,
             OutletId = r.OutletId,
-            OutletName = r.Outlet?.Name ?? (r.OutletId == 1 ? "Main Canteen" : $"Outlet #{r.OutletId}"),
+            OutletName = r.Outlet?.Name ?? (r.OutletId == 1 ? "Main Canteen Kitchen" : (r.OutletId == 4 ? "Central Warehouse" : $"Outlet #{r.OutletId} Kitchen")),
             SourceOutletId = r.SourceOutletId,
             ItemId = r.ItemId,
             ItemCode = r.ItemCode ?? (r.ItemId.HasValue ? $"ING-{r.ItemId.Value:D3}" : "ING-REQ"),

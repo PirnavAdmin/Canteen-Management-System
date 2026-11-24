@@ -22,10 +22,9 @@ namespace CanteenManagement.API.Repositories.Interfaces.Inventory
         Task<(bool success, string actionTaken, int linkedPoCount)> DeleteSupplierAsync(int id, int campusId);
         Task<Supplier?> ToggleSupplierStatusAsync(int id, int campusId, string status);
         Task<IEnumerable<StockRequest>> GetStockRequestsAsync(int campusId, int? outletId = null, string? status = null);
-        Task<StockRequest?> GetStockRequestByIdAsync(int id, int campusId);
+        Task<StockRequest?> GetStockRequestByIdAsync(string id, int campusId);
         Task<StockRequest> CreateStockRequestAsync(StockRequest request);
         Task<StockRequest> UpdateStockRequestAsync(StockRequest request);
-        Task<bool> DeleteStockRequestAsync(int id, int campusId);
+        Task<bool> DeleteStockRequestAsync(string id, int campusId);
     }
 }
-

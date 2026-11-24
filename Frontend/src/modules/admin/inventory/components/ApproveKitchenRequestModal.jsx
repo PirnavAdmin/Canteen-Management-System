@@ -93,10 +93,10 @@ export const ApproveKitchenRequestModal = ({
         }}>
           <div>
             <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
-              Approve Kitchen Stock Request
+              Approve & Dispatch Stock Requisition
             </h3>
             <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>
-              Requisition #{request.requestId || request.id || 'REQ-001'} • {request.outletName || (request.outletId === 1 ? 'Main Canteen' : `Outlet #${request.outletId}`)} Kitchen
+              Requisition #{request.requestId || request.id || 'REQ-001'} • Issuing from <strong>Central Warehouse</strong> to <strong>{request.outletName || (request.outletId === 1 ? 'Main Canteen' : `Outlet #${request.outletId}`)} Kitchen</strong>
             </p>
           </div>
           <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>
@@ -148,7 +148,7 @@ export const ApproveKitchenRequestModal = ({
               )}
               <div>
                 <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  Current Raw Material Stock
+                  Central Warehouse Available Stock
                 </div>
                 <div style={{ fontSize: '15px', fontWeight: 700, color: isStockSufficient ? 'var(--color-success-text, #065f46)' : 'var(--color-danger, #b91c1c)' }}>
                   {availableStock} {unit}

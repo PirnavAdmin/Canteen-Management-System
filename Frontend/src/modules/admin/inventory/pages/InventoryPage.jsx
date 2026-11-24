@@ -24,6 +24,7 @@ export const InventoryPage = () => {
 
   const {
     items,
+    centralItems,
     ledger,
     purchaseOrders,
     suppliers,
@@ -42,6 +43,17 @@ export const InventoryPage = () => {
     approveKitchenRequest,
     markKitchenRequestReceived
   } = useInventory(selectedOutlet);
+
+  const warehouseOutlet = useMemo(() => {
+    return outlets.find(o => o.code === 'WH-01' || (o.name || '').toLowerCase().includes('warehouse') || Number(o.outletId || o.id) === 4) || null;
+  }, [outlets]);
+
+  const kitchenOutlets = useMemo(() => {
+    return outlets.filter(o => o.code !== 'WH-01' && !(o.name || '').toLowerCase().includes('warehouse') && Number(o.outletId || o.id) !== 4);
+  }, [outlets]);
+
+  const isWarehouseView = warehouseOutlet && String(selectedOutlet) === String(warehouseOutlet.outletId || warehouseOutlet.id);
+  const currentOutletName = outlets.find(o => String(o.outletId || o.id) === String(selectedOutlet))?.name || 'Selected Outlet';
 
   // Tab state: 'items' | 'ledger' | 'pos' | 'suppliers' | 'kitchen-requests'
   const [activeTab, setActiveTab] = useState('items');
@@ -257,7 +269,7 @@ export const InventoryPage = () => {
         backgroundColor: 'var(--bg-surface)',
         borderRadius: 'var(--border-radius-lg)',
         border: '1px solid var(--border-color)',
-        padding: '10px 16px',
+        padding: '12px 18px',
         marginBottom: '16px',
         display: 'flex',
         alignItems: 'center',
@@ -266,10 +278,10 @@ export const InventoryPage = () => {
         gap: '12px',
         boxShadow: 'var(--shadow-xs)'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <Store size={18} style={{ color: 'var(--color-primary)' }} />
-          <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
-            Dining Outlet Filter:
+          <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
+            Inventory Scope:
           </span>
           <select
             value={selectedOutlet}
@@ -280,33 +292,79 @@ export const InventoryPage = () => {
               setPosPage(1);
             }}
             style={{
-              height: '36px',
-              padding: '0 12px',
+              height: '38px',
+              padding: '0 14px',
               fontSize: '13px',
-              fontWeight: 500,
-              border: '1px solid var(--border-color)',
+              fontWeight: 600,
+              border: '1.5px solid var(--border-color)',
               borderRadius: 'var(--border-radius-md)',
               backgroundColor: 'var(--bg-app)',
               color: 'var(--text-primary)',
-              minWidth: '220px',
+              minWidth: '300px',
               cursor: 'pointer',
               outline: 'none'
             }}
           >
-            <option value="ALL">All Campus Outlets (Consolidated)</option>
-            {outlets.map(out => (
-              <option key={out.outletId || out.id} value={out.outletId || out.id}>
-                {out.name}
-              </option>
-            ))}
+            <optgroup label="🏢 Central Administration">
+              {warehouseOutlet ? (
+                <option value={warehouseOutlet.outletId || warehouseOutlet.id}>
+                  📦 Central Warehouse (Admin Master Store)
+                </option>
+              ) : (
+                <option value="4">📦 Central Warehouse (Admin Master Store)</option>
+              )}
+              <option value="ALL">🌐 Consolidated (All Outlets & Central Warehouse)</option>
+            </optgroup>
+            <optgroup label="🍳 Campus Kitchen Outlets">
+              {kitchenOutlets.map(out => (
+                <option key={out.outletId || out.id} value={out.outletId || out.id}>
+                  🍽️ {out.name} (Kitchen Inventory)
+                </option>
+              ))}
+            </optgroup>
           </select>
         </div>
 
-        <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-          {selectedOutlet === 'ALL' ? (
-            <span>Showing consolidated inventory across <strong>all {outlets.length || 'campus'} outlets</strong></span>
+        <div style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {isWarehouseView ? (
+            <span style={{
+              backgroundColor: 'rgba(59, 130, 246, 0.1)',
+              color: '#2563eb',
+              padding: '5px 12px',
+              borderRadius: '6px',
+              fontWeight: 600,
+              fontSize: '12px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}>
+              <span>📦 <strong>Admin Central Warehouse</strong> • Bulk procurement & supplier replenishment (Dispatches to kitchens)</span>
+            </span>
+          ) : selectedOutlet === 'ALL' ? (
+            <span style={{
+              backgroundColor: 'rgba(107, 114, 128, 0.1)',
+              color: 'var(--text-secondary)',
+              padding: '5px 12px',
+              borderRadius: '6px',
+              fontWeight: 500,
+              fontSize: '12px'
+            }}>
+              🏢 Consolidated stock across <strong>all {outlets.length} campus locations</strong>
+            </span>
           ) : (
-            <span>Filtered for <strong>{outlets.find(o => String(o.outletId || o.id) === String(selectedOutlet))?.name || 'Selected Outlet'}</strong></span>
+            <span style={{
+              backgroundColor: 'rgba(16, 185, 129, 0.1)',
+              color: '#059669',
+              padding: '5px 12px',
+              borderRadius: '6px',
+              fontWeight: 600,
+              fontSize: '12px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}>
+              <span>🍳 <strong>{currentOutletName} Kitchen</strong> • Local cooking stock (Requests stock from Central Warehouse)</span>
+            </span>
           )}
         </div>
       </div>
@@ -515,7 +573,7 @@ export const InventoryPage = () => {
         isOpen={approveModal.isOpen}
         onClose={() => setApproveModal({ isOpen: false, request: null })}
         request={approveModal.request}
-        rawMaterials={items}
+        rawMaterials={centralItems && centralItems.length > 0 ? centralItems : items}
         loading={modalLoading}
         onApprove={async (req, qty) => {
           try {

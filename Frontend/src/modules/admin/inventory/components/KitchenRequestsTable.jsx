@@ -38,7 +38,7 @@ export const KitchenRequestsTable = ({
     },
     {
       key: 'outletName',
-      header: 'Kitchen / Outlet',
+      header: 'Kitchen / Source',
       render: (val, row) => (
         <div>
           <strong
@@ -49,10 +49,10 @@ export const KitchenRequestsTable = ({
               whiteSpace: 'nowrap'
             }}
           >
-            {val || (row.outletId === 1 ? 'Main Canteen Kitchen' : `Outlet #${row.outletId || 1} Kitchen`)}
+            🍳 {val || (row.outletId === 1 ? 'Main Canteen Kitchen' : `Outlet #${row.outletId || 1} Kitchen`)}
           </strong>
           <span style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginTop: '2px' }}>
-            Requested by: {row.requestedBy || 'Kitchen Staff'}
+            To: <strong>Central Warehouse</strong> • By: {row.requestedBy || 'Chef'}
           </span>
         </div>
       )

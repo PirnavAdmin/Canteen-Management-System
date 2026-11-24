@@ -688,7 +688,7 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
             return MapToStockRequestDto(loaded ?? created);
         }
 
-        public async Task<StockRequestDto> DispatchStockRequestAsync(int id, DispatchStockRequestDto dto, int campusId, string performedBy)
+        public async Task<StockRequestDto> DispatchStockRequestAsync(string id, DispatchStockRequestDto dto, int campusId, string performedBy)
         {
             var req = await _repository.GetStockRequestByIdAsync(id, campusId);
             if (req == null)
@@ -703,11 +703,15 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
 
             var issuedQty = dto.IssuedQuantity > 0 ? dto.IssuedQuantity : req.RequestedQuantity;
 
-            // Find matching item in Central / Main Inventory (either ItemId match or Name match across campus)
+            // Find matching item in Central / Main Inventory (prioritize Central Warehouse Outlet #4 / WH-01)
             var centralItems = await _repository.GetItemsAsync(campusId);
             var centralItem = centralItems.FirstOrDefault(i =>
+                (i.OutletId == 4 || i.Outlet?.Code == "WH-01" || (i.Outlet?.Name ?? "").Contains("Warehouse")) &&
+                (string.Equals(i.IngredientName.Trim(), req.ItemName.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                 (req.ItemId.HasValue && i.ItemId == req.ItemId.Value)))
+                ?? centralItems.FirstOrDefault(i =>
                 (req.ItemId.HasValue && i.ItemId == req.ItemId.Value) ||
-                string.Equals(i.IngredientName, req.ItemName, StringComparison.OrdinalIgnoreCase));
+                string.Equals(i.IngredientName.Trim(), req.ItemName.Trim(), StringComparison.OrdinalIgnoreCase));
 
             if (centralItem != null)
             {
@@ -762,7 +766,7 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
             return MapToStockRequestDto(updated);
         }
 
-        public async Task<StockRequestDto> ReceiveStockRequestAsync(int id, int campusId, string performedBy)
+        public async Task<StockRequestDto> ReceiveStockRequestAsync(string id, int campusId, string performedBy)
         {
             var req = await _repository.GetStockRequestByIdAsync(id, campusId);
             if (req == null)
@@ -863,7 +867,7 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
             return MapToStockRequestDto(updated);
         }
 
-        public async Task<StockRequestDto> RejectStockRequestAsync(int id, string reason, int campusId, string performedBy)
+        public async Task<StockRequestDto> RejectStockRequestAsync(string id, string reason, int campusId, string performedBy)
         {
             var req = await _repository.GetStockRequestByIdAsync(id, campusId);
             if (req == null)
@@ -890,7 +894,7 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
             return MapToStockRequestDto(updated);
         }
 
-        public async Task<bool> DeleteStockRequestAsync(int id, int campusId, string performedBy)
+        public async Task<bool> DeleteStockRequestAsync(string id, int campusId, string performedBy)
         {
             var req = await _repository.GetStockRequestByIdAsync(id, campusId);
             if (req == null) return false;
@@ -916,7 +920,7 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
             Id = r.RequestId,
             CampusId = r.CampusId,
             OutletId = r.OutletId,
-            OutletName = r.Outlet?.Name ?? (r.OutletId == 1 ? "Main Canteen" : $"Outlet #{r.OutletId}"),
+            OutletName = r.Outlet?.Name ?? (r.OutletId == 1 ? "Main Canteen Kitchen" : (r.OutletId == 4 ? "Central Warehouse" : $"Outlet #{r.OutletId} Kitchen")),
             SourceOutletId = r.SourceOutletId,
             ItemId = r.ItemId,
             ItemCode = r.ItemCode ?? (r.ItemId.HasValue ? $"ING-{r.ItemId.Value:D3}" : "ING-REQ"),
