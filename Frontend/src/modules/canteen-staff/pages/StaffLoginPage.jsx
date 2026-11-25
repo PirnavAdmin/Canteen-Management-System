@@ -9,8 +9,8 @@ export const StaffLoginPage = () => {
   const location = useLocation();
   const { login } = useAuth();
 
-  const [username, setUsername] = useState('staff');
-  const [password, setPassword] = useState('Staff@123');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -28,21 +28,6 @@ export const StaffLoginPage = () => {
       navigate('/staff/dashboard', { replace: true });
     } catch (err) {
       setError(err.message || 'Login failed. Please check your credentials.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleQuickLogin = async () => {
-    setUsername('staff');
-    setPassword('Staff@123');
-    try {
-      setLoading(true);
-      setError('');
-      await login('staff', 'Staff@123');
-      navigate('/staff/dashboard', { replace: true });
-    } catch (err) {
-      setError(err.message || 'Login failed.');
     } finally {
       setLoading(false);
     }
@@ -190,35 +175,6 @@ export const StaffLoginPage = () => {
             {loading ? 'Authenticating Staff...' : 'Sign In to Operations Portal'}
           </button>
         </form>
-
-        {/* 1-Click Quick Demo Login */}
-        <div style={{ marginTop: '20px', paddingTop: '18px', borderTop: '1px solid #e2e8f0' }}>
-          <div style={{ fontSize: '12px', color: '#64748b', textAlign: 'center', marginBottom: '10px', fontWeight: 600 }}>
-            DEMO STAFF ACCESS:
-          </div>
-          <button
-            onClick={handleQuickLogin}
-            disabled={loading}
-            style={{
-              width: '100%',
-              padding: '10px 14px',
-              borderRadius: '10px',
-              border: '1px dashed #f97316',
-              backgroundColor: '#fff7ed',
-              color: '#c2410c',
-              fontSize: '13px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px'
-            }}
-          >
-            <ChefHat size={16} />
-            <span>1-Click Demo Login as Ravi Kumar (Staff)</span>
-          </button>
-        </div>
 
         {/* Alternative Portals */}
         <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>

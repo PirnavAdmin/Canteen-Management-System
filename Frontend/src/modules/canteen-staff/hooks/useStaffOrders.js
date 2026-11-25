@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { staffOrderService } from '../services/staffOrderService';
+import { staffOrderService, cleanOutletId } from '../services/staffOrderService';
 import { useAuth } from '../../../app/providers/AuthProvider';
+import { useStaffOutlet } from './useStaffOutlet';
 
 /**
  * Fast shallow comparison of order arrays to prevent unnecessary React re-renders
@@ -24,8 +25,17 @@ const areOrdersEqual = (prev, next) => {
   return true;
 };
 
-export const useStaffOrders = () => {
+export const useStaffOrders = (outletOverride = null) => {
   const { user } = useAuth();
+  const {
+    selectedOutlet: activeOutletId,
+    activeOutletName,
+    activeCampusName,
+    isOrderInCurrentOutlet
+  } = useStaffOutlet();
+
+  const currentOutletId = outletOverride ?? activeOutletId;
+
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -46,14 +56,19 @@ export const useStaffOrders = () => {
 
     try {
       setError(null);
-      const data = await staffOrderService.getAllOrders();
+      const targetId = cleanOutletId(currentOutletId);
+      const params = (targetId && currentOutletId !== 'ALL') ? { outletId: targetId } : {};
+      const data = await staffOrderService.getAllOrders(params);
       const freshList = Array.isArray(data) ? data : [];
 
+      // Outlet Isolation: Guarantee orders strictly belong to the active outlet
+      const outletFilteredList = freshList.filter(isOrderInCurrentOutlet);
+
       setOrders(prevOrders => {
-        if (areOrdersEqual(prevOrders, freshList)) {
+        if (areOrdersEqual(prevOrders, outletFilteredList)) {
           return prevOrders;
         }
-        return freshList;
+        return outletFilteredList;
       });
     } catch (err) {
       console.error('Failed to load staff orders:', err);
@@ -63,7 +78,7 @@ export const useStaffOrders = () => {
       isFirstMountRef.current = false;
       setLoading(false);
     }
-  }, []);
+  }, [currentOutletId, isOrderInCurrentOutlet]);
 
   const manualRefresh = useCallback(() => {
     return loadOrders(true);
@@ -73,20 +88,29 @@ export const useStaffOrders = () => {
     // Initial fetch on mount
     loadOrders(false);
 
-    // Debounced listener for cross-component or cross-tab synchronization
-    const handleOrderEvent = () => {
+    // Immediate state reflection + Debounced background sync for cross-tab events
+    const handleOrderEvent = (e) => {
+      const detail = e?.detail;
+      const order = detail?.updatedOrder || detail?.order || detail;
+      if (order && order.id) {
+        setOrders(prev => prev.map(o => String(o.id) === String(order.id) ? { ...o, ...order } : o));
+      }
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }
       debounceTimerRef.current = setTimeout(() => {
         loadOrders(false); // Silent background fetch without toggling loading spinners
-      }, 800);
+      }, 500);
+    };
+
+    const handleOutletEvent = () => {
+      loadOrders(true);
     };
 
     window.addEventListener('cms:order_status_updated', handleOrderEvent);
     window.addEventListener('cms:order_created', handleOrderEvent);
     window.addEventListener('cms:order_updated', handleOrderEvent);
-    window.addEventListener('storage', handleOrderEvent);
+    window.addEventListener('cms:outlet_changed', handleOutletEvent);
 
     // Controlled 20-second background polling interval for quiet synchronization
     const pollInterval = setInterval(() => {
@@ -101,7 +125,7 @@ export const useStaffOrders = () => {
       window.removeEventListener('cms:order_status_updated', handleOrderEvent);
       window.removeEventListener('cms:order_created', handleOrderEvent);
       window.removeEventListener('cms:order_updated', handleOrderEvent);
-      window.removeEventListener('storage', handleOrderEvent);
+      window.removeEventListener('cms:outlet_changed', handleOutletEvent);
     };
   }, [loadOrders]);
 
@@ -172,6 +196,9 @@ export const useStaffOrders = () => {
     metrics,
     loading,
     error,
+    selectedOutlet: currentOutletId,
+    activeOutletName,
+    activeCampusName,
     refreshOrders: manualRefresh,
     advanceOrderStatus,
     acceptOrder,

@@ -9,6 +9,10 @@ export const notifyOrderStatusUpdated = (order) => {
   if (!order) return;
   try {
     window.dispatchEvent(new CustomEvent('cms:order_status_updated', { detail: order }));
+    window.dispatchEvent(new CustomEvent('cms:order_updated', { detail: order }));
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem('cms_order_sync_timestamp', Date.now().toString());
+    }
   } catch {}
 
   try {
@@ -25,6 +29,10 @@ export const notifyOrderStatusUpdated = (order) => {
 export const notifyOrderCreated = (order) => {
   try {
     window.dispatchEvent(new CustomEvent('cms:order_created', { detail: order }));
+    window.dispatchEvent(new CustomEvent('cms:order_updated', { detail: order }));
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem('cms_order_sync_timestamp', Date.now().toString());
+    }
   } catch {}
 
   try {

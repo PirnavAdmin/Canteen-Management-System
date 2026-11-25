@@ -32,12 +32,14 @@ export const ApproveKitchenRequestModal = ({
 
   useEffect(() => {
     if (request) {
-      // Default to requested quantity, capped by available stock if lower
-      const initial = Math.min(requestedQty, availableStock > 0 ? requestedQty : 0);
-      setSendQty(initial > 0 ? String(initial) : (availableStock > 0 ? String(availableStock) : ''));
+      // Default to requested quantity, capped by available stock if matched item exists
+      const initial = matchedItem
+        ? Math.min(requestedQty, availableStock > 0 ? requestedQty : 0)
+        : requestedQty;
+      setSendQty(initial > 0 ? String(initial) : (availableStock > 0 ? String(availableStock) : String(requestedQty || '')));
       setError('');
     }
-  }, [request, availableStock, requestedQty, isOpen]);
+  }, [request, matchedItem, availableStock, requestedQty, isOpen]);
 
   if (!isOpen || !request) return null;
 
@@ -50,7 +52,7 @@ export const ApproveKitchenRequestModal = ({
       return;
     }
 
-    if (qtyNum > availableStock) {
+    if (matchedItem && qtyNum > availableStock) {
       setError(`Cannot issue ${qtyNum} ${unit}. Current available stock in raw materials is only ${availableStock} ${unit}.`);
       return;
     }
@@ -59,7 +61,7 @@ export const ApproveKitchenRequestModal = ({
     onClose();
   };
 
-  const isStockSufficient = availableStock >= requestedQty;
+  const isStockSufficient = matchedItem ? availableStock >= requestedQty : true;
 
   return (
     <div style={{
@@ -93,10 +95,10 @@ export const ApproveKitchenRequestModal = ({
         }}>
           <div>
             <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
-              Approve Kitchen Stock Request
+              Approve & Dispatch Stock Requisition
             </h3>
             <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>
-              Requisition #{request.requestId || request.id || 'REQ-001'} • {request.outletName || (request.outletId === 1 ? 'Main Canteen' : `Outlet #${request.outletId}`)} Kitchen
+              Requisition #{request.requestId || request.id || 'REQ-001'} • Issuing from <strong>Central Warehouse</strong> to <strong>{request.outletName || (request.outletId === 1 ? 'Main Canteen' : `Outlet #${request.outletId}`)} Kitchen</strong>
             </p>
           </div>
           <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>
@@ -148,7 +150,7 @@ export const ApproveKitchenRequestModal = ({
               )}
               <div>
                 <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  Current Raw Material Stock
+                  Central Warehouse Available Stock
                 </div>
                 <div style={{ fontSize: '15px', fontWeight: 700, color: isStockSufficient ? 'var(--color-success-text, #065f46)' : 'var(--color-danger, #b91c1c)' }}>
                   {availableStock} {unit}
@@ -214,7 +216,7 @@ export const ApproveKitchenRequestModal = ({
             <Button variant="secondary" onClick={onClose} type="button" disabled={loading}>
               Cancel
             </Button>
-            <Button variant="primary" type="submit" loading={loading} disabled={availableStock <= 0}>
+            <Button variant="primary" type="submit" loading={loading} disabled={matchedItem ? availableStock <= 0 : false}>
               <Send size={13} style={{ marginRight: '6px' }} />
               <span>Approve & Dispatch Stock</span>
             </Button>

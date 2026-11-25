@@ -254,9 +254,9 @@ namespace CanteenManagement.API.Controllers.V1
             return Ok(ApiResponse<StockRequestDto>.SuccessResponse(created, $"Stock requisition #{created.RequestId} submitted successfully."));
         }
 
-        [HttpPatch("stock-requests/{id:int}/dispatch")]
+        [HttpPatch("stock-requests/{id}/dispatch")]
         [Authorize(Policy = "RequireAdmin")]
-        public async Task<IActionResult> DispatchStockRequest(int id, [FromBody] DispatchStockRequestDto dto)
+        public async Task<IActionResult> DispatchStockRequest(string id, [FromBody] DispatchStockRequestDto dto)
         {
             try
             {
@@ -275,8 +275,8 @@ namespace CanteenManagement.API.Controllers.V1
             }
         }
 
-        [HttpPatch("stock-requests/{id:int}/received")]
-        public async Task<IActionResult> ReceiveStockRequest(int id)
+        [HttpPatch("stock-requests/{id}/received")]
+        public async Task<IActionResult> ReceiveStockRequest(string id)
         {
             try
             {
@@ -291,9 +291,9 @@ namespace CanteenManagement.API.Controllers.V1
             }
         }
 
-        [HttpPatch("stock-requests/{id:int}/reject")]
+        [HttpPatch("stock-requests/{id}/reject")]
         [Authorize(Policy = "RequireAdmin")]
-        public async Task<IActionResult> RejectStockRequest(int id, [FromBody] RejectStockRequestDto dto)
+        public async Task<IActionResult> RejectStockRequest(string id, [FromBody] RejectStockRequestDto dto)
         {
             try
             {
@@ -308,8 +308,8 @@ namespace CanteenManagement.API.Controllers.V1
             }
         }
 
-        [HttpDelete("stock-requests/{id:int}")]
-        public async Task<IActionResult> DeleteStockRequest(int id)
+        [HttpDelete("stock-requests/{id}")]
+        public async Task<IActionResult> DeleteStockRequest(string id)
         {
             var campusId = User.ResolveCampusId();
             var userName = User.ResolveUserName();

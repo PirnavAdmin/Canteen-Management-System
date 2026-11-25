@@ -17,7 +17,8 @@ import {
   Utensils,
   Check,
   AlertTriangle,
-  Play
+  Play,
+  Store
 } from 'lucide-react';
 import { useStaffOrders } from '../hooks/useStaffOrders';
 import { staffOrderService } from '../services/staffOrderService';
@@ -25,11 +26,13 @@ import { ORDER_STATUS } from '../../../constants/appConstants';
 import {
   isStatusPreparing,
   isStatusAccepted,
-  isStatusReady
+  isStatusReady,
+  isStatusCompleted
 } from '../services/staffOrderService';
 import { KITCHEN_STATIONS, ORDER_URGENCY_MINUTES } from '../constants/staffConstants';
 import { PageHeader } from '../../../components/common/PageHeader';
 import { Button } from '../../../components/common/Button';
+import { Pagination } from '../../../components/common/Pagination';
 import { StaffOrderDetailsModal } from '../components/StaffOrderDetailsModal';
 import { isSameIstDate, isWithinDaysIST } from '../../../utils/formatters';
 
@@ -38,7 +41,8 @@ export const KitchenDisplayPage = () => {
     orders,
     refreshOrders,
     startPreparation,
-    markReadyForPickup
+    markReadyForPickup,
+    activeOutletName
   } = useStaffOrders();
 
   // Active View Tab: 'queue' (Active Cooking) | 'pickup' (Ready for Pickup Counter) | 'history' (Preparation History)
@@ -55,6 +59,8 @@ export const KitchenDisplayPage = () => {
   // History Filter States
   const [historySearch, setHistorySearch] = useState('');
   const [historyDateFilter, setHistoryDateFilter] = useState('ALL'); // 'ALL' | 'TODAY' | 'YESTERDAY' | 'WEEK'
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyPageSize, setHistoryPageSize] = useState(10);
   const [selectedOrderForView, setSelectedOrderForView] = useState(null);
 
   // 1. High-frequency 1-second timer for live preparation counters
@@ -121,46 +127,32 @@ export const KitchenDisplayPage = () => {
     return orders.filter((o) => isStatusReady(o.status));
   }, [orders]);
 
-  // 5. Preparation History (All prepared orders merged from live DB and persistent history)
+  // 5. Preparation History (All prepared orders directly from live backend DB)
   const prepHistoryOrders = useMemo(() => {
-    const localHist = staffOrderService.getPreparationHistory();
-    const map = new Map();
-
-    // 1. Add local persistent history records
-    localHist.forEach((item) => {
-      if (item && item.orderId) {
-        map.set(String(item.orderId), item);
-      }
-    });
-
-    // 2. Merge all prepared orders (Ready for Pickup or Completed/Collected) from live DB
-    orders.forEach((o) => {
-      if (isStatusReady(o.status) || o.status === 'Completed' || o.status === 'Collected') {
+    const list = orders
+      .filter((o) => isStatusReady(o.status) || isStatusCompleted(o.status) || o.status === 'Completed' || o.status === 'Collected')
+      .map((o) => {
         const id = String(o.id);
-        const existing = map.get(id);
         const statusToDisplay = isStatusReady(o.status)
           ? ORDER_STATUS.READY_FOR_PICKUP
-          : (existing?.status || o.status || ORDER_STATUS.READY_FOR_PICKUP);
+          : (o.status || ORDER_STATUS.READY_FOR_PICKUP);
 
-        map.set(id, {
+        return {
           orderId: id,
-          token: o.token || existing?.token,
-          customerName: o.customer?.name || existing?.customerName || 'Customer',
-          customerRole: o.customer?.role || existing?.customerRole || 'Student',
-          items: (o.items && o.items.length > 0) ? o.items : (existing?.items || []),
-          totalAmount: o.totalAmount ?? existing?.totalAmount ?? 0,
-          orderType: o.orderType || existing?.orderType || 'Pickup',
-          prepStartedAt: o.prepStartedAt || existing?.prepStartedAt || o.preparingAt || o.createdAt,
-          prepCompletedAt: o.prepCompletedAt || existing?.prepCompletedAt || o.readyAt || o.updatedAt,
-          durationSeconds: o.prepDurationSeconds || existing?.durationSeconds || 0,
-          durationFormatted: o.prepDurationFormatted || existing?.durationFormatted || '—',
+          token: o.token,
+          customerName: o.customer?.name || 'Customer',
+          customerRole: o.customer?.role || 'Student',
+          items: (o.items && o.items.length > 0) ? o.items : [],
+          totalAmount: o.totalAmount ?? 0,
+          orderType: o.orderType || 'Pickup',
+          prepStartedAt: o.prepStartedAt || o.preparingAt || o.createdAt,
+          prepCompletedAt: o.prepCompletedAt || o.readyAt || o.updatedAt,
+          durationSeconds: o.prepDurationSeconds || 0,
+          durationFormatted: o.prepDurationFormatted || '—',
           status: statusToDisplay,
-          orderDate: o.orderDate || o.createdAt || existing?.orderDate
-        });
-      }
-    });
-
-    const list = Array.from(map.values());
+          orderDate: o.orderDate || o.createdAt
+        };
+      });
 
     // Apply Filters
     return list.filter((item) => {
@@ -201,6 +193,16 @@ export const KitchenDisplayPage = () => {
       return timeB - timeA;
     });
   }, [orders, historySearch, historyDateFilter]);
+
+  // Reset pagination when history filter changes
+  useEffect(() => {
+    setHistoryPage(1);
+  }, [historySearch, historyDateFilter]);
+
+  const paginatedPrepHistory = useMemo(() => {
+    const start = (historyPage - 1) * historyPageSize;
+    return prepHistoryOrders.slice(start, start + historyPageSize);
+  }, [prepHistoryOrders, historyPage, historyPageSize]);
 
   const toggleItemCheck = (orderId, itemIndex) => {
     const key = `${orderId}-${itemIndex}`;
@@ -249,15 +251,31 @@ export const KitchenDisplayPage = () => {
             <span style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '4px',
+              gap: '5px',
               padding: '3px 10px',
               borderRadius: '9999px',
               backgroundColor: 'var(--color-primary-light)',
               color: 'var(--color-primary)',
               fontSize: '12px',
-              fontWeight: 600
+              fontWeight: 600,
+              border: '1px solid var(--border-color)'
             }}>
-              <Flame size={13} />
+              <Store size={12} />
+              {activeOutletName || 'Central Dining Hall'}
+            </span>
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '3px 10px',
+              borderRadius: '9999px',
+              backgroundColor: 'var(--bg-surface)',
+              color: 'var(--text-secondary)',
+              fontSize: '12px',
+              fontWeight: 600,
+              border: '1px solid var(--border-color)'
+            }}>
+              <Flame size={13} style={{ color: 'var(--color-accent)' }} />
               Live Kitchen Stations
             </span>
           </div>
@@ -497,8 +515,9 @@ export const KitchenDisplayPage = () => {
               gap: '16px'
             }}>
               {cookingOrders.map((order) => {
-                const isPrepStarted = Boolean(order.prepStartedAt);
-                const prepTime = isPrepStarted ? formatElapsedPrepTime(order.prepStartedAt) : null;
+                const effectivePrepStart = order.prepStartedAt || (isStatusPreparing(order.status) ? (order.updatedAt || order.orderDate) : null);
+                const isPrepStarted = Boolean(effectivePrepStart);
+                const prepTime = isPrepStarted ? formatElapsedPrepTime(effectivePrepStart) : null;
                 const elapsedMins = prepTime ? prepTime.mins : 0;
                 const isOverdue = elapsedMins >= ORDER_URGENCY_MINUTES.WARNING;
                 const isWarning = elapsedMins >= ORDER_URGENCY_MINUTES.NORMAL;
@@ -1129,14 +1148,15 @@ export const KitchenDisplayPage = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {prepHistoryOrders.length === 0 ? (
+                  {paginatedPrepHistory.length === 0 ? (
                     <tr>
                       <td colSpan={9} style={{ padding: '40px 16px', textAlign: 'center', color: 'var(--text-muted)' }}>
                         No preparation history records found matching criteria.
                       </td>
                     </tr>
                   ) : (
-                    prepHistoryOrders.map((rec, index) => {
+                    paginatedPrepHistory.map((rec, index) => {
+                      const serialNumber = (historyPage - 1) * historyPageSize + index + 1;
                       const startTime = rec.prepStartedAt
                         ? new Date(rec.prepStartedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                         : '—';
@@ -1153,7 +1173,7 @@ export const KitchenDisplayPage = () => {
                           }}
                         >
                           <td style={{ padding: '12px 14px', color: 'var(--text-muted)', fontWeight: 600 }}>
-                            {index + 1}
+                            {serialNumber}
                           </td>
                           <td style={{ padding: '12px 14px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -1259,6 +1279,20 @@ export const KitchenDisplayPage = () => {
                 </tbody>
               </table>
             </div>
+
+            {prepHistoryOrders.length > 0 && (
+              <Pagination
+                currentPage={historyPage}
+                totalItems={prepHistoryOrders.length}
+                pageSize={historyPageSize}
+                onPageChange={setHistoryPage}
+                onPageSizeChange={(newSize) => {
+                  setHistoryPageSize(newSize);
+                  setHistoryPage(1);
+                }}
+                pageSizeOptions={[5, 10, 20, 50]}
+              />
+            )}
           </div>
         </div>
       )}
@@ -1269,8 +1303,14 @@ export const KitchenDisplayPage = () => {
           isOpen={Boolean(selectedOrderForView)}
           onClose={() => setSelectedOrderForView(null)}
           order={selectedOrderForView}
-          onAccept={handleStartPrepare}
-          onMarkReady={handleMarkReady}
+          onStartCooking={(orderId) => {
+            const ord = orders.find(o => String(o.id) === String(orderId)) || selectedOrderForView;
+            handleStartPrepare(ord);
+          }}
+          onMarkReady={(orderId) => {
+            const ord = orders.find(o => String(o.id) === String(orderId)) || selectedOrderForView;
+            handleMarkReady(ord);
+          }}
         />
       )}
     </div>

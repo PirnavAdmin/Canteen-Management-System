@@ -132,11 +132,45 @@ export const normalizeStockRequest = (raw) => {
     unit,
     urgency,
     status,
+    rejectionReason: raw.rejectionReason ?? raw.RejectionReason ?? raw.reason ?? raw.Reason ?? (raw.status === 'Rejected' ? raw.adminNotes : '') ?? '',
     adminNotes,
     notes,
     requiredByDate,
     requestedBy,
     createdAt,
+    outletId: cleanOutletId(raw.outletId ?? raw.OutletId) || 1
+  };
+};
+
+/**
+ * Normalizes backend stock movement / ledger record into consistent shape expected by Staff UI components.
+ */
+export const normalizeLedgerEntry = (raw) => {
+  if (!raw || typeof raw !== 'object') return raw;
+  const id = raw.id ?? raw.Id ?? raw.movementId ?? '';
+  const dateTime = raw.dateTime ?? raw.DateTime ?? raw.createdAt ?? raw.CreatedAt ?? new Date().toISOString();
+  const reference = raw.reference ?? raw.Reference ?? (id ? `MOV-${id}` : 'MOV-001');
+  const ingredientName = raw.ingredientName ?? raw.IngredientName ?? raw.name ?? raw.Name ?? 'Ingredient';
+  const transactionType = raw.transactionType ?? raw.TransactionType ?? raw.movementType ?? raw.MovementType ?? 'STOCK ADJUSTMENT';
+  const quantity = Number(raw.quantity ?? raw.Quantity ?? 0);
+  const unit = raw.unit ?? raw.Unit ?? 'kg';
+  const previousStock = Number(raw.previousStock ?? raw.PreviousStock ?? 0);
+  const newStock = Number(raw.newStock ?? raw.NewStock ?? (previousStock + quantity));
+  const performedBy = raw.performedBy ?? raw.PerformedBy ?? 'Staff Attendant';
+  const description = raw.description ?? raw.Description ?? raw.reason ?? raw.Reason ?? 'Stock update';
+
+  return {
+    id,
+    dateTime,
+    reference,
+    ingredientName,
+    transactionType,
+    quantity,
+    unit,
+    previousStock,
+    newStock,
+    performedBy,
+    description,
     outletId: cleanOutletId(raw.outletId ?? raw.OutletId) || 1
   };
 };
@@ -293,8 +327,97 @@ export const staffInventoryService = {
    * Retrieve stock movements audit ledger
    */
   getInventoryLedger: async (params = {}) => {
-    const response = await apiClient.get(API_ENDPOINTS.INVENTORY.LEDGER, params);
-    return response?.data ?? response;
+    const queryParams = { ...params };
+    if (queryParams.outletId) {
+      const cleaned = cleanOutletId(queryParams.outletId);
+      if (cleaned) queryParams.outletId = cleaned;
+      else delete queryParams.outletId;
+    }
+    const response = await apiClient.get(API_ENDPOINTS.INVENTORY.LEDGER, queryParams);
+    const raw = response?.data ?? response;
+    const list = Array.isArray(raw)
+      ? raw
+      : (Array.isArray(raw?.movements) ? raw.movements : (Array.isArray(raw?.items) ? raw.items : []));
+    return list.map(normalizeLedgerEntry);
+  },
+
+  /**
+   * POST /api/v1/canteen-inventory/movements
+   * Direct stock movement registration
+   */
+  recordMovement: async (movementData) => {
+    const ingredientId = Number(movementData.ingredientId || movementData.itemId || movementData.id);
+    const payload = {
+      ingredientId,
+      movementType: movementData.movementType || 'Stock Out',
+      quantity: Number(movementData.quantity),
+      batchNumber: movementData.batchNumber || null,
+      expiryDate: movementData.expiryDate || null,
+      reference: movementData.reference || null,
+      reason: movementData.reason || 'Kitchen movement',
+      performedBy: movementData.performedBy || 'Staff Attendant'
+    };
+
+    const res = await apiClient.post(API_ENDPOINTS.INVENTORY.STOCK_MOVEMENT, payload);
+    const result = res?.data ?? res;
+
+    window.dispatchEvent(new CustomEvent('cms:inventory_updated', {
+      detail: { result }
+    }));
+
+    return result;
+  },
+
+  /**
+   * Confirm receipt of incoming stock and synchronize with backend inventory
+   */
+  confirmReceipt: async (params) => {
+    let requestResult = null;
+    if (params.requestId) {
+      try {
+        requestResult = await staffInventoryService.markStockReceived(params.requestId);
+      } catch (err) {
+        console.warn('Backend mark received notice:', err.message);
+      }
+    }
+
+    if (params.itemId || params.ingredientId) {
+      await staffInventoryService.recordMovement({
+        ingredientId: params.itemId || params.ingredientId,
+        movementType: 'Stock In',
+        quantity: Number(params.quantity || params.receivedQuantity || 0),
+        reference: params.reference || `RCV-${Date.now().toString().slice(-4)}`,
+        reason: params.reason || 'Received from Central Admin Warehouse',
+        performedBy: params.receivedBy || 'Staff Attendant'
+      });
+    }
+
+    window.dispatchEvent(new CustomEvent('cms:inventory_updated', {
+      detail: { params }
+    }));
+    window.dispatchEvent(new CustomEvent('cms:stock_received', {
+      detail: { params }
+    }));
+
+    return requestResult || params;
+  },
+
+  /**
+   * Record kitchen usage or cooking consumption
+   */
+  recordUsage: async (usageData) => {
+    const ingredientId = Number(usageData.itemId || usageData.ingredientId || usageData.id);
+    const qty = Number(usageData.quantityUsed || usageData.quantity || 0);
+    const isWaste = Boolean(usageData.isWaste || usageData.waste);
+
+    return staffInventoryService.recordMovement({
+      ingredientId,
+      movementType: isWaste ? 'Wastage' : 'Stock Out',
+      quantity: qty,
+      reference: usageData.reference || `USE-${Date.now().toString().slice(-4)}`,
+      reason: usageData.reason || (isWaste ? 'Spoilage / expired batch discarded' : 'Kitchen food preparation consumption'),
+      performedBy: usageData.performedBy || 'Chef / Kitchen Staff'
+    });
   },
 
   /**
@@ -302,23 +425,18 @@ export const staffInventoryService = {
    * Retrieve all raw material stock requisitions from backend
    */
   getStockRequests: async (outletId = null, params = {}) => {
-    try {
-      const queryParams = { ...params };
-      const validOutletId = cleanOutletId(outletId);
-      if (validOutletId) {
-        queryParams.outletId = validOutletId;
-      }
-
-      const response = await apiClient.get(API_ENDPOINTS.INVENTORY.STOCK_REQUESTS, queryParams);
-      const raw = response?.data ?? response;
-      const list = Array.isArray(raw)
-        ? raw
-        : (Array.isArray(raw?.requests) ? raw.requests : (Array.isArray(raw?.items) ? raw.items : []));
-      return list.map(normalizeStockRequest);
-    } catch (err) {
-      console.warn('Network issue fetching /canteen-inventory/stock-requests:', err.message);
-      return [];
+    const queryParams = { ...params };
+    const validOutletId = cleanOutletId(outletId);
+    if (validOutletId) {
+      queryParams.outletId = validOutletId;
     }
+
+    const response = await apiClient.get(API_ENDPOINTS.INVENTORY.STOCK_REQUESTS, queryParams);
+    const raw = response?.data ?? response;
+    const list = Array.isArray(raw)
+      ? raw
+      : (Array.isArray(raw?.requests) ? raw.requests : (Array.isArray(raw?.items) ? raw.items : []));
+    return list.map(normalizeStockRequest);
   },
 
   /**
@@ -357,9 +475,6 @@ export const staffInventoryService = {
     window.dispatchEvent(new CustomEvent('cms:stock_request_updated', {
       detail: { request: created }
     }));
-    try {
-      localStorage.setItem('cms_stock_request_sync_timestamp', Date.now().toString());
-    } catch {}
 
     return created;
   },
@@ -379,9 +494,6 @@ export const staffInventoryService = {
     window.dispatchEvent(new CustomEvent('cms:inventory_updated', {
       detail: { updatedStockRequest: updated }
     }));
-    try {
-      localStorage.setItem('cms_stock_request_sync_timestamp', Date.now().toString());
-    } catch {}
 
     return updated;
   },
@@ -396,9 +508,6 @@ export const staffInventoryService = {
     window.dispatchEvent(new CustomEvent('cms:stock_request_updated', {
       detail: { deletedRequestId: requestId }
     }));
-    try {
-      localStorage.setItem('cms_stock_request_sync_timestamp', Date.now().toString());
-    } catch {}
 
     return true;
   }

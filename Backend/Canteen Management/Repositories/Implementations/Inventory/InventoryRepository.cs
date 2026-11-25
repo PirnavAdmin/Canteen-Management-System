@@ -551,6 +551,10 @@ namespace CanteenManagement.API.Repositories.Implementations.Inventory
 
         public async Task<StockRequest> CreateStockRequestAsync(StockRequest request)
         {
+            if (string.IsNullOrWhiteSpace(request.RequestId))
+            {
+                request.RequestId = $"REQ-{DateTime.UtcNow:yyyy}-{Random.Shared.Next(1000, 9999)}";
+            }
             request.CreatedAt = DateTime.UtcNow;
             await _dbContext.StockRequests.AddAsync(request);
             await _dbContext.SaveChangesAsync();

@@ -51,16 +51,25 @@ namespace CanteenManagement.API.Data
                     return;
                 }
 
-                // Ensure Notes, PackagingFee in Orders, DiscountPercent in MenuItems, and StockRequests schema exist safely
+                // Ensure Notes, PackagingFee in Orders and DiscountPercent in MenuItems exist safely
                 try
                 {
                     using var alterConn = new MySqlConnection(activeCs);
                     await alterConn.OpenAsync();
+                    await alterConn.ExecuteAsync("ALTER TABLE Orders ADD COLUMN IF NOT EXISTS Notes VARCHAR(500) NULL;");
+                    await alterConn.ExecuteAsync("ALTER TABLE Orders ADD COLUMN IF NOT EXISTS PackagingFee DECIMAL(10,2) NOT NULL DEFAULT 0.00;");
+                    await alterConn.ExecuteAsync("ALTER TABLE MenuItems ADD COLUMN IF NOT EXISTS DiscountPercent DECIMAL(5,2) NOT NULL DEFAULT 0.00;");
 
-                    // Ensure StockRequests table exists safely
+                    // Ensure Central Warehouse outlet exists
+                    await alterConn.ExecuteAsync(@"
+                        INSERT INTO CanteenOutlets (CampusId, Code, Name, Location, OpenTime, CloseTime, Status, IsOrderAcceptanceEnabled, WorkingDays, CreatedAt)
+                        SELECT 1, 'WH-01', 'Central Warehouse (Admin Master Store)', 'Campus Central Logistics Block, Ground Floor', '06:00', '22:00', 'Active', 0, 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday', UTC_TIMESTAMP()
+                        WHERE NOT EXISTS (SELECT 1 FROM CanteenOutlets WHERE Code = 'WH-01' OR Name LIKE '%Warehouse%');");
+
+                    // Ensure StockRequests table exists safely with VARCHAR(50) RequestId
                     await alterConn.ExecuteAsync(@"
                         CREATE TABLE IF NOT EXISTS StockRequests (
-                            RequestId INT AUTO_INCREMENT PRIMARY KEY,
+                            RequestId VARCHAR(50) NOT NULL PRIMARY KEY,
                             CampusId INT NOT NULL DEFAULT 1,
                             OutletId INT NOT NULL,
                             SourceOutletId INT NULL,
@@ -82,37 +91,17 @@ namespace CanteenManagement.API.Data
                             CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                             DispatchedAt DATETIME NULL,
                             ReceivedAt DATETIME NULL,
-                            UpdatedAt DATETIME NULL,
+                            UpdatedAt DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
                             CONSTRAINT fk_stockrequest_outlet FOREIGN KEY (OutletId) REFERENCES CanteenOutlets (OutletId)
                         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
 
-                    string[] safeColumns = new[]
-                    {
-                        "ALTER TABLE Orders ADD COLUMN Notes VARCHAR(500) NULL;",
-                        "ALTER TABLE Orders ADD COLUMN PackagingFee DECIMAL(10,2) NOT NULL DEFAULT 0.00;",
-                        "ALTER TABLE MenuItems ADD COLUMN DiscountPercent DECIMAL(5,2) NOT NULL DEFAULT 0.00;",
-                        "ALTER TABLE StockRequests ADD COLUMN SourceOutletId INT NULL;",
-                        "ALTER TABLE StockRequests ADD COLUMN ItemId INT NULL;",
-                        "ALTER TABLE StockRequests ADD COLUMN IssuedQuantity DECIMAL(10,2) NULL;",
-                        "ALTER TABLE StockRequests ADD COLUMN AdminNotes TEXT NULL;",
-                        "ALTER TABLE StockRequests ADD COLUMN DispatchedBy VARCHAR(100) NULL;",
-                        "ALTER TABLE StockRequests ADD COLUMN ReceivedBy VARCHAR(100) NULL;",
-                        "ALTER TABLE StockRequests ADD COLUMN DispatchedAt DATETIME NULL;",
-                        "ALTER TABLE StockRequests ADD COLUMN ReceivedAt DATETIME NULL;",
-                        "ALTER TABLE StockRequests ADD COLUMN UpdatedAt DATETIME NULL;"
-                    };
-
-                    foreach (var colSql in safeColumns)
-                    {
-                        try
-                        {
-                            await alterConn.ExecuteAsync(colSql);
-                        }
-                        catch
-                        {
-                            // Column already exists, safe to ignore
-                        }
-                    }
+                    // Add missing columns if table already existed previously
+                    try { await alterConn.ExecuteAsync("ALTER TABLE StockRequests ADD COLUMN IF NOT EXISTS IssuedQuantity DECIMAL(10,2) NULL;"); } catch { }
+                    try { await alterConn.ExecuteAsync("ALTER TABLE StockRequests ADD COLUMN IF NOT EXISTS DispatchedBy VARCHAR(100) NULL;"); } catch { }
+                    try { await alterConn.ExecuteAsync("ALTER TABLE StockRequests ADD COLUMN IF NOT EXISTS ReceivedBy VARCHAR(100) NULL;"); } catch { }
+                    try { await alterConn.ExecuteAsync("ALTER TABLE StockRequests ADD COLUMN IF NOT EXISTS DispatchedAt DATETIME NULL;"); } catch { }
+                    try { await alterConn.ExecuteAsync("ALTER TABLE StockRequests ADD COLUMN IF NOT EXISTS ReceivedAt DATETIME NULL;"); } catch { }
+                    try { await alterConn.ExecuteAsync("DELETE FROM StockRequests WHERE RequestId = '' OR RequestId IS NULL;"); } catch { }
                 }
                 catch (Exception ex)
                 {

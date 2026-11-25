@@ -105,10 +105,14 @@ export const OrdersA4SheetModal = ({
       let html2canvasModule = null;
       let jsPDF = null;
       try {
-        html2canvasModule = (await import(/* @vite-ignore */ 'html2canvas')).default;
-        const jspdfModule = await import(/* @vite-ignore */ 'jspdf');
-        jsPDF = jspdfModule.jsPDF;
+        const h2cPkg = 'html2canvas';
+        const jspdfPkg = 'jspdf';
+        const h2c = await import(/* @vite-ignore */ h2cPkg);
+        html2canvasModule = h2c.default || h2c;
+        const jspdfMod = await import(/* @vite-ignore */ jspdfPkg);
+        jsPDF = jspdfMod.jsPDF || jspdfMod.default;
       } catch (e) {
+        console.warn('Direct PDF export library unavailable, using print fallback:', e);
         window.print();
         return;
       }

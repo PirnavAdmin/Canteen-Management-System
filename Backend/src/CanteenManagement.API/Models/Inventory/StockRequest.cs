@@ -8,8 +8,8 @@ namespace CanteenManagement.API.Models.Inventory
     public class StockRequest
     {
         [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        public int RequestId { get; set; }
+        [MaxLength(50)]
+        public string RequestId { get; set; } = string.Empty;
 
         [Required]
         public int CampusId { get; set; } = 1;
@@ -82,4 +82,3 @@ namespace CanteenManagement.API.Models.Inventory
         public virtual InventoryItem? Item { get; set; }
     }
 }
-

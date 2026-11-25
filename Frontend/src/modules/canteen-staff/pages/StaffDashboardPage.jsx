@@ -37,7 +37,8 @@ export const StaffDashboardPage = () => {
     acceptOrder,
     startPreparation,
     markReadyForPickup,
-    refreshOrders
+    refreshOrders,
+    activeOutletName
   } = useStaffOrders();
 
   const {
@@ -206,7 +207,7 @@ export const StaffDashboardPage = () => {
               }}
             >
               <Store size={12} />
-              {STAFF_APP_CONFIG.canteenOutlet} ({STAFF_APP_CONFIG.counterName})
+              {activeOutletName || STAFF_APP_CONFIG.canteenOutlet} ({STAFF_APP_CONFIG.counterName})
             </span>
 
             {/* Secondary Compact Completed Orders Metric */}
@@ -528,209 +529,31 @@ export const StaffDashboardPage = () => {
         </Link>
       </div>
 
-      {/* 3. Inventory Alerts Section (Preserved 100% Intact) */}
-      <div style={{
-        backgroundColor: 'var(--bg-surface)',
-        borderRadius: 'var(--border-radius-lg)',
-        border: '1px solid var(--border-color)',
-        padding: '20px',
-        boxShadow: 'var(--shadow-xs)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '16px'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{
-              width: '30px',
-              height: '30px',
-              borderRadius: '6px',
-              backgroundColor: '#fffbeb',
-              color: '#d97706',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <AlertTriangle size={16} />
-            </div>
-            <div>
-              <h2 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-                INVENTORY ALERTS
-              </h2>
-              <div style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
-                Items requiring kitchen staff attention
-              </div>
-            </div>
-          </div>
-
-          <span style={{
-            fontSize: '11.5px',
-            fontWeight: 700,
-            padding: '2px 8px',
-            borderRadius: '9999px',
-            backgroundColor: inventoryAlerts.length > 0 ? '#fef2f2' : 'var(--color-success-bg)',
-            color: inventoryAlerts.length > 0 ? '#dc2626' : 'var(--color-success)',
-            border: '1px solid var(--border-color)'
-          }}>
-            {inventoryAlerts.length} {inventoryAlerts.length === 1 ? 'alert' : 'alerts'}
-          </span>
-        </div>
-
-        {inventoryAlerts.length === 0 ? (
-          <div style={{
-            padding: '36px 20px',
-            textAlign: 'center',
-            backgroundColor: 'var(--bg-app)',
-            borderRadius: 'var(--border-radius-md)',
-            border: '1px dashed var(--border-color)'
-          }}>
-            <Sparkles size={28} style={{ color: 'var(--color-success)', marginBottom: '8px' }} />
-            <div style={{ fontSize: '13.5px', fontWeight: 600, color: 'var(--text-primary)' }}>
-              All ingredients are well-stocked!
-            </div>
-            <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
-              No low stock, out of stock, or expiring items detected in {STAFF_APP_CONFIG.canteenOutlet}.
-            </div>
-          </div>
-        ) : (
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '10px',
-            maxHeight: '175px',
-            overflowY: 'auto',
-            paddingRight: '2px'
-          }}>
-            {inventoryAlerts.map(alert => (
-              <div
-                key={alert.id}
-                style={{
-                  border: '1px solid var(--border-color)',
-                  borderRadius: 'var(--border-radius-md)',
-                  padding: '10px 14px',
-                  backgroundColor: 'var(--bg-app)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '12px'
-                }}
-              >
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{
-                      fontSize: '13px',
-                      fontWeight: 700,
-                      color: 'var(--text-primary)',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis'
-                    }}>
-                      {alert.ingredientName}
-                    </span>
-                  </div>
-
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                    {alert.itemCode}
-                    {alert.reorderLevel > 0 && ` • Min Level: ${alert.reorderLevel} ${alert.unit}`}
-                    {alert.expiryDate && ` • Exp: ${alert.expiryDate}`}
-                  </div>
-                </div>
-
-                <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <div style={{ fontSize: '13px', fontWeight: 800, color: alert.badgeColor }}>
-                    {alert.availableQuantity} {alert.unit}
-                  </div>
-                  <span style={{
-                    display: 'inline-block',
-                    marginTop: '2px',
-                    fontSize: '10px',
-                    fontWeight: 700,
-                    padding: '1px 6px',
-                    borderRadius: '4px',
-                    backgroundColor: alert.badgeBg,
-                    color: alert.badgeColor
-                  }}>
-                    {alert.statusLabel}
-                  </span>
-                </div>
-
-                <Link
-                  to={`/staff/stock-requests?item=${encodeURIComponent(alert.ingredientName)}&unit=${alert.unit}`}
-                  style={{
-                    padding: '5px 9px',
-                    borderRadius: '6px',
-                    backgroundColor: 'var(--color-primary)',
-                    color: '#ffffff',
-                    textDecoration: 'none',
-                    fontSize: '11px',
-                    fontWeight: 600,
-                    flexShrink: 0
-                  }}
-                >
-                  Reorder
-                </Link>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Three Quick Access Links provided as required */}
-        <div style={{
-          marginTop: 'auto',
-          paddingTop: '12px',
-          borderTop: '1px solid var(--border-color)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '8px'
-        }}>
-          <Link
-            to="/staff/inventory"
-            style={{
-              fontSize: '12px',
-              fontWeight: 600,
-              color: 'var(--color-accent)',
-              textDecoration: 'none'
-            }}
-          >
-            View All Inventory →
-          </Link>
-
-          <Link
-            to="/staff/inventory/expiry"
-            style={{
-              fontSize: '12px',
-              fontWeight: 600,
-              color: 'var(--color-accent)',
-              textDecoration: 'none'
-            }}
-          >
-            View Expiry Tracking →
-          </Link>
-
-          <Link
-            to="/staff/stock-requests"
-            style={{
-              fontSize: '12px',
-              fontWeight: 600,
-              color: 'var(--color-primary)',
-              textDecoration: 'none'
-            }}
-          >
-            Send Request to Admin →
-          </Link>
-        </div>
-      </div>
-
-      {/* 4. Live Order Activity & Recent Stock Requests (Equal Height & Non-Expanding Symmetrical Cards) */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
-        gap: '20px',
-        alignItems: 'stretch'
-      }}>
-        {/* SECTION: LIVE ORDER ACTIVITY */}
+      {/* 3. Operational Triad: Inventory Alerts | Live Order Activity | Admin Requisitions (Equal Width & Equal Height Row) */}
+      <style>{`
+        .staff-operations-grid {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 16px;
+          align-items: stretch;
+          width: 100%;
+          box-sizing: border-box;
+        }
+        @media (max-width: 1080px) {
+          .staff-operations-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+          }
+        }
+        @media (max-width: 680px) {
+          .staff-operations-grid {
+            grid-template-columns: 1fr;
+            gap: 12px;
+          }
+        }
+      `}</style>
+      <div className="staff-operations-grid">
+        {/* SECTION 1: INVENTORY ALERTS */}
         <div style={{
           backgroundColor: 'var(--bg-surface)',
           borderRadius: 'var(--border-radius-lg)',
@@ -741,16 +564,225 @@ export const StaffDashboardPage = () => {
           flexDirection: 'column',
           gap: '16px',
           height: '100%',
+          minHeight: '430px',
+          minWidth: 0,
           boxSizing: 'border-box'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#10b981' }} />
-              <div>
-                <h2 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+              <div style={{
+                width: '30px',
+                height: '30px',
+                borderRadius: '6px',
+                backgroundColor: '#fffbeb',
+                color: '#d97706',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0
+              }}>
+                <AlertTriangle size={16} />
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <h2 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  INVENTORY ALERTS
+                </h2>
+                <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  Items requiring kitchen staff attention
+                </div>
+              </div>
+            </div>
+
+            <span style={{
+              fontSize: '11.5px',
+              fontWeight: 700,
+              padding: '2px 8px',
+              borderRadius: '9999px',
+              backgroundColor: inventoryAlerts.length > 0 ? '#fef2f2' : 'var(--color-success-bg)',
+              color: inventoryAlerts.length > 0 ? '#dc2626' : 'var(--color-success)',
+              border: '1px solid var(--border-color)',
+              flexShrink: 0
+            }}>
+              {inventoryAlerts.length} {inventoryAlerts.length === 1 ? 'alert' : 'alerts'}
+            </span>
+          </div>
+
+          {inventoryAlerts.length === 0 ? (
+            <div style={{
+              padding: '36px 16px',
+              textAlign: 'center',
+              backgroundColor: 'var(--bg-app)',
+              borderRadius: 'var(--border-radius-md)',
+              border: '1px dashed var(--border-color)',
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <Sparkles size={28} style={{ color: 'var(--color-success)', marginBottom: '8px' }} />
+              <div style={{ fontSize: '13.5px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                All ingredients are well-stocked!
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                No low stock, out of stock, or expiring items detected in {STAFF_APP_CONFIG.canteenOutlet}.
+              </div>
+            </div>
+          ) : (
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px',
+              flex: 1,
+              maxHeight: '280px',
+              overflowY: 'auto',
+              paddingRight: '2px'
+            }}>
+              {inventoryAlerts.map(alert => (
+                <div
+                  key={alert.id}
+                  style={{
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--border-radius-md)',
+                    padding: '10px 12px',
+                    backgroundColor: 'var(--bg-app)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '8px'
+                  }}
+                >
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{
+                        fontSize: '13px',
+                        fontWeight: 700,
+                        color: 'var(--text-primary)',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis'
+                      }}>
+                        {alert.ingredientName}
+                      </span>
+                    </div>
+
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {alert.itemCode}
+                      {alert.reorderLevel > 0 && ` • Min: ${alert.reorderLevel} ${alert.unit}`}
+                      {alert.expiryDate && ` • Exp: ${alert.expiryDate}`}
+                    </div>
+                  </div>
+
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <div style={{ fontSize: '12.5px', fontWeight: 800, color: alert.badgeColor }}>
+                      {alert.availableQuantity} {alert.unit}
+                    </div>
+                    <span style={{
+                      display: 'inline-block',
+                      marginTop: '2px',
+                      fontSize: '10px',
+                      fontWeight: 700,
+                      padding: '1px 6px',
+                      borderRadius: '4px',
+                      backgroundColor: alert.badgeBg,
+                      color: alert.badgeColor
+                    }}>
+                      {alert.statusLabel}
+                    </span>
+                  </div>
+
+                  <Link
+                    to={`/staff/stock-requests?item=${encodeURIComponent(alert.ingredientName)}&unit=${alert.unit}`}
+                    style={{
+                      padding: '4px 8px',
+                      borderRadius: '6px',
+                      backgroundColor: 'var(--color-primary)',
+                      color: '#ffffff',
+                      textDecoration: 'none',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      flexShrink: 0
+                    }}
+                  >
+                    Reorder
+                  </Link>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Quick Access Links */}
+          <div style={{
+            marginTop: 'auto',
+            paddingTop: '12px',
+            borderTop: '1px solid var(--border-color)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '8px'
+          }}>
+            <Link
+              to="/staff/inventory"
+              style={{
+                fontSize: '11.5px',
+                fontWeight: 600,
+                color: 'var(--color-accent)',
+                textDecoration: 'none'
+              }}
+            >
+              View All Inventory →
+            </Link>
+
+            <Link
+              to="/staff/inventory/expiry"
+              style={{
+                fontSize: '11.5px',
+                fontWeight: 600,
+                color: 'var(--color-accent)',
+                textDecoration: 'none'
+              }}
+            >
+              View Expiry Tracking →
+            </Link>
+
+            <Link
+              to="/staff/stock-requests"
+              style={{
+                fontSize: '11.5px',
+                fontWeight: 600,
+                color: 'var(--color-primary)',
+                textDecoration: 'none'
+              }}
+            >
+              Send Request to Admin →
+            </Link>
+          </div>
+        </div>
+
+        {/* SECTION 2: LIVE ORDER ACTIVITY */}
+        <div style={{
+          backgroundColor: 'var(--bg-surface)',
+          borderRadius: 'var(--border-radius-lg)',
+          border: '1px solid var(--border-color)',
+          padding: '20px',
+          boxShadow: 'var(--shadow-xs)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '16px',
+          height: '100%',
+          minHeight: '430px',
+          minWidth: 0,
+          boxSizing: 'border-box'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#10b981', flexShrink: 0 }} />
+              <div style={{ minWidth: 0 }}>
+                <h2 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   LIVE ORDER ACTIVITY
                 </h2>
-                <div style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
+                <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   Active queue requiring kitchen & counter actions
                 </div>
               </div>
@@ -758,7 +790,7 @@ export const StaffDashboardPage = () => {
 
             <Link
               to="/staff/board"
-              style={{ fontSize: '12px', color: 'var(--color-primary)', fontWeight: 600, textDecoration: 'none' }}
+              style={{ fontSize: '12px', color: 'var(--color-primary)', fontWeight: 600, textDecoration: 'none', flexShrink: 0 }}
             >
               View All Orders →
             </Link>
@@ -766,7 +798,7 @@ export const StaffDashboardPage = () => {
 
           {activeOrders.length === 0 ? (
             <div style={{
-              padding: '36px',
+              padding: '36px 16px',
               textAlign: 'center',
               backgroundColor: 'var(--bg-app)',
               borderRadius: 'var(--border-radius-md)',
@@ -786,7 +818,7 @@ export const StaffDashboardPage = () => {
               flexDirection: 'column',
               gap: '10px',
               flex: 1,
-              maxHeight: '290px',
+              maxHeight: '280px',
               overflowY: 'auto',
               paddingRight: '2px'
             }}>
@@ -802,33 +834,33 @@ export const StaffDashboardPage = () => {
                     style={{
                       border: '1px solid var(--border-color)',
                       borderRadius: 'var(--border-radius-md)',
-                      padding: '12px 14px',
+                      padding: '10px 12px',
                       backgroundColor: 'var(--bg-app)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      gap: '12px',
-                      flexWrap: 'wrap'
+                      gap: '8px'
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
                       <div style={{
-                        padding: '4px 8px',
+                        padding: '3px 7px',
                         borderRadius: '6px',
                         backgroundColor: 'var(--color-primary)',
                         color: '#ffffff',
                         fontWeight: 800,
-                        fontSize: '12px'
+                        fontSize: '11.5px',
+                        flexShrink: 0
                       }}>
                         {order.token || 'T-ORD'}
                       </div>
-                      <div>
-                        <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {order.customer?.name || 'Customer'}
                           <span style={{
-                            marginLeft: '6px',
-                            fontSize: '10px',
-                            padding: '1px 6px',
+                            marginLeft: '5px',
+                            fontSize: '9.5px',
+                            padding: '1px 5px',
                             borderRadius: '4px',
                             backgroundColor: 'var(--bg-muted)',
                             color: 'var(--text-secondary)',
@@ -837,22 +869,22 @@ export const StaffDashboardPage = () => {
                             {order.customer?.role || 'Student'}
                           </span>
                         </div>
-                        <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {Array.isArray(order.items)
                             ? order.items.map(i => `${i.quantity}x ${i.name}`).join(', ')
                             : 'Order items'}
-                          <span style={{ marginLeft: '6px', color: 'var(--text-secondary)' }}>
+                          <span style={{ marginLeft: '4px', color: 'var(--text-secondary)' }}>
                             • {formatOrderTime(order.orderDate || order.createdAt)}
                           </span>
                         </div>
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                       {/* Current Status Pill */}
                       <span style={{
-                        fontSize: '11px',
-                        padding: '3px 8px',
+                        fontSize: '10.5px',
+                        padding: '2px 7px',
                         borderRadius: '6px',
                         fontWeight: 600,
                         backgroundColor: isReady
@@ -874,24 +906,19 @@ export const StaffDashboardPage = () => {
                         {order.status}
                       </span>
 
-                      {/* Required Action Button */}
+                      {/* Required Action Button / Status Badge */}
                       {isPlaced && (
-                        <button
-                          type="button"
-                          onClick={() => acceptOrder(order.id)}
-                          style={{
-                            padding: '5px 12px',
-                            borderRadius: '6px',
-                            backgroundColor: 'var(--color-primary)',
-                            color: '#ffffff',
-                            border: 'none',
-                            fontSize: '11.5px',
-                            fontWeight: 600,
-                            cursor: 'pointer'
-                          }}
-                        >
-                          Accept
-                        </button>
+                        <span style={{
+                          fontSize: '10.5px',
+                          padding: '2px 7px',
+                          borderRadius: '6px',
+                          fontWeight: 600,
+                          backgroundColor: '#fef3c7',
+                          color: '#b45309',
+                          border: '1px solid #fde68a'
+                        }}>
+                          Awaiting Cashier
+                        </span>
                       )}
 
                       {isAccepted && (
@@ -899,17 +926,17 @@ export const StaffDashboardPage = () => {
                           type="button"
                           onClick={() => startPreparation(order.id)}
                           style={{
-                            padding: '5px 12px',
+                            padding: '4px 10px',
                             borderRadius: '6px',
                             backgroundColor: '#ea580c',
                             color: '#ffffff',
                             border: 'none',
-                            fontSize: '11.5px',
+                            fontSize: '11px',
                             fontWeight: 600,
                             cursor: 'pointer'
                           }}
                         >
-                          Cook
+                          Start Preparing
                         </button>
                       )}
 
@@ -918,12 +945,12 @@ export const StaffDashboardPage = () => {
                           type="button"
                           onClick={() => markReadyForPickup(order.id)}
                           style={{
-                            padding: '5px 12px',
+                            padding: '4px 10px',
                             borderRadius: '6px',
                             backgroundColor: '#059669',
                             color: '#ffffff',
                             border: 'none',
-                            fontSize: '11.5px',
+                            fontSize: '11px',
                             fontWeight: 600,
                             cursor: 'pointer'
                           }}
@@ -933,20 +960,17 @@ export const StaffDashboardPage = () => {
                       )}
 
                       {isReady && (
-                        <Link
-                          to={`/staff/verify?token=${order.token || ''}`}
-                          style={{
-                            padding: '5px 12px',
-                            borderRadius: '6px',
-                            backgroundColor: '#059669',
-                            color: '#ffffff',
-                            textDecoration: 'none',
-                            fontSize: '11.5px',
-                            fontWeight: 600
-                          }}
-                        >
-                          Handover
-                        </Link>
+                        <span style={{
+                          fontSize: '10.5px',
+                          padding: '2px 7px',
+                          borderRadius: '6px',
+                          fontWeight: 600,
+                          backgroundColor: '#eff6ff',
+                          color: '#2563eb',
+                          border: '1px solid #bfdbfe'
+                        }}>
+                          At Pickup Counter
+                        </span>
                       )}
                     </div>
                   </div>
@@ -972,7 +996,8 @@ export const StaffDashboardPage = () => {
                 color: 'var(--color-primary)',
                 fontSize: '12px',
                 fontWeight: 700,
-                textDecoration: 'none'
+                textDecoration: 'none',
+                boxSizing: 'border-box'
               }}
             >
               <span>View All in Order Management</span>
@@ -981,7 +1006,7 @@ export const StaffDashboardPage = () => {
           </div>
         </div>
 
-        {/* SECTION: RECENT STOCK REQUISITIONS */}
+        {/* SECTION 3: ADMIN REQUISITIONS */}
         <div style={{
           backgroundColor: 'var(--bg-surface)',
           borderRadius: 'var(--border-radius-lg)',
@@ -992,10 +1017,12 @@ export const StaffDashboardPage = () => {
           flexDirection: 'column',
           gap: '16px',
           height: '100%',
+          minHeight: '430px',
+          minWidth: 0,
           boxSizing: 'border-box'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
               <div style={{
                 width: '30px',
                 height: '30px',
@@ -1004,15 +1031,16 @@ export const StaffDashboardPage = () => {
                 color: '#7c3aed',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center'
+                justifyContent: 'center',
+                flexShrink: 0
               }}>
                 <Send size={16} />
               </div>
-              <div>
-                <h2 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+              <div style={{ minWidth: 0 }}>
+                <h2 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   ADMIN REQUISITIONS
                 </h2>
-                <div style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
+                <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   Recent stock requests sent to Admin
                 </div>
               </div>
@@ -1020,7 +1048,7 @@ export const StaffDashboardPage = () => {
 
             <Link
               to="/staff/inventory?view=history"
-              style={{ fontSize: '12px', color: 'var(--color-primary)', fontWeight: 600, textDecoration: 'none' }}
+              style={{ fontSize: '12px', color: 'var(--color-primary)', fontWeight: 600, textDecoration: 'none', flexShrink: 0 }}
             >
               View All Requests →
             </Link>
@@ -1028,7 +1056,7 @@ export const StaffDashboardPage = () => {
 
           {stockRequests.length === 0 ? (
             <div style={{
-              padding: '36px',
+              padding: '36px 16px',
               textAlign: 'center',
               backgroundColor: 'var(--bg-app)',
               borderRadius: 'var(--border-radius-md)',
@@ -1048,7 +1076,7 @@ export const StaffDashboardPage = () => {
               flexDirection: 'column',
               gap: '10px',
               flex: 1,
-              maxHeight: '290px',
+              maxHeight: '280px',
               overflowY: 'auto',
               paddingRight: '2px'
             }}>
@@ -1063,27 +1091,27 @@ export const StaffDashboardPage = () => {
                     style={{
                       border: '1px solid var(--border-color)',
                       borderRadius: 'var(--border-radius-md)',
-                      padding: '10px 14px',
+                      padding: '10px 12px',
                       backgroundColor: 'var(--bg-app)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      gap: '10px',
+                      gap: '8px',
                       textDecoration: 'none',
                       color: 'inherit',
                       transition: 'border-color var(--transition-fast)'
                     }}
                   >
-                    <div>
-                      <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {req.itemName}
                       </div>
-                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         Requested: <strong>{req.requestedQuantity} {req.unit}</strong> • {req.id}
                       </div>
                     </div>
 
-                    <div style={{ textAlign: 'right' }}>
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
                       <span style={{
                         fontSize: '10.5px',
                         fontWeight: 700,
@@ -1127,7 +1155,8 @@ export const StaffDashboardPage = () => {
                 color: 'var(--color-primary)',
                 fontSize: '12px',
                 fontWeight: 700,
-                textDecoration: 'none'
+                textDecoration: 'none',
+                boxSizing: 'border-box'
               }}
             >
               + Submit New Stock Requisition

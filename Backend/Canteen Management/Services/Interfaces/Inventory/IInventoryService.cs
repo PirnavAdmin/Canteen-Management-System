@@ -26,4 +26,3 @@ namespace CanteenManagement.API.Services.Interfaces.Inventory
         Task<bool> DeleteStockRequestAsync(string id, int campusId, string performedBy);
     }
 }
-

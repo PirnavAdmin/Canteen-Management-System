@@ -3,6 +3,16 @@ import { Store } from 'lucide-react';
 import { formatCurrency, formatNumber } from '../../../../utils/formatters';
 
 export const OutletSalesCard = ({ outletSales = [], loading = false }) => {
+  const filteredSales = React.useMemo(() => {
+    if (!Array.isArray(outletSales)) return [];
+    return outletSales.filter(o => {
+      const oid = Number(o.outletId || o.id);
+      const name = (o.name || o.outletName || '').toLowerCase();
+      const code = (o.code || '').toUpperCase();
+      return oid !== 4 && code !== 'WH-01' && !name.includes('warehouse');
+    });
+  }, [outletSales]);
+
   if (loading) {
     return (
       <div style={{
@@ -64,12 +74,12 @@ export const OutletSalesCard = ({ outletSales = [], loading = false }) => {
           paddingRight: '4px'
         }}
       >
-        {!Array.isArray(outletSales) || outletSales.length === 0 ? (
+        {!Array.isArray(filteredSales) || filteredSales.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '30px 20px', color: 'var(--text-muted)', fontSize: '12.5px' }}>
             No outlet sales records found today.
           </div>
         ) : (
-          outletSales.map((outlet, idx) => (
+          filteredSales.map((outlet, idx) => (
             <div
               key={outlet.outletId || idx}
               style={{

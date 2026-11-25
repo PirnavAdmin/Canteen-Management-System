@@ -541,7 +541,7 @@ namespace CanteenManagement.API.Repositories.Implementations.Inventory
             return await query.OrderByDescending(r => r.CreatedAt).AsNoTracking().ToListAsync();
         }
 
-        public async Task<StockRequest?> GetStockRequestByIdAsync(int id, int campusId)
+        public async Task<StockRequest?> GetStockRequestByIdAsync(string id, int campusId)
         {
             return await _dbContext.StockRequests
                 .Include(r => r.Outlet)
@@ -551,6 +551,10 @@ namespace CanteenManagement.API.Repositories.Implementations.Inventory
 
         public async Task<StockRequest> CreateStockRequestAsync(StockRequest request)
         {
+            if (string.IsNullOrWhiteSpace(request.RequestId))
+            {
+                request.RequestId = $"REQ-{DateTime.UtcNow:yyyy}-{Random.Shared.Next(1000, 9999)}";
+            }
             request.CreatedAt = DateTime.UtcNow;
             await _dbContext.StockRequests.AddAsync(request);
             await _dbContext.SaveChangesAsync();
@@ -565,7 +569,7 @@ namespace CanteenManagement.API.Repositories.Implementations.Inventory
             return request;
         }
 
-        public async Task<bool> DeleteStockRequestAsync(int id, int campusId)
+        public async Task<bool> DeleteStockRequestAsync(string id, int campusId)
         {
             var req = await _dbContext.StockRequests.FirstOrDefaultAsync(r => r.RequestId == id && r.CampusId == campusId);
             if (req == null) return false;

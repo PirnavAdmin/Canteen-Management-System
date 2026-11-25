@@ -430,62 +430,60 @@ export const StaffOrderTable = ({
                           <Eye size={14} />
                         </button>
 
-                        {/* STATUS 1: NEW / PLACED -> Accept Order & Reject Order */}
+                        {/* STATUS 1: NEW / PLACED -> Awaiting Cashier Acceptance */}
                         {isPlaced && (
-                          <>
-                            <button
-                              type="button"
-                              disabled={isActionLoading}
-                              onClick={() => onAccept(order.id)}
-                              title="Accept order and send to kitchen preparation"
-                              style={{
-                                padding: '5px 12px',
-                                borderRadius: '6px',
-                                border: 'none',
-                                backgroundColor: 'var(--color-primary)',
-                                color: '#ffffff',
-                                fontSize: '11px',
-                                fontWeight: 700,
-                                cursor: isActionLoading ? 'wait' : 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '5px'
-                              }}
-                            >
-                              <CheckCircle2 size={12} />
-                              {isActionLoading ? 'Accepting...' : 'Accept Order'}
-                            </button>
-
-                            <button
-                              type="button"
-                              disabled={isActionLoading}
-                              onClick={() => onReject(order)}
-                              title="Reject order with reason"
-                              style={{
-                                padding: '5px 8px',
-                                borderRadius: '6px',
-                                border: '1px solid var(--color-danger-border)',
-                                backgroundColor: 'var(--color-danger-bg)',
-                                color: 'var(--color-danger)',
-                                fontSize: '11px',
-                                fontWeight: 600,
-                                cursor: 'pointer'
-                              }}
-                            >
-                              Reject
-                            </button>
-                          </>
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            color: '#b45309',
+                            backgroundColor: '#fef3c7',
+                            border: '1px solid #fde68a',
+                            padding: '4px 8px',
+                            borderRadius: '4px'
+                          }}>
+                            <Clock size={12} />
+                            Awaiting Cashier
+                          </span>
                         )}
 
-                        {/* STATUS 2: PREPARING (or ACCEPTED) -> Mark Ready */}
-                        {(isPreparing || isAccepted) && (
+                        {/* STATUS 2: ACCEPTED -> Start Preparing */}
+                        {isAccepted && (
+                          <button
+                            type="button"
+                            disabled={isActionLoading}
+                            onClick={() => onStartCooking(order.id)}
+                            title="Start kitchen preparation for this accepted order"
+                            style={{
+                              padding: '5px 12px',
+                              borderRadius: '6px',
+                              border: 'none',
+                              backgroundColor: '#ea580c',
+                              color: '#ffffff',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              cursor: isActionLoading ? 'wait' : 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '5px'
+                            }}
+                          >
+                            <Flame size={12} />
+                            {isActionLoading ? 'Starting...' : 'Start Preparing'}
+                          </button>
+                        )}
+
+                        {/* STATUS 3: PREPARING -> Ready / Move to Pickup Counter */}
+                        {isPreparing && (
                           <button
                             type="button"
                             disabled={isActionLoading}
                             onClick={() => onMarkReady(order.id)}
-                            title="Mark food preparation complete and ready for counter pickup"
+                            title="Food preparation complete: Ready / Move to Pickup Counter"
                             style={{
-                              padding: '5px 12px',
+                              padding: '5px 10px',
                               borderRadius: '6px',
                               border: 'none',
                               backgroundColor: '#059669',
@@ -499,35 +497,27 @@ export const StaffOrderTable = ({
                             }}
                           >
                             <BellRing size={12} />
-                            {isActionLoading ? 'Saving...' : 'Mark Ready'}
+                            {isActionLoading ? 'Moving...' : 'Ready / Move to Pickup'}
                           </button>
                         )}
 
-                        {/* STATUS 3: READY FOR PICKUP -> Mark Collected */}
+                        {/* STATUS 4: READY FOR PICKUP -> Pickup Counter Notice (Awaiting Cashier Handover) */}
                         {isReady && (
-                          <button
-                            type="button"
-                            disabled={isActionLoading}
-                            onClick={() => onCompleteOrder && onCompleteOrder(order.id)}
-                            title="Customer collecting food: Mark order as Collected"
-                            style={{
-                              padding: '5px 12px',
-                              borderRadius: '6px',
-                              border: 'none',
-                              backgroundColor: '#059669',
-                              color: '#ffffff',
-                              fontSize: '11px',
-                              fontWeight: 700,
-                              cursor: isActionLoading ? 'wait' : 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              boxShadow: 'var(--shadow-xs)'
-                            }}
-                          >
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            color: '#2563eb',
+                            backgroundColor: '#eff6ff',
+                            border: '1px solid #bfdbfe',
+                            padding: '4px 9px',
+                            borderRadius: '4px'
+                          }}>
                             <CheckCircle2 size={12} />
-                            {isActionLoading ? 'Saving...' : 'Mark Collected'}
-                          </button>
+                            At Pickup Counter
+                          </span>
                         )}
 
                         {/* STATUS 5: COMPLETED -> Verification Details */}

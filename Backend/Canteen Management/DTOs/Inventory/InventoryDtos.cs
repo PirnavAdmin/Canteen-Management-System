@@ -209,7 +209,11 @@ namespace CanteenManagement.API.DTOs.Inventory
     public class StockRequestDto
     {
         public string Id { get; set; } = string.Empty;
-        public string RequestId { get => Id; set => Id = value; }
+        public string RequestId
+        {
+            get => Id;
+            set => Id = value;
+        }
         public int CampusId { get; set; }
         public int OutletId { get; set; }
         public string OutletName { get; set; } = "Kitchen Outlet";
