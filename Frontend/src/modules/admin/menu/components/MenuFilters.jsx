@@ -27,7 +27,15 @@ export const MenuFilters = ({
     ]).then(([outletsData, categoriesData]) => {
       if (isMounted) {
         const parsedOutlets = Array.isArray(outletsData) ? outletsData : (outletsData?.data || []);
-        if (Array.isArray(parsedOutlets)) setOutlets(parsedOutlets);
+        if (Array.isArray(parsedOutlets)) {
+          const filtered = parsedOutlets.filter(o => {
+            const oid = Number(o.outletId || o.id);
+            const code = String(o.code || '').toUpperCase();
+            const name = String(o.name || o.outletName || '').toLowerCase();
+            return oid !== 4 && code !== 'WH-01' && !name.includes('warehouse');
+          });
+          setOutlets(filtered);
+        }
         const parsedCategories = Array.isArray(categoriesData) ? categoriesData : (categoriesData?.data || []);
         if (Array.isArray(parsedCategories)) setCategories(parsedCategories);
       }

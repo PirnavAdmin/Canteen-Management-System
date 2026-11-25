@@ -254,6 +254,26 @@ namespace CanteenManagement.API.Controllers.V1
             return Ok(ApiResponse<StockRequestDto>.SuccessResponse(created, $"Stock requisition #{created.RequestId} submitted successfully."));
         }
 
+        [HttpPut("stock-requests/{id}")]
+        public async Task<IActionResult> UpdateStockRequest(string id, [FromBody] UpdateStockRequestDto dto)
+        {
+            try
+            {
+                var campusId = User.ResolveCampusId();
+                var userName = User.ResolveUserName();
+                var updated = await _inventoryService.UpdateStockRequestAsync(id, dto, campusId, userName);
+                return Ok(ApiResponse<StockRequestDto>.SuccessResponse(updated, $"Stock requisition #{id} updated successfully."));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ApiResponse<string>.ErrorResponse(ex.Message));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ApiResponse<string>.ErrorResponse(ex.Message));
+            }
+        }
+
         [HttpPatch("stock-requests/{id}/dispatch")]
         [Authorize(Policy = "RequireAdmin")]
         public async Task<IActionResult> DispatchStockRequest(string id, [FromBody] DispatchStockRequestDto dto)
@@ -295,6 +315,11 @@ namespace CanteenManagement.API.Controllers.V1
         [Authorize(Policy = "RequireAdmin")]
         public async Task<IActionResult> RejectStockRequest(string id, [FromBody] RejectStockRequestDto dto)
         {
+            if (!ModelState.IsValid || string.IsNullOrWhiteSpace(dto.Reason))
+            {
+                return BadRequest(ApiResponse<string>.ErrorResponse("A valid reason (minimum 3 characters) must be provided for rejecting this requisition."));
+            }
+
             try
             {
                 var campusId = User.ResolveCampusId();
@@ -306,19 +331,30 @@ namespace CanteenManagement.API.Controllers.V1
             {
                 return NotFound(ApiResponse<string>.ErrorResponse(ex.Message));
             }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ApiResponse<string>.ErrorResponse(ex.Message));
+            }
         }
 
         [HttpDelete("stock-requests/{id}")]
         public async Task<IActionResult> DeleteStockRequest(string id)
         {
-            var campusId = User.ResolveCampusId();
-            var userName = User.ResolveUserName();
-            var success = await _inventoryService.DeleteStockRequestAsync(id, campusId, userName);
-            if (!success)
+            try
             {
-                return NotFound(ApiResponse<string>.ErrorResponse($"Stock request with ID {id} was not found."));
+                var campusId = User.ResolveCampusId();
+                var userName = User.ResolveUserName();
+                var success = await _inventoryService.DeleteStockRequestAsync(id, campusId, userName);
+                if (!success)
+                {
+                    return NotFound(ApiResponse<string>.ErrorResponse($"Stock request with ID {id} was not found."));
+                }
+                return Ok(ApiResponse<bool>.SuccessResponse(true, "Stock request removed successfully."));
             }
-            return Ok(ApiResponse<bool>.SuccessResponse(true, "Stock request removed successfully."));
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ApiResponse<string>.ErrorResponse(ex.Message));
+            }
         }
     }
 

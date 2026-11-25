@@ -7,6 +7,7 @@ import { categoryService } from '../../categories/services/categoryService';
 import { mediaService } from '../../../../services/api/mediaService';
 import { SafeImage } from '../../../../components/common/SafeImage';
 import { useToast } from '../../../../app/providers/ToastProvider';
+import { useCanteens } from '../../outlets/hooks/useCanteens';
 
 export const MenuModal = ({
   isOpen,
@@ -14,10 +15,29 @@ export const MenuModal = ({
   onSubmit,
   initialData = null,
   loading = false,
-  title = 'Add Menu Item'
+  title = 'Add Menu Item',
+  selectedOutlet: propSelectedOutlet
 }) => {
+  const { selectedOutlet: globalOutlet, canteens: contextCanteens } = useCanteens();
+  const activeSelectedOutlet = propSelectedOutlet !== undefined ? propSelectedOutlet : globalOutlet;
+
   const [outlets, setOutlets] = useState([]);
   const [categories, setCategories] = useState([]);
+
+  const campusOutlets = React.useMemo(() => {
+    const list = Array.isArray(outlets) && outlets.length > 0
+      ? outlets
+      : (Array.isArray(contextCanteens) ? contextCanteens : []);
+
+    return list.filter(out => {
+      const id = Number(out.outletId || out.id);
+      const code = String(out.code || '').toUpperCase();
+      const name = String(out.name || out.outletName || '').toLowerCase();
+      if (id === 4 || code === 'WH-01' || name.includes('warehouse')) return false;
+      if (String(out.outletId || out.id).toUpperCase() === 'ALL' || name.includes('all campus') || name.includes('all outlets')) return false;
+      return true;
+    });
+  }, [outlets, contextCanteens]);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imagePreview, setImagePreview] = useState('');
   const [photoSourceMode, setPhotoSourceMode] = useState('upload'); // 'upload' | 'url'
@@ -63,7 +83,13 @@ export const MenuModal = ({
           ? outletsData
           : (Array.isArray(outletsData?.data) ? outletsData.data : []);
         if (parsedOutlets.length > 0) {
-          setOutlets(parsedOutlets);
+          const filteredOutlets = parsedOutlets.filter(o => {
+            const oid = Number(o.outletId || o.id);
+            const code = String(o.code || '').toUpperCase();
+            const name = String(o.name || o.outletName || '').toLowerCase();
+            return oid !== 4 && code !== 'WH-01' && !name.includes('warehouse');
+          });
+          setOutlets(filteredOutlets);
         }
 
         const parsedCategories = Array.isArray(categoriesData)
@@ -133,13 +159,32 @@ export const MenuModal = ({
       setIsCustomFoodType(false);
       setCustomFoodTypeValue('');
       const firstActiveCat = categories.find(c => String(c.status || '').toLowerCase() === 'active' || c.isActive === true) || categories[0];
+
+      let defaultOutletId = 1;
+      const currentSelected = activeSelectedOutlet;
+      if (currentSelected && String(currentSelected).toUpperCase() !== 'ALL') {
+        const matched = campusOutlets.find(o => String(o.outletId || o.id) === String(currentSelected));
+        if (matched) {
+          defaultOutletId = Number(matched.outletId || matched.id);
+        } else {
+          defaultOutletId = Number(currentSelected) || 1;
+        }
+      } else {
+        const mainCanteen = campusOutlets.find(o => Number(o.outletId || o.id) === 1 || String(o.name).toLowerCase().includes('main canteen'));
+        if (mainCanteen) {
+          defaultOutletId = Number(mainCanteen.outletId || mainCanteen.id);
+        } else if (campusOutlets.length > 0) {
+          defaultOutletId = Number(campusOutlets[0].outletId || campusOutlets[0].id);
+        }
+      }
+
       setFormData({
         name: '',
         code: '',
         description: '',
         category: firstActiveCat?.name || '',
         categoryId: firstActiveCat?.id || firstActiveCat?.categoryId || 1,
-        outletId: outlets[0]?.outletId || outlets[0]?.id || 1,
+        outletId: defaultOutletId,
         foodType: FOOD_TYPES.VEG,
         price: '',
         dailyCapacity: '',
@@ -160,7 +205,7 @@ export const MenuModal = ({
       setPhotoSourceMode('upload');
     }
     setErrors({});
-  }, [initialData, isOpen, categories, outlets]);
+  }, [initialData, isOpen, categories, campusOutlets, activeSelectedOutlet]);
 
   if (!isOpen) return null;
 
@@ -240,7 +285,7 @@ export const MenuModal = ({
     e.preventDefault();
     if (!validate()) return;
 
-    const numericOutletId = Number(formData.outletId) || (outlets[0]?.outletId ?? outlets[0]?.id ?? 1);
+    const numericOutletId = Number(formData.outletId) || (campusOutlets[0]?.outletId ?? campusOutlets[0]?.id ?? 1);
     const matchedCategory = categories.find(c => c.name === formData.category || c.id === formData.categoryId);
     const numericCategoryId = Number(formData.categoryId) || (matchedCategory?.id || matchedCategory?.categoryId || 1);
 
@@ -573,8 +618,8 @@ export const MenuModal = ({
                   borderRadius: 'var(--border-radius-md)'
                 }}
               >
-                {outlets.length > 0 ? (
-                  outlets.map(out => (
+                {campusOutlets.length > 0 ? (
+                  campusOutlets.map(out => (
                     <option key={out.outletId || out.id} value={out.outletId || out.id}>
                       {out.name} ({out.code || 'MC'})
                     </option>

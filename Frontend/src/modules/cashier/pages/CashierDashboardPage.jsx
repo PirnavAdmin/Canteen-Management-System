@@ -9,7 +9,6 @@ export default function CashierDashboardPage() {
   const [summary, setSummary] = useState(null);
   const [liveOrders, setLiveOrders] = useState([]);
   const [todayOrders, setTodayOrders] = useState([]);
-  const [stockAlerts, setStockAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
@@ -20,12 +19,15 @@ export default function CashierDashboardPage() {
     setError(null);
 
     try {
-      const [summaryRes, liveOrdersRes, ordersRes, alertsRes] = await Promise.allSettled([
+      const [summaryRes, liveOrdersRes, ordersRes] = await Promise.allSettled([
         dashboardService.getSummary('ALL'),
         dashboardService.getLiveOrders('ALL'),
-        orderService.getAll({ dateFilter: 'today' }),
-        dashboardService.getStockAlerts()
+        orderService.getAll({ dateFilter: 'today' })
       ]);
+
+      if ([summaryRes, liveOrdersRes, ordersRes].some(result => result.status === 'rejected')) {
+        setError('Some dashboard data could not be loaded. Please refresh and try again.');
+      }
 
       if (summaryRes.status === 'fulfilled') {
         setSummary(summaryRes.value?.data || summaryRes.value || {});
@@ -37,10 +39,6 @@ export default function CashierDashboardPage() {
       if (ordersRes.status === 'fulfilled') {
         const ords = ordersRes.value?.data || ordersRes.value || [];
         setTodayOrders(Array.isArray(ords) ? ords : []);
-      }
-      if (alertsRes.status === 'fulfilled') {
-        const alerts = alertsRes.value?.data || alertsRes.value || [];
-        setStockAlerts(Array.isArray(alerts) ? alerts : []);
       }
     } catch (err) {
       setError(err?.message || 'Failed to load cashier dashboard metrics.');
@@ -60,8 +58,10 @@ export default function CashierDashboardPage() {
     const orders = Array.isArray(todayOrders) ? todayOrders : [];
 
     orders.forEach(o => {
+      const status = String(o.payment?.status || o.paymentStatus || '').toLowerCase();
+      if (status !== 'paid' || /cancel|refund|void/i.test(String(o.status || ''))) return;
       const amt = Number(o.totalAmount || o.total || 0);
-      const method = String(o.payment?.method || o.paymentMethod || 'Cash').toUpperCase();
+      const method = String(o.payment?.method || o.paymentMethod || '').toUpperCase();
       if (method.includes('CASH')) cash += amt;
       else if (method.includes('UPI') || method.includes('QR')) upi += amt;
       else if (method.includes('CARD') || method.includes('WALLET')) card += amt;
@@ -92,7 +92,7 @@ export default function CashierDashboardPage() {
       o.customer || o.customerName || 'Campus Diner',
       `${o.itemCount || (o.items && o.items.length) || 1}`,
       formatCurrency(o.total || o.totalAmount || 0),
-      o.paymentMethod || o.payment?.method || 'Paid',
+      o.payment?.status || o.paymentStatus || 'Unknown',
       o.status || 'Preparing'
     ]);
   }, [liveOrders]);
@@ -100,7 +100,7 @@ export default function CashierDashboardPage() {
   // Recent transactions from today's orders
   const recentTransactions = useMemo(() => {
     if (!todayOrders || todayOrders.length === 0) return [];
-    return todayOrders.slice(0, 5).map(o => {
+    return todayOrders.filter(o => String(o.payment?.status || o.paymentStatus || '').toLowerCase() === 'paid' && !/cancel|refund|void/i.test(String(o.status || ''))).sort((a, b) => new Date(b.orderDate || 0) - new Date(a.orderDate || 0)).slice(0, 5).map(o => {
       let timeStr = '--:--';
       if (o.orderDate) {
         try {
@@ -111,7 +111,7 @@ export default function CashierDashboardPage() {
       }
       return [
         o.token || o.id || o.orderId || '-',
-        o.payment?.method || o.paymentMethod || 'Cash',
+        o.payment?.method || o.paymentMethod || 'Unknown',
         formatCurrency(o.totalAmount || o.total || 0),
         timeStr
       ];
@@ -121,9 +121,7 @@ export default function CashierDashboardPage() {
   const activeCount = summary?.activeOrders !== undefined ? summary.activeOrders : liveOrders.length;
   const todaySales = summary?.todayRevenue !== undefined ? summary.todayRevenue : paymentBreakdown.totalSales;
   const totalOrdersCount = summary?.todayOrders !== undefined ? summary.todayOrders : todayOrders.length;
-  const completedCount = summary?.completedOrders !== undefined
-    ? summary.completedOrders
-    : (summary?.completedOrdersToday !== undefined ? summary.completedOrdersToday : todayOrders.filter(o => o.status === 'Collected' || o.status === 'Completed').length);
+  const completedCount = todayOrders.filter(o => /^(collected|completed)$/i.test(String(o.status || ''))).length;
 
   return (
     <>
@@ -144,7 +142,7 @@ export default function CashierDashboardPage() {
             padding: '4px 10px',
             borderRadius: '99px'
           }}>
-            ● Live System Data
+            {error ? 'Some data unavailable' : loading ? 'Loading data…' : 'Live System Data'}
           </span>
           <button
             type="button"
@@ -273,11 +271,6 @@ export default function CashierDashboardPage() {
           <b>Operational Status & Counter Alerts</b>
           <p>{activeCount} orders currently in kitchen preparation queue</p>
           <p>{todayOrders.filter(o => String(o.payment?.status || '').toLowerCase() === 'pending').length} orders pending payment confirmation</p>
-          {stockAlerts.length > 0 ? (
-            <p style={{ color: '#d97706' }}>⚠️ {stockAlerts.length} inventory ingredient(s) low in stock</p>
-          ) : (
-            <p style={{ color: '#16a34a' }}>✓ All kitchen ingredient inventory levels adequate</p>
-          )}
         </section>
       </div>
     </>
