@@ -7,6 +7,30 @@ import { formatCurrency } from '../../../../utils/formatters';
 export const LiveOrderQueue = ({ orders = [], loading = false }) => {
   const navigate = useNavigate();
 
+  const todayOrders = React.useMemo(() => {
+    if (!Array.isArray(orders)) return [];
+    const now = new Date();
+    const todayStr = now.toDateString();
+    const minutesSinceMidnight = now.getHours() * 60 + now.getMinutes();
+
+    return orders.filter(ord => {
+      const rawDate = ord.orderDate || ord.createdAt || ord.date;
+      if (rawDate) {
+        const d = new Date(rawDate);
+        if (!isNaN(d.getTime())) return d.toDateString() === todayStr;
+      }
+      if (ord.elapsedTime) {
+        if (/d|day/i.test(ord.elapsedTime)) return false;
+        const match = String(ord.elapsedTime).match(/(\d+)\s*m/i);
+        if (match) {
+          const mins = parseInt(match[1], 10);
+          return mins <= (minutesSinceMidnight + 30);
+        }
+      }
+      return true;
+    });
+  }, [orders]);
+
   if (loading) {
     return (
       <div style={{
@@ -30,7 +54,10 @@ export const LiveOrderQueue = ({ orders = [], loading = false }) => {
           {[1, 2, 3].map((n) => (
             <div key={n} style={{ padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--border-color-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div className="skeleton-box" style={{ width: '38px', height: '24px', borderRadius: '4px' }} />
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px' }}>
+                  <div className="skeleton-box" style={{ width: '40px', height: '18px', borderRadius: '3px' }} />
+                  <div className="skeleton-box" style={{ width: '46px', height: '8px', borderRadius: '2px' }} />
+                </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <div className="skeleton-box" style={{ width: '100px', height: '12px' }} />
                   <div className="skeleton-box" style={{ width: '140px', height: '9px' }} />
@@ -107,12 +134,12 @@ export const LiveOrderQueue = ({ orders = [], loading = false }) => {
           paddingRight: '4px'
         }}
       >
-        {!Array.isArray(orders) || orders.length === 0 ? (
+        {!Array.isArray(todayOrders) || todayOrders.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '30px 20px', color: 'var(--text-muted)', fontSize: '12.5px' }}>
             No active orders in live queue right now.
           </div>
         ) : (
-          orders.map((ord, idx) => (
+          todayOrders.map((ord, idx) => (
             <div
               key={ord.id || ord.orderId || idx}
               style={{
@@ -129,16 +156,50 @@ export const LiveOrderQueue = ({ orders = [], loading = false }) => {
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
                 <div style={{
-                  backgroundColor: '#1e3a8a',
-                  color: '#ffffff',
-                  padding: '4px 8px',
-                  borderRadius: '4px',
-                  fontWeight: 700,
-                  fontSize: '11.5px',
-                  letterSpacing: '0.04em',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minWidth: '42px',
+                  maxWidth: '70px',
                   flexShrink: 0
                 }}>
-                  {ord.token || 'TKN'}
+                  <div style={{
+                    backgroundColor: '#1e3a8a',
+                    color: '#ffffff',
+                    padding: '2px 5px',
+                    borderRadius: '3px',
+                    fontWeight: 700,
+                    fontSize: '10px',
+                    letterSpacing: '0.02em',
+                    lineHeight: 1.2,
+                    textAlign: 'center',
+                    boxSizing: 'border-box',
+                    width: '100%',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {ord.token || 'TKN'}
+                  </div>
+
+                  {(ord.outletName || ord.outletCode) && (
+                    <div
+                      title={ord.outletName || ord.outletCode}
+                      style={{
+                        fontSize: '9px',
+                        fontWeight: 600,
+                        color: 'var(--text-muted, #64748b)',
+                        marginTop: '2px',
+                        textAlign: 'center',
+                        lineHeight: 1.15,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        maxWidth: '100%'
+                      }}
+                    >
+                      {ord.outletName || ord.outletCode}
+                    </div>
+                  )}
                 </div>
 
                 <div style={{ minWidth: 0, flex: 1 }}>

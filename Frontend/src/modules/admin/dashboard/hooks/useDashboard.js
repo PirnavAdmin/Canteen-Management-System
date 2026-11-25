@@ -238,8 +238,142 @@ export const useDashboard = (selectedOutlet = 'ALL') => {
         lastWeek,
         orders: validOrders
       });
-      setLiveOrders(live);
-      setTopSelling(top);
+
+      // Filter & merge live orders to only include orders placed today (both active and today's orders)
+      const liveList = Array.isArray(live) ? live : (Array.isArray(live?.data) ? live.data : []);
+      const orderDateMap = new Map();
+      rawOrders.forEach(o => {
+        const id = o.id || o.orderId || o.OrderId || o.order_id;
+        const oDate = new Date(o.orderDate || o.OrderDate || o.createdAt || o.CreatedAt || 0);
+        if (id && !isNaN(oDate.getTime())) {
+          orderDateMap.set(String(id), oDate);
+        }
+      });
+      const todayMinutesSinceMidnight = today.getHours() * 60 + today.getMinutes();
+
+      const todayOrdersList = [];
+      const seenOrderIds = new Set();
+
+      // 1. Process active live orders from liveList (ensuring they belong to today and match outlet)
+      liveList.forEach(o => {
+        if (!matchesOutlet(o)) return;
+        const id = String(o.id || o.orderId || '');
+        const directDate = o.orderDate || o.createdAt || o.date;
+        let isToday = false;
+
+        if (id && orderDateMap.has(id)) {
+          isToday = orderDateMap.get(id).toDateString() === todayDateStr;
+        } else if (directDate) {
+          const d = new Date(directDate);
+          isToday = !isNaN(d.getTime()) && d.toDateString() === todayDateStr;
+        } else if (o.elapsedTime) {
+          if (!/d|day/i.test(o.elapsedTime)) {
+            const match = String(o.elapsedTime).match(/(\d+)\s*m/i);
+            if (match) {
+              const mins = parseInt(match[1], 10);
+              isToday = mins <= (todayMinutesSinceMidnight + 30);
+            }
+          }
+        } else {
+          isToday = true;
+        }
+
+        if (isToday) {
+          if (id) seenOrderIds.add(id);
+          todayOrdersList.push({
+            ...o,
+            id: o.id || o.orderId,
+            orderId: o.orderId || o.id,
+            token: o.token || 'TKN',
+            customer: o.customer || o.customerName || 'Customer',
+            customerName: typeof o.customer === 'object' ? (o.customer?.name || o.customer?.fullName || 'Customer') : (o.customer || o.customerName || 'Customer'),
+            customerRole: typeof o.customer === 'object' ? (o.customer?.role || 'Student') : (o.customerRole || 'Student'),
+            outletName: o.outletName || o.OutletName || 'Main Canteen',
+            outletCode: o.outletCode || o.OutletCode || '',
+            items: o.items || [],
+            total: Number(o.total ?? o.totalAmount ?? 0),
+            totalAmount: Number(o.totalAmount ?? o.total ?? 0),
+            status: o.status || 'Preparing',
+            elapsedTime: o.elapsedTime || 'Live',
+            orderTime: o.orderTime || '',
+            orderDate: o.orderDate || (id && orderDateMap.has(id) ? orderDateMap.get(id).toISOString() : null)
+          });
+        }
+      });
+
+      // 2. Process today's orders from rawOrders (handles completed orders or orders not returned by liveList)
+      rawOrders.forEach(o => {
+        if (!matchesOutlet(o)) return;
+        const oDate = new Date(o.orderDate || o.OrderDate || o.createdAt || o.CreatedAt || 0);
+        if (isNaN(oDate.getTime()) || oDate.toDateString() !== todayDateStr) return;
+
+        const id = String(o.id || o.orderId || o.OrderId || '');
+        if (id && seenOrderIds.has(id)) return;
+        if (id) seenOrderIds.add(id);
+
+        const statusStr = String(o.status || o.Status || '').toLowerCase();
+        if (statusStr === 'cancelled') return;
+
+        const diffMs = Math.max(0, today.getTime() - oDate.getTime());
+        const diffMins = Math.floor(diffMs / 60000);
+        const orderTimeStr = oDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+        todayOrdersList.push({
+          id: o.id || o.orderId,
+          orderId: o.orderId || o.id,
+          token: o.token || 'TKN',
+          customer: o.customer || o.customerName || 'Customer',
+          customerName: typeof o.customer === 'object' ? (o.customer?.name || o.customer?.fullName || 'Customer') : (o.customer || o.customerName || 'Customer'),
+          customerRole: typeof o.customer === 'object' ? (o.customer?.role || 'Student') : (o.customerRole || 'Student'),
+          outletId: o.outletId || o.OutletId,
+          outletName: o.outletName || o.OutletName || 'Main Canteen',
+          outletCode: o.outletCode || o.OutletCode || '',
+          items: Array.isArray(o.items) ? o.items.map(it => ({
+            name: it.name || it.itemName || 'Item',
+            qty: it.quantity || it.qty || 1,
+            price: it.price || 0
+          })) : [],
+          itemCount: Array.isArray(o.items) ? o.items.length : (o.itemCount || 1),
+          total: Number(o.totalAmount ?? o.TotalAmount ?? o.total ?? 0),
+          totalAmount: Number(o.totalAmount ?? o.TotalAmount ?? o.total ?? 0),
+          status: o.status || o.Status || 'Preparing',
+          elapsedTime: `${diffMins}m`,
+          orderTime: orderTimeStr,
+          orderDate: o.orderDate || o.OrderDate || o.createdAt
+        });
+      });
+
+      // 3. Sort orders: active statuses (Preparing, Ready, Accepted, Placed) first, then Completed/Collected, most recent first
+      const statusPriority = {
+        'preparing': 1,
+        'ready for pickup': 2,
+        'ready': 2,
+        'accepted': 3,
+        'placed': 4,
+        'new': 4,
+        'completed': 5,
+        'collected': 5
+      };
+
+      todayOrdersList.sort((a, b) => {
+        const sA = statusPriority[String(a.status || '').toLowerCase()] || 99;
+        const sB = statusPriority[String(b.status || '').toLowerCase()] || 99;
+        if (sA !== sB) return sA - sB;
+        const tA = new Date(a.orderDate || a.createdAt || 0).getTime();
+        const tB = new Date(b.orderDate || b.createdAt || 0).getTime();
+        return tB - tA;
+      });
+
+      setLiveOrders(todayOrdersList);
+      
+      const sortedTop = (Array.isArray(top) ? top : (Array.isArray(top?.data) ? top.data : []))
+        .slice()
+        .sort((a, b) => {
+          const countA = Number(a.count ?? a.qtySold ?? a.orders ?? 0);
+          const countB = Number(b.count ?? b.qtySold ?? b.orders ?? 0);
+          return countB - countA;
+        });
+      setTopSelling(sortedTop);
       setStockAlerts(alerts);
       const filteredOutletSales = (Array.isArray(outlets) ? outlets : []).filter(o => {
         const oid = Number(o.outletId || o.id);
@@ -263,6 +397,11 @@ export const useDashboard = (selectedOutlet = 'ALL') => {
 
   useEffect(() => {
     fetchDashboardData();
+    // Auto-refresh periodically (every 60s) so live queue stays updated and day rollover is handled
+    const timer = setInterval(() => {
+      fetchDashboardData();
+    }, 60000);
+    return () => clearInterval(timer);
   }, [fetchDashboardData]);
 
   return {

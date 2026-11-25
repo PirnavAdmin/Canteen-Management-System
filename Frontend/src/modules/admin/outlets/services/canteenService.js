@@ -27,6 +27,17 @@ const normalizeCanteen = (dto) => {
     }
   }
 
+  const assignedChef = dto.assignedChef || admin?.assignedChef || admin?.chef || '';
+  const assignedCashier = dto.assignedCashier || admin?.assignedCashier || admin?.cashier || '';
+
+  const baseStaff = Array.isArray(dto.assignedStaff) ? [...dto.assignedStaff] : [];
+  if (assignedChef && !baseStaff.some(s => s.name === assignedChef || /chef|cook/i.test(s.role))) {
+    baseStaff.push({ id: 'STF-CHEF', name: assignedChef, role: 'Lead Chef', status: 'Active' });
+  }
+  if (assignedCashier && !baseStaff.some(s => s.name === assignedCashier || /cashier|billing/i.test(s.role))) {
+    baseStaff.push({ id: 'STF-CASH', name: assignedCashier, role: 'Billing Cashier', status: 'Active' });
+  }
+
   let workingDays = dto.workingDays;
   if (typeof workingDays === 'string') {
     workingDays = workingDays.split(',').map(s => s.trim()).filter(Boolean);
@@ -50,6 +61,8 @@ const normalizeCanteen = (dto) => {
     contactEmail: dto.contactEmail || admin?.email || '',
     fssaiLicenseNumber: dto.fssaiLicenseNo || dto.fssaiLicenseNumber || '',
     fssaiValidTill: dto.fssaiValidTill ? String(dto.fssaiValidTill).split('T')[0] : '',
+    assignedChef: assignedChef,
+    assignedCashier: assignedCashier,
     status: dto.status || 'Active',
     isOrderAcceptanceEnabled: dto.isOrderAcceptanceEnabled !== false,
     workingDays: workingDays,
@@ -59,7 +72,7 @@ const normalizeCanteen = (dto) => {
       email: 'admin@canteen.edu',
       phone: '+91 98765 43210'
     },
-    assignedStaff: dto.assignedStaff || [],
+    assignedStaff: baseStaff,
     createdAt: dto.createdAt || new Date().toISOString(),
     updatedAt: dto.updatedAt || new Date().toISOString()
   };
@@ -123,11 +136,16 @@ export const canteenService = {
       status: data.status || 'Active',
       isOrderAcceptanceEnabled: data.isOrderAcceptanceEnabled !== false,
       workingDays: Array.isArray(data.workingDays) ? data.workingDays.join(',') : (data.workingDays || 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday'),
-      adminContactJson: JSON.stringify(data.assignedAdministrator || {
-        name: 'Mrs. Sunitha',
-        role: 'Outlet Administrator',
-        email: data.contactEmail || 'admin@canteen.edu',
-        phone: data.contactPhone || '+91 98765 43210'
+      adminContactJson: JSON.stringify({
+        ...(typeof data.assignedAdministrator === 'object' ? data.assignedAdministrator : {}),
+        name: data.assignedAdministrator?.name || 'Mrs. Sunitha',
+        role: data.assignedAdministrator?.role || 'Outlet Administrator',
+        email: data.contactEmail || data.assignedAdministrator?.email || 'admin@canteen.edu',
+        phone: data.contactPhone || data.assignedAdministrator?.phone || '+91 98765 43210',
+        assignedChef: data.assignedChef || '',
+        assignedCashier: data.assignedCashier || '',
+        chef: data.assignedChef || '',
+        cashier: data.assignedCashier || ''
       })
     };
 
@@ -149,11 +167,16 @@ export const canteenService = {
       status: data.status || 'Active',
       isOrderAcceptanceEnabled: data.isOrderAcceptanceEnabled !== false,
       workingDays: Array.isArray(data.workingDays) ? data.workingDays.join(',') : data.workingDays,
-      adminContactJson: JSON.stringify(data.assignedAdministrator || {
-        name: 'Mrs. Sunitha',
-        role: 'Outlet Administrator',
-        email: data.contactEmail || 'admin@canteen.edu',
-        phone: data.contactPhone || '+91 98765 43210'
+      adminContactJson: JSON.stringify({
+        ...(typeof data.assignedAdministrator === 'object' ? data.assignedAdministrator : {}),
+        name: data.assignedAdministrator?.name || 'Mrs. Sunitha',
+        role: data.assignedAdministrator?.role || 'Outlet Administrator',
+        email: data.contactEmail || data.assignedAdministrator?.email || 'admin@canteen.edu',
+        phone: data.contactPhone || data.assignedAdministrator?.phone || '+91 98765 43210',
+        assignedChef: data.assignedChef || '',
+        assignedCashier: data.assignedCashier || '',
+        chef: data.assignedChef || '',
+        cashier: data.assignedCashier || ''
       })
     };
 

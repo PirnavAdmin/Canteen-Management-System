@@ -4,12 +4,15 @@ import { defineConfig, loadEnv } from 'vite';
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
-  const rawApiBase = env.VITE_API_BASE_URL || "https://superior-hatchery-gibberish.ngrok-free.dev";
-  const backendBase = rawApiBase.replace(/\/api(\/v\d+)?\/?$/, '').replace(/\/+$/, '') || 'https://whiff-lyrics-debug.ngrok-free.dev';
+  const rawApiBase = env.VITE_API_BASE_URL || "https://heroics-ambush-baton.ngrok-free.dev";
+  const backendBase = rawApiBase.replace(/\/api(\/v\d+)?\/?$/, '').replace(/\/+$/, '') || 'https://heroics-ambush-baton.ngrok-free.dev';
   const apiTarget = rawApiBase;
 
   return {
     plugins: [react()],
+    optimizeDeps: {
+      include: ['html2canvas', 'jspdf']
+    },
     server: {
       cors: true,
       proxy: {
@@ -54,7 +57,6 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       rollupOptions: {
-        external: ['html2canvas', 'jspdf'],
         output: {
           manualChunks(id) {
             if (
@@ -66,6 +68,9 @@ export default defineConfig(({ mode }) => {
             }
             if (id.includes('node_modules/lucide-react') || id.includes('node_modules/axios')) {
               return 'vendor-ui';
+            }
+            if (id.includes('node_modules/html2canvas') || id.includes('node_modules/jspdf')) {
+              return 'vendor-pdf';
             }
           }
         }

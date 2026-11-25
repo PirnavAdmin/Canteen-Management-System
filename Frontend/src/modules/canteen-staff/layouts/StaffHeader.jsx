@@ -380,7 +380,14 @@ export const StaffHeader = ({ onOpenSidebar }) => {
                 }}>
                   Select Canteen Outlet
                 </div>
-                {outlets.map((out) => {
+                {outlets
+                  .filter((out) => {
+                    const name = (out.name || '').toLowerCase();
+                    const code = (out.code || '').toUpperCase();
+                    const oid = Number(out.outletId || out.id);
+                    return oid !== 4 && code !== 'WH-01' && !name.includes('warehouse');
+                  })
+                  .map((out) => {
                   const isSelected = String(out.id) === String(selectedOutlet) || String(out.outletId) === String(selectedOutlet);
                   return (
                     <button

@@ -14,14 +14,11 @@ import {
   Search,
   RotateCcw,
   Eye,
-  Utensils,
-  Check,
   AlertTriangle,
   Play,
   Store
 } from 'lucide-react';
 import { useStaffOrders } from '../hooks/useStaffOrders';
-import { staffOrderService } from '../services/staffOrderService';
 import { ORDER_STATUS } from '../../../constants/appConstants';
 import {
   isStatusPreparing,
@@ -29,6 +26,15 @@ import {
   isStatusReady,
   isStatusCompleted
 } from '../services/staffOrderService';
+
+// Fallback safeguard to guarantee isStatusCompleted can never throw ReferenceError
+const checkCompleted = (status) => {
+  if (typeof isStatusCompleted === 'function') {
+    return isStatusCompleted(status);
+  }
+  const s = String(status || '').trim().toLowerCase();
+  return s === 'completed' || s === 'collected';
+};
 import { KITCHEN_STATIONS, ORDER_URGENCY_MINUTES } from '../constants/staffConstants';
 import { PageHeader } from '../../../components/common/PageHeader';
 import { Button } from '../../../components/common/Button';
@@ -94,7 +100,7 @@ export const KitchenDisplayPage = () => {
     return orders.filter((o) => {
       const isCooking = isStatusPreparing(o.status) || isStatusAccepted(o.status);
       if (!isCooking) return false;
-      if (isStatusReady(o.status) || isStatusCompleted(o.status)) return false;
+      if (isStatusReady(o.status) || checkCompleted(o.status)) return false;
       if (selectedStation === 'all') return true;
 
       if (o.stationId === selectedStation) return true;
@@ -130,7 +136,7 @@ export const KitchenDisplayPage = () => {
   // 5. Preparation History (All prepared orders directly from live backend DB)
   const prepHistoryOrders = useMemo(() => {
     const list = orders
-      .filter((o) => isStatusReady(o.status) || isStatusCompleted(o.status) || o.status === 'Completed' || o.status === 'Collected')
+      .filter((o) => isStatusReady(o.status) || checkCompleted(o.status) || o.status === 'Completed' || o.status === 'Collected')
       .map((o) => {
         const id = String(o.id);
         const statusToDisplay = isStatusReady(o.status)
