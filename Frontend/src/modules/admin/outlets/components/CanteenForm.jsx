@@ -8,9 +8,30 @@ import { Button } from '../../../../components/common/Button';
 import { CAMPUSES } from '../constants/canteenConstants';
 import { useCanteens } from '../hooks/useCanteens';
 import { validateCanteenForm } from '../utils/canteenValidators';
-import { Save, Building, MapPin, Phone, Mail, Hash, ShieldCheck, Clock, FileCheck } from 'lucide-react';
+import { Save, Building, MapPin, Phone, Mail, Hash, ShieldCheck, Clock, FileCheck, Users } from 'lucide-react';
 
 const EMPTY_INITIAL_VALUES = {};
+
+const BASE_CHEF_OPTIONS = [
+  { value: 'Ravi (Kitchen & Counter Staff)', label: 'Ravi (Kitchen & Counter Staff)' },
+  { value: 'Chef Ramesh (Head Chef)', label: 'Chef Ramesh (Head Chef)' },
+  { value: 'Chef Ananya (Sous Chef)', label: 'Chef Ananya (Sous Chef)' },
+  { value: 'Manoj Kumar (Kitchen Head)', label: 'Manoj Kumar (Kitchen Head)' },
+  { value: 'Ganesh Pillai (Lead Cook)', label: 'Ganesh Pillai (Lead Cook)' },
+  { value: 'Farhan Ali (Dietary Chef)', label: 'Farhan Ali (Dietary Chef)' },
+  { value: 'Pooja Iyer (Kitchen Assistant)', label: 'Pooja Iyer (Kitchen Assistant)' },
+  { value: 'Vikram (Kitchen Attendant)', label: 'Vikram (Kitchen Attendant)' }
+];
+
+const BASE_CASHIER_OPTIONS = [
+  { value: 'Rahul Verma (Cashier)', label: 'Rahul Verma (Cashier)' },
+  { value: 'Sunita Sharma (Billing Cashier)', label: 'Sunita Sharma (Billing Cashier)' },
+  { value: 'Arjun Nair (Barista & Cashier)', label: 'Arjun Nair (Barista & Cashier)' },
+  { value: 'Suman Roy (Cashier & Counter Staff)', label: 'Suman Roy (Cashier & Counter Staff)' },
+  { value: 'Deepak Varma (Counter Dispenser)', label: 'Deepak Varma (Counter Dispenser)' },
+  { value: 'Pooja Sharma (Counter Cashier)', label: 'Pooja Sharma (Counter Cashier)' },
+  { value: 'Sunil Kumar (Billing Cashier)', label: 'Sunil Kumar (Billing Cashier)' }
+];
 
 export const CanteenForm = ({
   initialValues = EMPTY_INITIAL_VALUES,
@@ -30,6 +51,8 @@ export const CanteenForm = ({
     contactEmail: '',
     fssaiLicenseNumber: '',
     fssaiValidTill: '',
+    assignedChef: '',
+    assignedCashier: '',
     openingTime: '08:00',
     closingTime: '20:00',
     workingDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
@@ -40,8 +63,29 @@ export const CanteenForm = ({
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const chefOptions = React.useMemo(() => {
+    const list = [...BASE_CHEF_OPTIONS];
+    const cur = formData.assignedChef;
+    if (cur && !list.some(o => o.value === cur)) {
+      list.push({ value: cur, label: cur });
+    }
+    return list;
+  }, [formData.assignedChef]);
+
+  const cashierOptions = React.useMemo(() => {
+    const list = [...BASE_CASHIER_OPTIONS];
+    const cur = formData.assignedCashier;
+    if (cur && !list.some(o => o.value === cur)) {
+      list.push({ value: cur, label: cur });
+    }
+    return list;
+  }, [formData.assignedCashier]);
+
   useEffect(() => {
     if (initialValues && Object.keys(initialValues).length > 0) {
+      const chefFromStaff = initialValues.assignedStaff?.find(s => /chef|cook|kitchen/i.test(s.role))?.name;
+      const cashierFromStaff = initialValues.assignedStaff?.find(s => /cashier|billing/i.test(s.role))?.name;
+
       setFormData({
         name: initialValues.name || '',
         code: initialValues.code || '',
@@ -51,6 +95,8 @@ export const CanteenForm = ({
         contactEmail: initialValues.contactEmail || '',
         fssaiLicenseNumber: initialValues.fssaiLicenseNumber || initialValues.fssaiLicenseNo || '',
         fssaiValidTill: initialValues.fssaiValidTill ? String(initialValues.fssaiValidTill).split('T')[0] : '',
+        assignedChef: initialValues.assignedChef || initialValues.chef || chefFromStaff || '',
+        assignedCashier: initialValues.assignedCashier || initialValues.cashier || cashierFromStaff || '',
         openingTime: initialValues.openingTime || '08:00',
         closingTime: initialValues.closingTime || '20:00',
         workingDays: initialValues.workingDays || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
@@ -295,7 +341,51 @@ export const CanteenForm = ({
           </div>
         </div>
 
-        {/* Section 4: Operating Schedule & Order Settings */}
+        {/* Section 4: Staff & Personnel Assignment */}
+        <div style={{ marginBottom: '14px' }}>
+          <h3 style={{
+            fontSize: '13.5px',
+            fontWeight: 600,
+            color: 'var(--text-primary)',
+            paddingBottom: '6px',
+            borderBottom: '1px solid var(--border-color)',
+            marginBottom: '10px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <Users size={16} style={{ color: 'var(--color-accent)' }} />
+            Staff & Personnel Assignment
+          </h3>
+
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+            gap: '10px 14px'
+          }}>
+            <FormSelect
+              label="Assign Chef"
+              name="assignedChef"
+              value={formData.assignedChef}
+              onChange={handleChange}
+              options={chefOptions}
+              placeholder="Select or Assign Chef (Optional)..."
+              style={{ marginBottom: 0 }}
+            />
+
+            <FormSelect
+              label="Assign Cashier"
+              name="assignedCashier"
+              value={formData.assignedCashier}
+              onChange={handleChange}
+              options={cashierOptions}
+              placeholder="Select or Assign Cashier (Optional)..."
+              style={{ marginBottom: 0 }}
+            />
+          </div>
+        </div>
+
+        {/* Section 5: Operating Schedule & Order Settings */}
         <div style={{ marginBottom: '14px' }}>
           <h3 style={{
             fontSize: '13.5px',
