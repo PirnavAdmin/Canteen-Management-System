@@ -393,27 +393,56 @@ export const StaffOrderDetailsModal = ({
               Close
             </button>
 
-            {/* Quick Status Advance Actions */}
+            {/* Status Information / Kitchen Actions */}
             {isPlaced && (
+              <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '6px 14px',
+                borderRadius: '6px',
+                backgroundColor: '#fef3c7',
+                border: '1px solid #fde68a',
+                color: '#b45309',
+                fontSize: '12px',
+                fontWeight: 700
+              }}>
+                <Clock size={14} />
+                <span>Awaiting Cashier Acceptance</span>
+              </div>
+            )}
+
+            {isAccepted && (
               <button
                 type="button"
-                onClick={() => onAccept(order.id)}
+                onClick={() => {
+                  onClose();
+                  if (onStartCooking) {
+                    onStartCooking(order.id);
+                  } else if (onAccept) {
+                    onAccept(order.id);
+                  }
+                }}
                 style={{
                   padding: '6px 16px',
                   borderRadius: '6px',
                   border: 'none',
-                  backgroundColor: 'var(--color-primary)',
+                  backgroundColor: '#ea580c',
                   color: '#ffffff',
                   fontSize: '12px',
                   fontWeight: 700,
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px'
                 }}
               >
-                Accept Order
+                <ChefHat size={14} />
+                <span>Start Preparing</span>
               </button>
             )}
 
-            {(isPreparing || isAccepted) && (
+            {isPreparing && (
               <button
                 type="button"
                 onClick={() => {
@@ -428,57 +457,32 @@ export const StaffOrderDetailsModal = ({
                   color: '#ffffff',
                   fontSize: '12px',
                   fontWeight: 700,
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px'
                 }}
               >
-                Mark Ready for Pickup
+                <CheckCircle2 size={14} />
+                <span>Ready / Move to Pickup</span>
               </button>
             )}
 
             {isReady && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div style={{
-                  fontSize: '12px',
-                  color: '#059669',
-                  fontWeight: 700,
-                  padding: '6px 14px',
-                  borderRadius: '6px',
-                  backgroundColor: '#ecfdf5',
-                  border: '1px solid #a7f3d0',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}>
-                  <CheckCircle2 size={15} />
-                  <span>Ready for Pickup {order.prepDurationFormatted ? `(${order.prepDurationFormatted})` : ''}</span>
-                </div>
-
-                {onCompleteOrder && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onClose();
-                      onCompleteOrder(order.id);
-                    }}
-                    style={{
-                      padding: '6px 16px',
-                      borderRadius: '6px',
-                      border: 'none',
-                      backgroundColor: '#059669',
-                      color: '#ffffff',
-                      fontSize: '12px',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                      boxShadow: 'var(--shadow-xs)'
-                    }}
-                  >
-                    <CheckCircle2 size={14} />
-                    <span>Mark Collected</span>
-                  </button>
-                )}
+              <div style={{
+                fontSize: '12px',
+                color: '#2563eb',
+                fontWeight: 700,
+                padding: '6px 14px',
+                borderRadius: '6px',
+                backgroundColor: '#eff6ff',
+                border: '1px solid #bfdbfe',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}>
+                <CheckCircle2 size={15} />
+                <span>At Cashier Pickup Counter {order.prepDurationFormatted ? `(${order.prepDurationFormatted})` : ''}</span>
               </div>
             )}
 
@@ -487,12 +491,16 @@ export const StaffOrderDetailsModal = ({
                 fontSize: '12px',
                 color: 'var(--color-success)',
                 fontWeight: 600,
-                padding: '4px 8px',
+                padding: '5px 12px',
                 borderRadius: '6px',
                 backgroundColor: 'var(--color-success-bg)',
-                border: '1px solid var(--color-success-border)'
+                border: '1px solid var(--color-success-border)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px'
               }}>
-                ✓ Pickup Verified & Completed {order.verifiedAt ? `• ${new Date(order.verifiedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
+                <CheckCircle2 size={14} />
+                <span>Collected by Customer {order.verifiedAt || order.completedAt ? `• ${new Date(order.verifiedAt || order.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}</span>
               </div>
             )}
           </div>
