@@ -27,6 +27,8 @@ const DEMO_USERS = [
     fullName: 'Rahul Verma',
     role: 'Cashier',
     roleCode: ROLES.CASHIER,
+    outletId: 1,
+    outletName: 'Main Canteen',
     isActive: true,
     createdAt: '2026-01-01T00:00:00.000Z'
   },
@@ -145,7 +147,8 @@ const createLocalSessionProfile = (usernameOrEmail) => {
   if (identifier === 'cashier' || identifier.startsWith('cashier@')) {
     return {
       id: 'cashier-001', username: 'cashier', fullName: 'Rahul Verma', name: 'Rahul Verma',
-      email: 'cashier@cms.edu', role: 'Cashier', roleCode: ROLES.CASHIER, campusId: 1, institutionId: 1
+      email: 'cashier@cms.edu', role: 'Cashier', roleCode: ROLES.CASHIER, campusId: 1, institutionId: 1,
+      outletId: 1, outletName: 'Main Canteen'
     };
   }
 

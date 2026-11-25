@@ -1,0 +1,193 @@
+using Asp.Versioning;
+using CanteenManagement.API.DTOs.Orders;
+using CanteenManagement.API.Helpers;
+using CanteenManagement.API.Services.Interfaces.Orders;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace CanteenManagement.API.Controllers.V1
+{
+    [ApiController]
+    [ApiVersion("1.0")]
+    [Route("api/v{version:apiVersion}/canteen-orders")]
+    public class OrdersController : ControllerBase
+    {
+        private readonly IOrderService _orderService;
+
+        public OrdersController(IOrderService orderService)
+        {
+            _orderService = orderService;
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetAll(
+            [FromQuery] int? outletId,
+            [FromQuery] string? status,
+            [FromQuery] string? searchTerm,
+            [FromQuery] string? dateFilter)
+        {
+            var campusId = User.ResolveCampusId();
+            var assignedOutletId = User.ResolveOutletId();
+            var userRole = User.ResolveUserRole();
+            if (string.Equals(userRole, "Cashier", StringComparison.OrdinalIgnoreCase) && assignedOutletId.HasValue)
+            {
+                outletId = assignedOutletId.Value;
+            }
+            var orders = await _orderService.GetAllAsync(campusId, outletId, status, searchTerm, dateFilter);
+            return Ok(ApiResponse<IEnumerable<OrderDto>>.SuccessResponse(orders));
+        }
+
+        [HttpGet("kds")]
+        public async Task<IActionResult> GetKdsOrders([FromQuery] int? outletId)
+        {
+            var campusId = User.ResolveCampusId();
+            var assignedOutletId = User.ResolveOutletId();
+            var userRole = User.ResolveUserRole();
+            if (string.Equals(userRole, "Cashier", StringComparison.OrdinalIgnoreCase) && assignedOutletId.HasValue)
+            {
+                outletId = assignedOutletId.Value;
+            }
+            var orders = await _orderService.GetAllAsync(campusId, outletId, "Preparing", null, null);
+            return Ok(ApiResponse<IEnumerable<OrderDto>>.SuccessResponse(orders));
+        }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(string id)
+        {
+            var campusId = User.ResolveCampusId();
+            var order = await _orderService.GetByIdAsync(id, campusId);
+            if (order == null)
+            {
+                return NotFound(ApiResponse<string>.ErrorResponse($"Order with ID {id} was not found."));
+            }
+            return Ok(ApiResponse<OrderDto>.SuccessResponse(order));
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Create([FromBody] CreateOrderDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
+                return BadRequest(ApiResponse<string>.ErrorResponse("Validation failed.", errors));
+            }
+
+            try
+            {
+                var campusId = User.ResolveCampusId();
+                var userName = User.ResolveUserName();
+                var assignedOutletId = User.ResolveOutletId();
+                var userRole = User.ResolveUserRole();
+                if (string.Equals(userRole, "Cashier", StringComparison.OrdinalIgnoreCase) && assignedOutletId.HasValue)
+                {
+                    dto.OutletId = assignedOutletId.Value;
+                }
+                var created = await _orderService.CreateAsync(dto, campusId, userName);
+                return CreatedAtAction(nameof(GetById), new { id = created.Id }, ApiResponse<OrderDto>.SuccessResponse(created, $"Order created with token {created.Token}."));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ApiResponse<string>.ErrorResponse(ex.Message));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ApiResponse<string>.ErrorResponse(ex.Message));
+            }
+        }
+
+        [HttpPatch("{id}/status")]
+        [Authorize(Policy = "RequireStaffOrAdmin")]
+        public async Task<IActionResult> UpdateStatus(string id, [FromBody] UpdateOrderStatusDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
+                return BadRequest(ApiResponse<string>.ErrorResponse("Validation failed.", errors));
+            }
+
+            try
+            {
+                var campusId = User.ResolveCampusId();
+                var userName = User.ResolveUserName();
+                var updated = await _orderService.UpdateStatusAsync(id, dto, campusId, userName);
+                return Ok(ApiResponse<OrderDto>.SuccessResponse(updated, $"Order transitioned to {updated.Status}."));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ApiResponse<string>.ErrorResponse(ex.Message));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ApiResponse<string>.ErrorResponse(ex.Message));
+            }
+        }
+
+        [HttpPost("{id}/cancel")]
+        public async Task<IActionResult> Cancel(string id, [FromBody] CancelOrderDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
+                return BadRequest(ApiResponse<string>.ErrorResponse("Validation failed.", errors));
+            }
+
+            try
+            {
+                var campusId = User.ResolveCampusId();
+                var userName = User.ResolveUserName();
+                var updated = await _orderService.CancelOrderAsync(id, dto, campusId, userName);
+                return Ok(ApiResponse<OrderDto>.SuccessResponse(updated, "Order cancelled successfully."));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ApiResponse<string>.ErrorResponse(ex.Message));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ApiResponse<string>.ErrorResponse(ex.Message));
+            }
+        }
+
+        [HttpPost("{id}/refund")]
+        [Authorize(Policy = "RequireAdmin")]
+        public async Task<IActionResult> ProcessRefund(string id)
+        {
+            try
+            {
+                var campusId = User.ResolveCampusId();
+                var userName = User.ResolveUserName();
+                var updated = await _orderService.ProcessRefundAsync(id, campusId, userName);
+                return Ok(ApiResponse<OrderDto>.SuccessResponse(updated, $"Refund of ₹{updated.TotalAmount} processed successfully."));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ApiResponse<string>.ErrorResponse(ex.Message));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ApiResponse<string>.ErrorResponse(ex.Message));
+            }
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Delete(string id)
+        {
+            var campusId = User.ResolveCampusId();
+            var deleted = await _orderService.DeleteAsync(id, campusId);
+            if (!deleted)
+            {
+                return NotFound(ApiResponse<string>.ErrorResponse($"Order with ID {id} was not found."));
+            }
+            return Ok(ApiResponse<string>.SuccessResponse(id, $"Order {id} removed successfully."));
+        }
+
+        [HttpDelete("cleanup/test-orders")]
+        public async Task<IActionResult> DeleteTestOrders()
+        {
+            var campusId = User.ResolveCampusId();
+            var count = await _orderService.DeleteTestOrdersAsync(campusId);
+            return Ok(ApiResponse<int>.SuccessResponse(count, $"Successfully removed {count} test orders."));
+        }
+    }
+}
+

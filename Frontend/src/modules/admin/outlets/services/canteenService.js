@@ -91,8 +91,13 @@ export const canteenService = {
       }
     }
 
-    const normalized = Array.isArray(list) ? list.map(normalizeCanteen).filter(Boolean) : [];
-    // Sort by outletId ascending (1, 2, 3, 4)
+    const normalized = Array.isArray(list)
+      ? list
+          .map(normalizeCanteen)
+          .filter(Boolean)
+          .filter(c => c.code !== 'WH-01' && !(c.name || '').toLowerCase().includes('warehouse'))
+      : [];
+    // Sort by outletId ascending (1, 2, 3)
     return normalized.sort((a, b) => {
       return Number(a.outletId || a.id || 0) - Number(b.outletId || b.id || 0);
     });

@@ -14,7 +14,8 @@ export const OrderFilters = ({
   onPaymentChange,
   selectedOutlet = 'ALL',
   onOutletChange,
-  onReset
+  onReset,
+  hideOutlet = false
 }) => {
   const [outlets, setOutlets] = useState([]);
 
@@ -141,27 +142,29 @@ export const OrderFilters = ({
       </select>
 
       {/* Outlet */}
-      <select
-        value={selectedOutlet}
-        onChange={(e) => onOutletChange(e.target.value)}
-        style={{
-          height: '34px',
-          padding: '0 8px',
-          fontSize: '12.5px',
-          border: '1px solid var(--border-color)',
-          borderRadius: 'var(--border-radius-md)',
-          backgroundColor: 'var(--bg-surface)',
-          color: 'var(--text-secondary)',
-          flexShrink: 0
-        }}
-      >
-        <option value="ALL">All Outlets</option>
-        {outlets.map(out => (
-          <option key={out.outletId || out.id} value={out.outletId || out.id}>
-            {out.name}
-          </option>
-        ))}
-      </select>
+      {!hideOutlet && (
+        <select
+          value={selectedOutlet}
+          onChange={(e) => onOutletChange(e.target.value)}
+          style={{
+            height: '34px',
+            padding: '0 8px',
+            fontSize: '12.5px',
+            border: '1px solid var(--border-color)',
+            borderRadius: 'var(--border-radius-md)',
+            backgroundColor: 'var(--bg-surface)',
+            color: 'var(--text-secondary)',
+            flexShrink: 0
+          }}
+        >
+          <option value="ALL">All Outlets</option>
+          {outlets.map(out => (
+            <option key={out.outletId || out.id} value={out.outletId || out.id}>
+              {out.name}
+            </option>
+          ))}
+        </select>
+      )}
 
       {/* Reset Icon Button */}
       <button

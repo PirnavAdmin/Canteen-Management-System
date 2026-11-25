@@ -12,10 +12,12 @@ import { OrderReceiptModal } from '../components/OrderReceiptModal';
 import { OrdersA4SheetModal } from '../components/OrdersA4SheetModal';
 import { PlaceOrderCatalog } from '../components/PlaceOrderCatalog';
 import { useCanteens } from '../../outlets/hooks/useCanteens';
+import { useAuth } from '../../../../app/providers/AuthProvider';
 import { orderService } from '../services/orderService';
 import { isSameIstDate, isYesterdayIST, isWithinDaysIST } from '../../../../utils/formatters';
 
 export const OrderListPage = ({ cashierMode = false }) => {
+  const { user } = useAuth();
   const {
     orders,
     loading,
@@ -35,11 +37,15 @@ export const OrderListPage = ({ cashierMode = false }) => {
   const [selectedDate, setSelectedDate] = useState('TODAY');
   const [selectedStatus, setSelectedStatus] = useState('ALL');
   const [selectedPayment, setSelectedPayment] = useState('ALL');
-  const [selectedOutlet, setSelectedOutlet] = useState(globalOutlet || 'ALL');
+  const [selectedOutlet, setSelectedOutlet] = useState(cashierMode && user?.outletId ? String(user.outletId) : (globalOutlet || 'ALL'));
 
   useEffect(() => {
-    setSelectedOutlet(globalOutlet || 'ALL');
-  }, [globalOutlet]);
+    if (cashierMode && user?.outletId) {
+      setSelectedOutlet(String(user.outletId));
+    } else {
+      setSelectedOutlet(globalOutlet || 'ALL');
+    }
+  }, [globalOutlet, cashierMode, user?.outletId]);
 
   // Count of orders specifically placed today in IST
   const todaysOrdersCount = useMemo(() => {
@@ -93,7 +99,7 @@ export const OrderListPage = ({ cashierMode = false }) => {
     setSelectedDate('TODAY');
     setSelectedStatus('ALL');
     setSelectedPayment('ALL');
-    setSelectedOutlet('ALL');
+    setSelectedOutlet(cashierMode && user?.outletId ? String(user.outletId) : 'ALL');
     setCurrentPage(1);
   };
 
@@ -277,6 +283,7 @@ export const OrderListPage = ({ cashierMode = false }) => {
             selectedOutlet={selectedOutlet}
             onOutletChange={(v) => { setSelectedOutlet(v); setGlobalOutlet(v); setCurrentPage(1); }}
             onReset={handleResetFilters}
+            hideOutlet={cashierMode}
           />
 
           {/* Order Table */}

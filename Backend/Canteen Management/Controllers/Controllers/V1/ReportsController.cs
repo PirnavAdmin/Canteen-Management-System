@@ -24,6 +24,11 @@ namespace CanteenManagement.API.Controllers.V1
         public async Task<IActionResult> GetSalesReport([FromQuery] ReportFilterDto filter)
         {
             var campusId = User.ResolveCampusId();
+            var assignedOutletId = User.ResolveOutletId();
+            if (string.Equals(User.ResolveUserRole(), "Cashier", StringComparison.OrdinalIgnoreCase) && assignedOutletId.HasValue)
+            {
+                filter.OutletId = assignedOutletId.Value;
+            }
             filter.ReportType = "sales_summary";
             var result = await _reportService.GetReportDataAsync(campusId, filter);
             return Ok(ApiResponse<ReportResultDto>.SuccessResponse(result));
@@ -33,6 +38,11 @@ namespace CanteenManagement.API.Controllers.V1
         public async Task<IActionResult> GetItemWiseReport([FromQuery] ReportFilterDto filter)
         {
             var campusId = User.ResolveCampusId();
+            var assignedOutletId = User.ResolveOutletId();
+            if (string.Equals(User.ResolveUserRole(), "Cashier", StringComparison.OrdinalIgnoreCase) && assignedOutletId.HasValue)
+            {
+                filter.OutletId = assignedOutletId.Value;
+            }
             filter.ReportType = "item_wise";
             var result = await _reportService.GetReportDataAsync(campusId, filter);
             return Ok(ApiResponse<ReportResultDto>.SuccessResponse(result));
@@ -42,6 +52,11 @@ namespace CanteenManagement.API.Controllers.V1
         public async Task<IActionResult> ExportReport([FromQuery] ReportFilterDto filter)
         {
             var campusId = User.ResolveCampusId();
+            var assignedOutletId = User.ResolveOutletId();
+            if (string.Equals(User.ResolveUserRole(), "Cashier", StringComparison.OrdinalIgnoreCase) && assignedOutletId.HasValue)
+            {
+                filter.OutletId = assignedOutletId.Value;
+            }
             var result = await _reportService.GetReportDataAsync(campusId, filter);
 
             if (filter.Format?.ToLower() == "csv")

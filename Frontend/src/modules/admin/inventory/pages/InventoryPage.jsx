@@ -25,34 +25,22 @@ import { useCanteens } from '../../outlets/hooks/useCanteens';
 export const InventoryPage = () => {
   const { canteens: outlets = [] } = useCanteens();
 
-  const warehouseOutlet = useMemo(() => {
-    return outlets.find(o => o.code === 'WH-01' || (o.name || '').toLowerCase().includes('warehouse') || Number(o.outletId || o.id) === 4) || null;
-  }, [outlets]);
-
+  // Pure dining canteen kitchen outlets (WH-01 is decoupled into dedicated CanteenWarehouses)
   const kitchenOutlets = useMemo(() => {
-    return outlets.filter(o => o.code !== 'WH-01' && !(o.name || '').toLowerCase().includes('warehouse') && Number(o.outletId || o.id) !== 4);
+    return outlets.filter(o => o.code !== 'WH-01' && !(o.name || '').toLowerCase().includes('warehouse'));
   }, [outlets]);
 
-  const warehouseOutletId = warehouseOutlet?.outletId || warehouseOutlet?.id || 4;
+  // Inventory Scope: Defaults to 'CENTRAL' for Central Warehouse (Admin Master Store)
+  const [inventoryScope, setInventoryScope] = useState('CENTRAL');
 
-  // Inventory Scope: Independently managed scope, defaults to Central Warehouse (Admin Master Store)
-  const [inventoryScope, setInventoryScope] = useState(() => String(warehouseOutletId));
-
-  useEffect(() => {
-    if (warehouseOutlet && (!inventoryScope || inventoryScope === 'ALL' || inventoryScope === '4')) {
-      const wId = String(warehouseOutlet.outletId || warehouseOutlet.id);
-      setInventoryScope(wId);
-    }
-  }, [warehouseOutlet]);
-
-  const isWarehouseView = warehouseOutlet
-    ? String(inventoryScope) === String(warehouseOutlet.outletId || warehouseOutlet.id)
-    : String(inventoryScope) === '4';
+  const isWarehouseView = inventoryScope === 'CENTRAL' || inventoryScope === '4' || inventoryScope === 'ALL';
 
   const currentScopeOutlet = useMemo(() => {
-    if (isWarehouseView) return warehouseOutlet || { id: 4, name: 'Central Warehouse' };
-    return outlets.find(o => String(o.outletId || o.id) === String(inventoryScope)) || outlets[0] || null;
-  }, [outlets, inventoryScope, isWarehouseView, warehouseOutlet]);
+    if (isWarehouseView) {
+      return { id: 'CENTRAL', name: 'Central Procurement Warehouse (Admin Master Store)' };
+    }
+    return kitchenOutlets.find(o => String(o.outletId || o.id) === String(inventoryScope)) || kitchenOutlets[0] || null;
+  }, [kitchenOutlets, inventoryScope, isWarehouseView]);
 
   const {
     items,
@@ -503,13 +491,9 @@ export const InventoryPage = () => {
             }}
           >
             <optgroup label="🏢 Central Administration">
-              {warehouseOutlet ? (
-                <option value={String(warehouseOutlet.outletId || warehouseOutlet.id)}>
-                  📦 Central Warehouse (Admin Master Store)
-                </option>
-              ) : (
-                <option value="4">📦 Central Warehouse (Admin Master Store)</option>
-              )}
+              <option value="CENTRAL">
+                📦 Central Warehouse (Admin Master Store)
+              </option>
             </optgroup>
             <optgroup label="🍳 Campus Kitchen Outlets">
               {kitchenOutlets.map(out => (

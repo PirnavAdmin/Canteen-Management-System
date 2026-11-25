@@ -1,0 +1,340 @@
+using System.Text.Json;
+using CanteenManagement.API.Data;
+using CanteenManagement.API.DTOs.Menu;
+using CanteenManagement.API.Models.Menu;
+using CanteenManagement.API.Repositories.Interfaces.Menu;
+using CanteenManagement.API.Services.Interfaces.Common;
+using CanteenManagement.API.Services.Interfaces.Menu;
+using Microsoft.EntityFrameworkCore;
+
+namespace CanteenManagement.API.Services.Implementations.Menu
+{
+    public class MenuService : IMenuService
+    {
+        private readonly IMenuRepository _repository;
+        private readonly IAuditLoggingService _auditService;
+        private readonly AppDbContext _dbContext;
+
+        public MenuService(IMenuRepository repository, IAuditLoggingService auditService, AppDbContext dbContext)
+        {
+            _repository = repository;
+            _auditService = auditService;
+            _dbContext = dbContext;
+        }
+
+        public async Task<IEnumerable<MenuItemDto>> GetAllAsync(int campusId, MenuItemFilterDto? filter = null)
+        {
+            var items = await _repository.GetAllAsync(campusId, filter);
+            return items.Select(MapToDto).ToList();
+        }
+
+        public async Task<MenuItemDto?> GetByIdAsync(int id, int campusId)
+        {
+            var item = await _repository.GetByIdAsync(id, campusId);
+            return item == null ? null : MapToDto(item);
+        }
+
+        public async Task<MenuItemDto> CreateAsync(CreateMenuItemDto dto, int campusId, string performedBy)
+        {
+            if (string.IsNullOrWhiteSpace(dto.Code))
+            {
+                var letters = new string((dto.Name ?? "ITM").Where(char.IsLetter).Take(3).ToArray()).ToUpper();
+                dto.Code = $"{(string.IsNullOrEmpty(letters) ? "ITM" : letters)}-{Random.Shared.Next(100, 999)}";
+            }
+
+            if (await _repository.ExistsByCodeAsync(dto.Code, campusId))
+            {
+                dto.Code = $"{dto.Code}-{Random.Shared.Next(10, 99)}";
+            }
+
+            // Fallback outlet resolution
+            if (dto.OutletId <= 0)
+            {
+                var outlet = await _dbContext.CanteenOutlets.FirstOrDefaultAsync(o => o.CampusId == campusId && o.Status == "Active")
+                             ?? await _dbContext.CanteenOutlets.FirstOrDefaultAsync(o => o.CampusId == campusId);
+                dto.OutletId = outlet?.OutletId ?? 1;
+            }
+
+            // Fallback category resolution
+            if (dto.CategoryId <= 0)
+            {
+                var cat = (!string.IsNullOrWhiteSpace(dto.Category)
+                    ? await _dbContext.Categories.FirstOrDefaultAsync(c => c.CampusId == campusId && c.Name == dto.Category)
+                    : null)
+                    ?? await _dbContext.Categories.FirstOrDefaultAsync(c => c.CampusId == campusId && c.Status == "Active")
+                    ?? await _dbContext.Categories.FirstOrDefaultAsync(c => c.CampusId == campusId);
+                dto.CategoryId = cat?.CategoryId ?? 1;
+            }
+
+            var item = new MenuItem
+            {
+                CampusId = campusId,
+                OutletId = dto.OutletId,
+                CategoryId = dto.CategoryId,
+                Code = dto.Code.Trim().ToUpper(),
+                Name = dto.Name.Trim(),
+                Description = dto.Description?.Trim(),
+                FoodType = dto.FoodType,
+                Price = dto.Price,
+                DiscountPercent = dto.DiscountPercent,
+                DailyCapacity = dto.DailyCapacity,
+                RemainingCapacity = dto.DailyCapacity,
+                Availability = dto.Availability ?? "Available",
+                Status = dto.Status ?? "Active",
+                PublicationStatus = dto.PublicationStatus ?? "Published",
+                ServingSize = dto.ServingSize,
+                Calories = dto.Calories,
+                ImageUrl = dto.ImageUrl,
+                AllergensJson = dto.Allergens != null ? JsonSerializer.Serialize(dto.Allergens) : "[]",
+                WorkingDaysJson = dto.WorkingDays != null ? JsonSerializer.Serialize(dto.WorkingDays) : "[]",
+                StartTime = dto.StartTime,
+                EndTime = dto.EndTime,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            if (dto.Variants != null)
+            {
+                foreach (var v in dto.Variants)
+                {
+                    item.Variants.Add(new MenuItemVariant { Name = v.Name, Price = v.Price });
+                }
+            }
+
+            if (dto.AddOns != null)
+            {
+                foreach (var a in dto.AddOns)
+                {
+                    item.AddOns.Add(new MenuItemAddon { Name = a.Name, Price = a.Price });
+                }
+            }
+
+            var created = await _repository.CreateAsync(item);
+
+            await _auditService.LogActionAsync(
+                campusId,
+                null,
+                performedBy,
+                "CREATE_MENU_ITEM",
+                "MenuItem",
+                created.MenuItemId.ToString(),
+                $"Created menu item '{created.Name}' ({created.Code}) at price {created.Price}."
+            );
+
+            // Fetch with eager loaded navigations
+            var loaded = await _repository.GetByIdAsync(created.MenuItemId, campusId);
+            return MapToDto(loaded ?? created);
+        }
+
+        public async Task<MenuItemDto> UpdateAsync(int id, UpdateMenuItemDto dto, int campusId, string performedBy)
+        {
+            var item = await _repository.GetByIdAsync(id, campusId);
+            if (item == null)
+            {
+                throw new KeyNotFoundException($"Menu item with ID {id} was not found.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(dto.Code))
+            {
+                if (await _repository.ExistsByCodeAsync(dto.Code, campusId, id))
+                {
+                    throw new InvalidOperationException($"Another menu item with code '{dto.Code}' already exists.");
+                }
+                item.Code = dto.Code.Trim().ToUpper();
+            }
+
+            if (dto.OutletId > 0) item.OutletId = dto.OutletId;
+            if (dto.CategoryId > 0) item.CategoryId = dto.CategoryId;
+            else if (!string.IsNullOrWhiteSpace(dto.Category))
+            {
+                var cat = await _dbContext.Categories.FirstOrDefaultAsync(c => c.CampusId == campusId && c.Name == dto.Category);
+                if (cat != null) item.CategoryId = cat.CategoryId;
+            }
+
+            item.Name = dto.Name.Trim();
+            item.Description = dto.Description?.Trim();
+            item.FoodType = dto.FoodType;
+            item.Price = dto.Price;
+            item.DiscountPercent = dto.DiscountPercent;
+            item.DailyCapacity = dto.DailyCapacity;
+            item.Availability = dto.Availability ?? item.Availability;
+            item.Status = dto.Status ?? item.Status;
+            item.PublicationStatus = dto.PublicationStatus ?? item.PublicationStatus;
+            item.ServingSize = dto.ServingSize;
+            item.Calories = dto.Calories;
+            item.ImageUrl = dto.ImageUrl;
+            item.AllergensJson = dto.Allergens != null ? JsonSerializer.Serialize(dto.Allergens) : item.AllergensJson;
+            item.WorkingDaysJson = dto.WorkingDays != null ? JsonSerializer.Serialize(dto.WorkingDays) : item.WorkingDaysJson;
+            item.StartTime = dto.StartTime;
+            item.EndTime = dto.EndTime;
+
+            // Update variants & addons
+            item.Variants.Clear();
+            if (dto.Variants != null)
+            {
+                foreach (var v in dto.Variants)
+                {
+                    item.Variants.Add(new MenuItemVariant { Name = v.Name, Price = v.Price });
+                }
+            }
+
+            item.AddOns.Clear();
+            if (dto.AddOns != null)
+            {
+                foreach (var a in dto.AddOns)
+                {
+                    item.AddOns.Add(new MenuItemAddon { Name = a.Name, Price = a.Price });
+                }
+            }
+
+            var updated = await _repository.UpdateAsync(item);
+
+            await _auditService.LogActionAsync(
+                campusId,
+                null,
+                performedBy,
+                "UPDATE_MENU_ITEM",
+                "MenuItem",
+                updated.MenuItemId.ToString(),
+                $"Updated menu item '{updated.Name}' ({updated.Code})."
+            );
+
+            var loaded = await _repository.GetByIdAsync(updated.MenuItemId, campusId);
+            return MapToDto(loaded ?? updated);
+        }
+
+        public async Task<MenuItemDto> ToggleStatusAsync(int id, int campusId, string performedBy)
+        {
+            var item = await _repository.GetByIdAsync(id, campusId);
+            if (item == null)
+            {
+                throw new KeyNotFoundException($"Menu item with ID {id} was not found.");
+            }
+
+            item.Status = item.Status == "Active" ? "Inactive" : "Active";
+            item.Availability = item.Status == "Active" ? "Available" : "Unavailable";
+
+            var updated = await _repository.UpdateAsync(item);
+
+            await _auditService.LogActionAsync(
+                campusId,
+                null,
+                performedBy,
+                "TOGGLE_MENU_STATUS",
+                "MenuItem",
+                updated.MenuItemId.ToString(),
+                $"Toggled status to '{updated.Status}' for menu item '{updated.Name}'."
+            );
+
+            return MapToDto(updated);
+        }
+
+        public async Task<MenuItemDto> TogglePublishAsync(int id, int campusId, string performedBy)
+        {
+            var item = await _repository.GetByIdAsync(id, campusId);
+            if (item == null)
+            {
+                throw new KeyNotFoundException($"Menu item with ID {id} was not found.");
+            }
+
+            item.PublicationStatus = item.PublicationStatus == "Published" ? "Draft" : "Published";
+
+            var updated = await _repository.UpdateAsync(item);
+
+            await _auditService.LogActionAsync(
+                campusId,
+                null,
+                performedBy,
+                "TOGGLE_MENU_PUBLISH",
+                "MenuItem",
+                updated.MenuItemId.ToString(),
+                $"Toggled publication status to '{updated.PublicationStatus}' for menu item '{updated.Name}'."
+            );
+
+            return MapToDto(updated);
+        }
+
+        public async Task<(bool success, bool blockedByPolicy, string? message)> DeleteAsync(int id, int campusId, string performedBy)
+        {
+            var item = await _repository.GetByIdAsync(id, campusId);
+            if (item == null)
+            {
+                return (false, false, $"Menu item with ID {id} was not found.");
+            }
+
+            var orderCount = await _repository.GetHistoricalOrderCountAsync(id);
+            if (orderCount > 0)
+            {
+                return (false, true, $"Institutional Policy Violation: Menu item '{item.Name}' ({item.Code}) has {orderCount} historical student/faculty orders and cannot be permanently deleted. Please mark as 'Inactive' or 'Draft' instead.");
+            }
+
+            var deleted = await _repository.DeleteAsync(id, campusId);
+            if (deleted)
+            {
+                await _auditService.LogActionAsync(
+                    campusId,
+                    null,
+                    performedBy,
+                    "DELETE_MENU_ITEM",
+                    "MenuItem",
+                    id.ToString(),
+                    $"Deleted menu item '{item.Name}' ({item.Code})."
+                );
+            }
+
+            return (deleted, false, null);
+        }
+
+        public async Task<int> ResetDailyCapacityAsync(int campusId, string performedBy, bool force = false)
+        {
+            var resetCount = await _repository.ResetDailyCapacityAsync(campusId, force);
+            await _auditService.LogActionAsync(
+                campusId,
+                null,
+                performedBy,
+                "RESET_DAILY_CAPACITY",
+                "MenuItem",
+                "ALL",
+                $"Daily menu item capacity reset executed (Force={force}). {resetCount} items restored to full daily capacity."
+            );
+            return resetCount;
+        }
+
+        private static MenuItemDto MapToDto(MenuItem m) => new()
+        {
+            Id = m.MenuItemId,
+            Code = m.Code,
+            Name = m.Name,
+            Description = m.Description,
+            CategoryId = m.CategoryId,
+            Category = m.Category?.Name ?? string.Empty,
+            OutletId = m.OutletId,
+            OutletName = m.Outlet?.Name ?? string.Empty,
+            FoodType = m.FoodType,
+            Price = m.Price,
+            DiscountPercent = m.DiscountPercent,
+            DailyCapacity = m.DailyCapacity,
+            RemainingCapacity = m.RemainingCapacity,
+            LastResetDate = m.LastResetDate,
+            Availability = m.Availability,
+            Status = m.Status,
+            PublicationStatus = m.PublicationStatus,
+            ServingSize = m.ServingSize,
+            Calories = m.Calories,
+            ImageUrl = m.ImageUrl,
+            Allergens = !string.IsNullOrWhiteSpace(m.AllergensJson)
+                ? (JsonSerializer.Deserialize<List<string>>(m.AllergensJson) ?? new())
+                : new(),
+            WorkingDays = !string.IsNullOrWhiteSpace(m.WorkingDaysJson)
+                ? (JsonSerializer.Deserialize<List<string>>(m.WorkingDaysJson) ?? new())
+                : new(),
+            StartTime = m.StartTime,
+            EndTime = m.EndTime,
+            HistoricalOrderCount = m.HistoricalOrderCount,
+            Variants = m.Variants.Select(v => new MenuItemVariantDto { Id = v.VariantId, Name = v.Name, Price = v.Price }).ToList(),
+            AddOns = m.AddOns.Select(a => new MenuItemAddonDto { Id = a.AddonId, Name = a.Name, Price = a.Price }).ToList(),
+            CreatedAt = m.CreatedAt,
+            UpdatedAt = m.UpdatedAt
+        };
+    }
+}
+

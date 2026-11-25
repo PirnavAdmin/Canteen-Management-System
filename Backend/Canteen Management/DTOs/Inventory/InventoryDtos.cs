@@ -5,8 +5,11 @@ namespace CanteenManagement.API.DTOs.Inventory
     public class InventoryItemDto
     {
         public int Id { get; set; }
-        public int OutletId { get; set; }
+        public int? OutletId { get; set; }
+        public int? WarehouseId { get; set; }
+        public string StoreType { get; set; } = "KitchenOutlet"; // CentralWarehouse, KitchenOutlet
         public string OutletName { get; set; } = "Main Canteen";
+        public string? WarehouseName { get; set; }
         public string ItemCode { get; set; } = string.Empty;
         public string IngredientName { get; set; } = string.Empty;
         public string Category { get; set; } = "Groceries";
@@ -71,7 +74,9 @@ namespace CanteenManagement.API.DTOs.Inventory
     public class PurchaseOrderDto
     {
         public int Id { get; set; }
-        public int OutletId { get; set; }
+        public int? OutletId { get; set; }
+        public int? WarehouseId { get; set; }
+        public string? WarehouseName { get; set; }
         public string PoNumber { get; set; } = string.Empty;
         public int? SupplierId { get; set; }
         public string? SupplierName { get; set; }
@@ -85,8 +90,8 @@ namespace CanteenManagement.API.DTOs.Inventory
 
     public class CreatePurchaseOrderDto
     {
-        [Required]
-        public int OutletId { get; set; }
+        public int? OutletId { get; set; }
+        public int? WarehouseId { get; set; }
         public int? SupplierId { get; set; }
         public string? SupplierName { get; set; }
         public DateTime? ExpectedDelivery { get; set; }
@@ -167,7 +172,12 @@ namespace CanteenManagement.API.DTOs.Inventory
 
         public decimal CostPerUnit { get; set; } = 0;
 
-        public int? OutletId { get; set; } = 1;
+        public int? OutletId { get; set; }
+
+        public int? WarehouseId { get; set; }
+
+        [MaxLength(30)]
+        public string StoreType { get; set; } = "KitchenOutlet";
 
         [MaxLength(50)]
         public string? BatchNumber { get; set; }
@@ -196,6 +206,11 @@ namespace CanteenManagement.API.DTOs.Inventory
         public decimal? CostPerUnit { get; set; }
 
         public int? OutletId { get; set; }
+
+        public int? WarehouseId { get; set; }
+
+        [MaxLength(30)]
+        public string? StoreType { get; set; }
 
         [MaxLength(50)]
         public string? BatchNumber { get; set; }

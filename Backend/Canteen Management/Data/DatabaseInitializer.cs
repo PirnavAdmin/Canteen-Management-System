@@ -60,11 +60,74 @@ namespace CanteenManagement.API.Data
                     await alterConn.ExecuteAsync("ALTER TABLE Orders ADD COLUMN IF NOT EXISTS PackagingFee DECIMAL(10,2) NOT NULL DEFAULT 0.00;");
                     await alterConn.ExecuteAsync("ALTER TABLE MenuItems ADD COLUMN IF NOT EXISTS DiscountPercent DECIMAL(5,2) NOT NULL DEFAULT 0.00;");
 
-                    // Ensure Central Warehouse outlet exists
+                    // 1. Ensure dedicated CanteenWarehouses table exists safely
                     await alterConn.ExecuteAsync(@"
-                        INSERT INTO CanteenOutlets (CampusId, Code, Name, Location, OpenTime, CloseTime, Status, IsOrderAcceptanceEnabled, WorkingDays, CreatedAt)
-                        SELECT 1, 'WH-01', 'Central Warehouse (Admin Master Store)', 'Campus Central Logistics Block, Ground Floor', '06:00', '22:00', 'Active', 0, 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday', UTC_TIMESTAMP()
-                        WHERE NOT EXISTS (SELECT 1 FROM CanteenOutlets WHERE Code = 'WH-01' OR Name LIKE '%Warehouse%');");
+                        CREATE TABLE IF NOT EXISTS CanteenWarehouses (
+                            WarehouseId INT AUTO_INCREMENT PRIMARY KEY,
+                            CampusId INT NOT NULL DEFAULT 1,
+                            Code VARCHAR(30) NOT NULL DEFAULT 'WH-CENTRAL',
+                            Name VARCHAR(100) NOT NULL DEFAULT 'Central Procurement Warehouse',
+                            Location VARCHAR(200) NULL DEFAULT 'Campus Central Logistics Block, Ground Floor',
+                            IsActive BOOLEAN NOT NULL DEFAULT TRUE,
+                            CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            UpdatedAt DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
+                            UNIQUE KEY uq_warehouse_code (CampusId, Code)
+                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
+
+                    // Seed default Central Procurement Warehouse if not exists
+                    await alterConn.ExecuteAsync(@"
+                        INSERT INTO CanteenWarehouses (CampusId, Code, Name, Location, IsActive, CreatedAt)
+                        SELECT 1, 'WH-CENTRAL', 'Central Procurement Warehouse (Admin Master Store)', 'Campus Central Logistics Block, Ground Floor', 1, UTC_TIMESTAMP()
+                        WHERE NOT EXISTS (SELECT 1 FROM CanteenWarehouses WHERE CampusId = 1);");
+
+                    // 2. Ensure InventoryItems columns support both Central Warehouse and Kitchen Outlets cleanly
+                    try { await alterConn.ExecuteAsync("ALTER TABLE InventoryItems ADD COLUMN IF NOT EXISTS WarehouseId INT NULL;"); } catch { }
+                    try { await alterConn.ExecuteAsync("ALTER TABLE InventoryItems ADD COLUMN IF NOT EXISTS StoreType VARCHAR(30) NOT NULL DEFAULT 'KitchenOutlet';"); } catch { }
+                    try { await alterConn.ExecuteAsync("ALTER TABLE InventoryItems MODIFY COLUMN OutletId INT NULL;"); } catch { }
+
+                    // Migrate existing Central Warehouse items (previously assigned to OutletId 4) to WarehouseId 1
+                    try
+                    {
+                        await alterConn.ExecuteAsync(@"
+                            UPDATE InventoryItems 
+                            SET WarehouseId = 1, StoreType = 'CentralWarehouse', OutletId = NULL 
+                            WHERE OutletId = 4 OR OutletId NOT IN (SELECT OutletId FROM CanteenOutlets WHERE Code != 'WH-01');");
+                        
+                        await alterConn.ExecuteAsync(@"
+                            UPDATE InventoryItems 
+                            SET StoreType = 'KitchenOutlet' 
+                            WHERE OutletId IS NOT NULL;");
+                    } catch { }
+
+                    // 3. PurchaseOrders, StockMovements & StockRequests decoupling
+                    try { await alterConn.ExecuteAsync("ALTER TABLE PurchaseOrders ADD COLUMN IF NOT EXISTS WarehouseId INT NULL;"); } catch { }
+                    try { await alterConn.ExecuteAsync("ALTER TABLE PurchaseOrders MODIFY COLUMN OutletId INT NULL;"); } catch { }
+                    try { await alterConn.ExecuteAsync("UPDATE PurchaseOrders SET WarehouseId = 1, OutletId = NULL WHERE OutletId = 4;"); } catch { }
+
+                    try { await alterConn.ExecuteAsync("ALTER TABLE StockMovements ADD COLUMN IF NOT EXISTS WarehouseId INT NULL;"); } catch { }
+                    try { await alterConn.ExecuteAsync("ALTER TABLE StockMovements MODIFY COLUMN OutletId INT NULL;"); } catch { }
+                    try { await alterConn.ExecuteAsync("UPDATE StockMovements SET WarehouseId = 1, OutletId = NULL WHERE OutletId = 4;"); } catch { }
+
+                    try { await alterConn.ExecuteAsync("ALTER TABLE StockRequests ADD COLUMN IF NOT EXISTS WarehouseId INT NULL;"); } catch { }
+                    try { await alterConn.ExecuteAsync("UPDATE StockRequests SET WarehouseId = 1 WHERE SourceOutletId = 4;"); } catch { }
+
+                    // 4. Permanently remove WH-01 from CanteenOutlets (CanteenOutlets will ONLY contain dining outlets)
+                    try
+                    {
+                        await alterConn.ExecuteAsync("DELETE FROM CanteenOutletSettings WHERE OutletId = 4;");
+                        await alterConn.ExecuteAsync("DELETE FROM CanteenStaffAssignments WHERE OutletId = 4;");
+                        await alterConn.ExecuteAsync("UPDATE StockRequests SET OutletId = 1 WHERE OutletId = 4;");
+                        await alterConn.ExecuteAsync("UPDATE MenuItems SET OutletId = 1 WHERE OutletId = 4;");
+                        await alterConn.ExecuteAsync("UPDATE Orders SET OutletId = 1 WHERE OutletId = 4;");
+                        var deletedOutlets = await alterConn.ExecuteAsync("DELETE FROM CanteenOutlets WHERE Code = 'WH-01' OR Name LIKE '%Warehouse%';");
+                        if (deletedOutlets > 0)
+                        {
+                            logger.LogInformation("Permanently decoupled Central Warehouse from CanteenOutlets ({Count} rows removed from dining outlets table).", deletedOutlets);
+                        }
+                    } catch (Exception ex)
+                    {
+                        logger.LogWarning("Notice cleaning up WH-01 from CanteenOutlets: {Message}", ex.Message);
+                    }
 
                     // Ensure StockRequests table exists safely with VARCHAR(50) RequestId
                     await alterConn.ExecuteAsync(@"
@@ -128,6 +191,49 @@ namespace CanteenManagement.API.Data
                 catch (Exception ex)
                 {
                     logger.LogInformation("Cashier user verification: {Message}", ex.Message);
+                }
+
+                // Ensure CanteenStaffAssignments table exists safely and default Cashier is mapped to Outlet 1
+                try
+                {
+                    using var assignConn = new MySqlConnection(activeCs);
+                    await assignConn.OpenAsync();
+                    await assignConn.ExecuteAsync(@"
+                        CREATE TABLE IF NOT EXISTS CanteenStaffAssignments (
+                            AssignmentId INT AUTO_INCREMENT PRIMARY KEY,
+                            UserId INT NOT NULL,
+                            OutletId INT NOT NULL,
+                            Role VARCHAR(50) NOT NULL DEFAULT 'Cashier',
+                            IsActive BOOLEAN NOT NULL DEFAULT TRUE,
+                            AssignedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            UpdatedAt DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
+                            INDEX idx_canteen_staff_user (UserId),
+                            INDEX idx_canteen_staff_outlet (OutletId),
+                            CONSTRAINT fk_canteen_staff_outlet FOREIGN KEY (OutletId) REFERENCES CanteenOutlets (OutletId) ON DELETE CASCADE
+                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
+
+                    var cashierUserId = await assignConn.ExecuteScalarAsync<int?>(@"
+                        SELECT UserId FROM Users WHERE Username = 'cashier' OR Email = 'cashier@canteen.edu' LIMIT 1;");
+
+                    if (cashierUserId.HasValue && cashierUserId.Value > 0)
+                    {
+                        var hasAssignment = await assignConn.ExecuteScalarAsync<int>(@"
+                            SELECT COUNT(1) FROM CanteenStaffAssignments WHERE UserId = @UserId AND OutletId = 1;",
+                            new { UserId = cashierUserId.Value });
+
+                        if (hasAssignment == 0)
+                        {
+                            await assignConn.ExecuteAsync(@"
+                                INSERT INTO CanteenStaffAssignments (UserId, OutletId, Role, IsActive, AssignedAt)
+                                VALUES (@UserId, 1, 'Cashier', 1, UTC_TIMESTAMP());",
+                                new { UserId = cashierUserId.Value });
+                            logger.LogInformation("Mapped default Cashier (UserId={UserId}) to Outlet 1 (Main Canteen Kitchen).", cashierUserId.Value);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogInformation("Canteen staff assignment verification: {Message}", ex.Message);
                 }
 
                 // Ensure latest Stored Procedures from Database/StoredProcedures are up-to-date
