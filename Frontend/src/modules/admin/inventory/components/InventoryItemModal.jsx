@@ -24,7 +24,8 @@ export const InventoryItemModal = ({
   onSave,
   loading = false,
   initialData = null,
-  outlets = []
+  outlets = [],
+  defaultOutletId = 4
 }) => {
   const isEdit = Boolean(initialData);
 
@@ -35,7 +36,7 @@ export const InventoryItemModal = ({
     unit: 'kg',
     reorderLevel: '10',
     costPerUnit: '0',
-    outletId: '1',
+    outletId: String(defaultOutletId || 4),
     batchNumber: '',
     expiryDate: '',
     status: 'In Stock'
@@ -53,7 +54,7 @@ export const InventoryItemModal = ({
           unit: initialData.unit || 'kg',
           reorderLevel: initialData.reorderLevel !== undefined ? String(initialData.reorderLevel) : '10',
           costPerUnit: initialData.costPerUnit !== undefined ? String(initialData.costPerUnit) : '0',
-          outletId: String(initialData.outletId || '1'),
+          outletId: String(initialData.outletId || defaultOutletId || '4'),
           batchNumber: initialData.batchNumber || '',
           expiryDate: initialData.expiryDate ? initialData.expiryDate.split('T')[0] : '',
           status: initialData.status || 'In Stock'
@@ -66,7 +67,7 @@ export const InventoryItemModal = ({
           unit: 'kg',
           reorderLevel: '10',
           costPerUnit: '0',
-          outletId: outlets.length > 0 ? String(outlets[0].outletId || outlets[0].id || '1') : '1',
+          outletId: String(defaultOutletId || (outlets.length > 0 ? (outlets[0].outletId || outlets[0].id || '4') : '4')),
           batchNumber: '',
           expiryDate: '',
           status: 'In Stock'
@@ -74,7 +75,7 @@ export const InventoryItemModal = ({
       }
       setError('');
     }
-  }, [initialData, isOpen, outlets]);
+  }, [initialData, isOpen, outlets, defaultOutletId]);
 
   if (!isOpen) return null;
 

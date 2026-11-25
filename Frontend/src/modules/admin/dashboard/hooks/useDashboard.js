@@ -241,7 +241,13 @@ export const useDashboard = (selectedOutlet = 'ALL') => {
       setLiveOrders(live);
       setTopSelling(top);
       setStockAlerts(alerts);
-      setOutletSales(outlets);
+      const filteredOutletSales = (Array.isArray(outlets) ? outlets : []).filter(o => {
+        const oid = Number(o.outletId || o.id);
+        const name = (o.name || o.outletName || '').toLowerCase();
+        const code = (o.code || '').toUpperCase();
+        return oid !== 4 && code !== 'WH-01' && !name.includes('warehouse');
+      });
+      setOutletSales(filteredOutletSales);
       setLastUpdated(new Date());
     } catch (err) {
       console.error('Failed to load dashboard data:', err);

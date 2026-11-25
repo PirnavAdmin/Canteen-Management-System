@@ -32,12 +32,14 @@ export const ApproveKitchenRequestModal = ({
 
   useEffect(() => {
     if (request) {
-      // Default to requested quantity, capped by available stock if lower
-      const initial = Math.min(requestedQty, availableStock > 0 ? requestedQty : 0);
-      setSendQty(initial > 0 ? String(initial) : (availableStock > 0 ? String(availableStock) : ''));
+      // Default to requested quantity, capped by available stock if matched item exists
+      const initial = matchedItem
+        ? Math.min(requestedQty, availableStock > 0 ? requestedQty : 0)
+        : requestedQty;
+      setSendQty(initial > 0 ? String(initial) : (availableStock > 0 ? String(availableStock) : String(requestedQty || '')));
       setError('');
     }
-  }, [request, availableStock, requestedQty, isOpen]);
+  }, [request, matchedItem, availableStock, requestedQty, isOpen]);
 
   if (!isOpen || !request) return null;
 
@@ -50,7 +52,7 @@ export const ApproveKitchenRequestModal = ({
       return;
     }
 
-    if (qtyNum > availableStock) {
+    if (matchedItem && qtyNum > availableStock) {
       setError(`Cannot issue ${qtyNum} ${unit}. Current available stock in raw materials is only ${availableStock} ${unit}.`);
       return;
     }
@@ -59,7 +61,7 @@ export const ApproveKitchenRequestModal = ({
     onClose();
   };
 
-  const isStockSufficient = availableStock >= requestedQty;
+  const isStockSufficient = matchedItem ? availableStock >= requestedQty : true;
 
   return (
     <div style={{
@@ -214,7 +216,7 @@ export const ApproveKitchenRequestModal = ({
             <Button variant="secondary" onClick={onClose} type="button" disabled={loading}>
               Cancel
             </Button>
-            <Button variant="primary" type="submit" loading={loading} disabled={availableStock <= 0}>
+            <Button variant="primary" type="submit" loading={loading} disabled={matchedItem ? availableStock <= 0 : false}>
               <Send size={13} style={{ marginRight: '6px' }} />
               <span>Approve & Dispatch Stock</span>
             </Button>

@@ -88,9 +88,18 @@ export const inventoryService = {
 
   // Stock Requests
   getStockRequests: async (params = {}) => {
-    const response = await apiClient.get(API_ENDPOINTS.INVENTORY.STOCK_REQUESTS, params);
-    const raw = response?.data ?? response;
-    return Array.isArray(raw) ? raw : (Array.isArray(raw?.data) ? raw.data : (Array.isArray(raw?.requests) ? raw.requests : (Array.isArray(raw?.items) ? raw.items : [])));
+    try {
+      const response = await apiClient.get(API_ENDPOINTS.INVENTORY.STOCK_REQUESTS, params);
+      const raw = response?.data ?? response;
+      if (Array.isArray(raw)) return raw;
+      if (Array.isArray(raw?.data)) return raw.data;
+      if (Array.isArray(raw?.requests)) return raw.requests;
+      if (Array.isArray(raw?.items)) return raw.items;
+      return [];
+    } catch (err) {
+      console.warn('Network issue fetching stock requests:', err.message);
+      return [];
+    }
   },
 
   approveStockRequest: async (id) => {
@@ -98,9 +107,6 @@ export const inventoryService = {
     const raw = response?.data ?? response;
     window.dispatchEvent(new CustomEvent('cms:stock_request_updated', { detail: { id, status: 'Fulfilled', request: raw } }));
     window.dispatchEvent(new CustomEvent('cms:inventory_updated', { detail: { id } }));
-    try {
-      localStorage.setItem('cms_stock_request_sync_timestamp', Date.now().toString());
-    } catch {}
     return raw;
   },
 
@@ -108,9 +114,6 @@ export const inventoryService = {
     const response = await apiClient.delete(API_ENDPOINTS.INVENTORY.STOCK_REQUEST_BY_ID(id));
     const raw = response?.data ?? response;
     window.dispatchEvent(new CustomEvent('cms:stock_request_updated', { detail: { id, status: 'Rejected', request: raw } }));
-    try {
-      localStorage.setItem('cms_stock_request_sync_timestamp', Date.now().toString());
-    } catch {}
     return raw;
   },
 
@@ -192,17 +195,29 @@ export const inventoryService = {
   },
 
   // Kitchen Stock Requisitions
-  getStockRequests: async (params = {}) => {
+  createStockRequest: async (requestData) => {
     try {
-      const response = await apiClient.get(API_ENDPOINTS.INVENTORY.STOCK_REQUESTS, params);
-      const raw = response?.data ?? response;
-      return Array.isArray(raw)
-        ? raw
-        : (Array.isArray(raw?.requests) ? raw.requests : (Array.isArray(raw?.items) ? raw.items : []));
+      const response = await apiClient.post(API_ENDPOINTS.INVENTORY.STOCK_REQUESTS, requestData);
+      return response?.data ?? response;
     } catch (err) {
-      console.warn('Network issue fetching stock requests:', err.message);
-      return [];
+      console.error('Failed to create stock request:', err);
+      throw err;
     }
+  },
+
+  updateStockRequest: async (id, data = {}) => {
+    try {
+      const response = await apiClient.put(API_ENDPOINTS.INVENTORY.STOCK_REQUEST_BY_ID(id), data);
+      return response?.data ?? response;
+    } catch {
+      const response = await apiClient.patch(API_ENDPOINTS.INVENTORY.STOCK_REQUEST_BY_ID(id), data);
+      return response?.data ?? response;
+    }
+  },
+
+  deleteStockRequest: async (id) => {
+    const response = await apiClient.delete(API_ENDPOINTS.INVENTORY.STOCK_REQUEST_BY_ID(id));
+    return response?.data ?? response;
   },
 
   updateStockRequestStatus: async (id, status, notes = '') => {
@@ -229,8 +244,14 @@ export const inventoryService = {
       const response = await apiClient.patch(API_ENDPOINTS.INVENTORY.STOCK_REQUEST_REJECT(id), { reason });
       return response?.data ?? response;
     } catch (err) {
-      console.error('Failed to reject stock request:', err);
-      throw err;
+      console.warn('Reject endpoint failed, falling back to status update:', err?.message);
+      const fallback = await apiClient.patch(API_ENDPOINTS.INVENTORY.STOCK_REQUEST_BY_ID(id), {
+        status: 'Rejected',
+        rejectionReason: reason,
+        adminNotes: reason,
+        notes: reason
+      });
+      return fallback?.data ?? fallback;
     }
   },
 

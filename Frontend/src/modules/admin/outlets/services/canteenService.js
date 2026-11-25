@@ -8,7 +8,13 @@ import { apiClient, API_ENDPOINTS } from '../../../../services/api';
 
 const normalizeCanteen = (dto) => {
   if (!dto) return null;
-  const id = dto.outletId ? String(dto.outletId) : String(dto.id || '');
+  const rawId = dto.outletId ?? dto.id ?? '';
+  const id = String(rawId);
+  const numericId = Number(rawId) || (isNaN(Number(id)) ? 1 : Number(id));
+  const rawName = (dto.name || dto.outletName || '').trim();
+  const isWarehouse = numericId === 4 || (dto.code === 'WH-01') || rawName.toLowerCase().includes('warehouse');
+  const name = rawName || (isWarehouse ? 'Central Warehouse (Admin Master Store)' : `Outlet ${numericId}`);
+  const code = dto.code || (isWarehouse ? 'WH-01' : `OUT-0${numericId}`);
 
   let admin = null;
   if (dto.adminContactJson) {
@@ -32,9 +38,10 @@ const normalizeCanteen = (dto) => {
   return {
     ...dto,
     id: id,
-    outletId: dto.outletId || (isNaN(Number(id)) ? 1 : Number(id)),
-    code: dto.code || '',
-    name: dto.name || '',
+    outletId: numericId,
+    code: code,
+    name: name,
+    outletName: name,
     location: dto.location || 'Campus Canteen Area',
     campus: dto.campus || 'Main Campus',
     openingTime: dto.openTime || dto.openingTime || '08:00',
@@ -60,15 +67,34 @@ const normalizeCanteen = (dto) => {
 
 export const canteenService = {
   getAll: async (params = {}) => {
-    const response = await apiClient.get(API_ENDPOINTS.OUTLETS.BASE, params);
-    const list = response?.data ?? response;
-    const normalized = Array.isArray(list) ? list.map(normalizeCanteen) : [];
-    // Sort recently added first (by createdAt or outletId descending)
+    let list = [];
+    try {
+      const response = await apiClient.get(API_ENDPOINTS.OUTLETS.BASE, params);
+      const resData = response?.data ?? response;
+      if (Array.isArray(resData) && resData.length > 0) {
+        list = resData;
+      }
+    } catch (e) {
+      console.warn('GET /canteen-outlets failed, checking outlet-sales:', e?.message);
+    }
+
+    // Fallback: If /canteen-outlets returned empty or failed, fetch list from /canteen-dashboard/outlet-sales
+    if (!list || list.length === 0) {
+      try {
+        const salesResponse = await apiClient.get(API_ENDPOINTS.DASHBOARD.OUTLET_SALES);
+        const salesData = salesResponse?.data ?? salesResponse;
+        if (Array.isArray(salesData) && salesData.length > 0) {
+          list = salesData;
+        }
+      } catch (err) {
+        console.warn('GET /canteen-dashboard/outlet-sales fallback failed:', err?.message);
+      }
+    }
+
+    const normalized = Array.isArray(list) ? list.map(normalizeCanteen).filter(Boolean) : [];
+    // Sort by outletId ascending (1, 2, 3, 4)
     return normalized.sort((a, b) => {
-      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      if (timeA && timeB && timeA !== timeB) return timeB - timeA;
-      return Number(b.outletId || b.id || 0) - Number(a.outletId || a.id || 0);
+      return Number(a.outletId || a.id || 0) - Number(b.outletId || b.id || 0);
     });
   },
 

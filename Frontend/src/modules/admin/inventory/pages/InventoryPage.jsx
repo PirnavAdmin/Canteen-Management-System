@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Package, BookOpen, ShoppingCart, Users, PlusCircle, ArrowDownUp, Store, ChefHat } from 'lucide-react';
+import { Package, BookOpen, ShoppingCart, Users, PlusCircle, ArrowDownUp, Store, ChefHat, Search, X } from 'lucide-react';
 import { PageHeader } from '../../../../components/common/PageHeader';
 import { Button } from '../../../../components/common/Button';
 import { ConfirmationModal } from '../../../../components/common/ConfirmationModal';
@@ -15,12 +15,44 @@ import { SupplierModal } from '../components/SupplierModal';
 import { InventoryItemModal } from '../components/InventoryItemModal';
 import { KitchenRequestsTable } from '../components/KitchenRequestsTable';
 import { ApproveKitchenRequestModal } from '../components/ApproveKitchenRequestModal';
+import { RejectKitchenRequestModal } from '../components/RejectKitchenRequestModal';
+import { RequestStockModal } from '../components/RequestStockModal';
+import { EditKitchenRequestModal } from '../components/EditKitchenRequestModal';
 import { canteenService } from '../../outlets/services/canteenService';
 
 import { useCanteens } from '../../outlets/hooks/useCanteens';
 
 export const InventoryPage = () => {
-  const { canteens: outlets = [], selectedOutlet = 'ALL', setSelectedOutlet } = useCanteens();
+  const { canteens: outlets = [] } = useCanteens();
+
+  const warehouseOutlet = useMemo(() => {
+    return outlets.find(o => o.code === 'WH-01' || (o.name || '').toLowerCase().includes('warehouse') || Number(o.outletId || o.id) === 4) || null;
+  }, [outlets]);
+
+  const kitchenOutlets = useMemo(() => {
+    return outlets.filter(o => o.code !== 'WH-01' && !(o.name || '').toLowerCase().includes('warehouse') && Number(o.outletId || o.id) !== 4);
+  }, [outlets]);
+
+  const warehouseOutletId = warehouseOutlet?.outletId || warehouseOutlet?.id || 4;
+
+  // Inventory Scope: Independently managed scope, defaults to Central Warehouse (Admin Master Store)
+  const [inventoryScope, setInventoryScope] = useState(() => String(warehouseOutletId));
+
+  useEffect(() => {
+    if (warehouseOutlet && (!inventoryScope || inventoryScope === 'ALL' || inventoryScope === '4')) {
+      const wId = String(warehouseOutlet.outletId || warehouseOutlet.id);
+      setInventoryScope(wId);
+    }
+  }, [warehouseOutlet]);
+
+  const isWarehouseView = warehouseOutlet
+    ? String(inventoryScope) === String(warehouseOutlet.outletId || warehouseOutlet.id)
+    : String(inventoryScope) === '4';
+
+  const currentScopeOutlet = useMemo(() => {
+    if (isWarehouseView) return warehouseOutlet || { id: 4, name: 'Central Warehouse' };
+    return outlets.find(o => String(o.outletId || o.id) === String(inventoryScope)) || outlets[0] || null;
+  }, [outlets, inventoryScope, isWarehouseView, warehouseOutlet]);
 
   const {
     items,
@@ -41,22 +73,129 @@ export const InventoryPage = () => {
     deleteSupplier,
     deactivateSupplier,
     approveKitchenRequest,
-    markKitchenRequestReceived
-  } = useInventory(selectedOutlet);
+    rejectKitchenRequest,
+    markKitchenRequestReceived,
+    submitBatchStockRequests,
+    updateKitchenRequest,
+    deleteKitchenRequest,
+    refreshInventory
+  } = useInventory(inventoryScope);
 
-  const warehouseOutlet = useMemo(() => {
-    return outlets.find(o => o.code === 'WH-01' || (o.name || '').toLowerCase().includes('warehouse') || Number(o.outletId || o.id) === 4) || null;
-  }, [outlets]);
-
-  const kitchenOutlets = useMemo(() => {
-    return outlets.filter(o => o.code !== 'WH-01' && !(o.name || '').toLowerCase().includes('warehouse') && Number(o.outletId || o.id) !== 4);
-  }, [outlets]);
-
-  const isWarehouseView = warehouseOutlet && String(selectedOutlet) === String(warehouseOutlet.outletId || warehouseOutlet.id);
-  const currentOutletName = outlets.find(o => String(o.outletId || o.id) === String(selectedOutlet))?.name || 'Selected Outlet';
+  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
 
   // Tab state: 'items' | 'ledger' | 'pos' | 'suppliers' | 'kitchen-requests'
   const [activeTab, setActiveTab] = useState('items');
+
+  // When switching to kitchen-requests tab, trigger fresh API load
+  useEffect(() => {
+    if (activeTab === 'kitchen-requests' && typeof refreshInventory === 'function') {
+      refreshInventory();
+    }
+  }, [activeTab, refreshInventory]);
+
+  // If viewing a kitchen outlet, auto-switch to 'items' if activeTab was pos or suppliers
+  useEffect(() => {
+    if (!isWarehouseView && (activeTab === 'pos' || activeTab === 'suppliers')) {
+      setActiveTab('items');
+    }
+  }, [isWarehouseView, activeTab]);
+
+  // Search term state
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Priority search for raw materials & stock items
+  const filteredItems = useMemo(() => {
+    if (!searchTerm || !searchTerm.trim()) return items;
+    const q = searchTerm.trim().toLowerCase();
+
+    const scored = [];
+    for (const item of items) {
+      const name = (item.ingredientName || item.name || '').toLowerCase();
+      const code = (item.itemCode || item.code || `ING-${String(item.id || item.itemId || 1).padStart(3, '0')}`).toLowerCase();
+      const supplier = (item.supplierName || item.vendor || '').toLowerCase();
+      const batch = (item.batchNumber || '').toLowerCase();
+      const outlet = (item.outletName || '').toLowerCase();
+      const category = (item.category || '').toLowerCase();
+
+      let score = null;
+      if (code === q || name === q) {
+        score = 1; // Highest priority: Exact match on code or name
+      } else if (code.startsWith(q)) {
+        score = 2; // Starts with code
+      } else if (name.startsWith(q)) {
+        score = 3; // Name starts with query
+      } else if (name.split(/\s+/).some(word => word.startsWith(q))) {
+        score = 4; // Word in name starts with query
+      } else if (name.includes(q)) {
+        score = 5; // Substring in name
+      } else if (code.includes(q)) {
+        score = 6; // Substring in code
+      } else if (category.includes(q)) {
+        score = 7; // Substring in category
+      } else if (supplier.includes(q)) {
+        score = 8; // Substring in supplier
+      } else if (batch.includes(q)) {
+        score = 9; // Substring in batch
+      } else if (outlet.includes(q)) {
+        score = 10; // Substring in outlet name
+      }
+
+      if (score !== null) {
+        scored.push({ item, score });
+      }
+    }
+
+    scored.sort((a, b) => {
+      if (a.score !== b.score) return a.score - b.score;
+      const nameA = (a.item.ingredientName || a.item.name || '').toLowerCase();
+      const nameB = (b.item.ingredientName || b.item.name || '').toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
+
+    return scored.map(s => s.item);
+  }, [items, searchTerm]);
+
+  const filteredLedger = useMemo(() => {
+    if (!searchTerm || !searchTerm.trim()) return ledger;
+    const q = searchTerm.trim().toLowerCase();
+    return ledger.filter(l =>
+      (l.ingredientName || '').toLowerCase().includes(q) ||
+      (l.batchNumber || '').toLowerCase().includes(q) ||
+      (l.reference || '').toLowerCase().includes(q) ||
+      (l.outletName || '').toLowerCase().includes(q)
+    );
+  }, [ledger, searchTerm]);
+
+  const filteredPOs = useMemo(() => {
+    if (!searchTerm || !searchTerm.trim()) return purchaseOrders;
+    const q = searchTerm.trim().toLowerCase();
+    return purchaseOrders.filter(p =>
+      (p.poNumber || '').toLowerCase().includes(q) ||
+      (p.supplierName || '').toLowerCase().includes(q) ||
+      (p.outletName || '').toLowerCase().includes(q)
+    );
+  }, [purchaseOrders, searchTerm]);
+
+  const filteredSuppliers = useMemo(() => {
+    if (!searchTerm || !searchTerm.trim()) return suppliers;
+    const q = searchTerm.trim().toLowerCase();
+    return suppliers.filter(s =>
+      (s.name || '').toLowerCase().includes(q) ||
+      (s.contactPerson || '').toLowerCase().includes(q) ||
+      (s.phone || '').toLowerCase().includes(q) ||
+      (s.email || '').toLowerCase().includes(q)
+    );
+  }, [suppliers, searchTerm]);
+
+  const filteredKitchenRequests = useMemo(() => {
+    if (!searchTerm || !searchTerm.trim()) return kitchenRequests;
+    const q = searchTerm.trim().toLowerCase();
+    return kitchenRequests.filter(r =>
+      (r.itemName || r.ingredientName || '').toLowerCase().includes(q) ||
+      (r.requestId || r.id || '').toLowerCase().includes(q) ||
+      (r.outletName || '').toLowerCase().includes(q)
+    );
+  }, [kitchenRequests, searchTerm]);
 
   // Pagination state (default 5 per page) for each tab
   const [currentPage, setCurrentPage] = useState(1);
@@ -73,27 +212,28 @@ export const InventoryPage = () => {
 
   const paginatedItems = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
-    return items.slice(start, start + pageSize);
-  }, [items, currentPage, pageSize]);
+    return filteredItems.slice(start, start + pageSize);
+  }, [filteredItems, currentPage, pageSize]);
 
   const paginatedLedger = useMemo(() => {
     const start = (ledgerPage - 1) * ledgerPageSize;
-    return ledger.slice(start, start + ledgerPageSize);
-  }, [ledger, ledgerPage, ledgerPageSize]);
+    return filteredLedger.slice(start, start + ledgerPageSize);
+  }, [filteredLedger, ledgerPage, ledgerPageSize]);
 
   const paginatedPOs = useMemo(() => {
     const start = (posPage - 1) * posPageSize;
-    return purchaseOrders.slice(start, start + posPageSize);
-  }, [purchaseOrders, posPage, posPageSize]);
+    return filteredPOs.slice(start, start + posPageSize);
+  }, [filteredPOs, posPage, posPageSize]);
 
   const paginatedKitchenRequests = useMemo(() => {
     const start = (kitchenRequestsPage - 1) * kitchenRequestsPageSize;
-    return kitchenRequests.slice(start, start + kitchenRequestsPageSize);
-  }, [kitchenRequests, kitchenRequestsPage, kitchenRequestsPageSize]);
+    return filteredKitchenRequests.slice(start, start + kitchenRequestsPageSize);
+  }, [filteredKitchenRequests, kitchenRequestsPage, kitchenRequestsPageSize]);
 
   // Modals & action loading state
   const [movementModal, setMovementModal] = useState({ isOpen: false, item: null, type: 'Stock Out' });
   const [approveModal, setApproveModal] = useState({ isOpen: false, request: null });
+  const [rejectModal, setRejectModal] = useState({ isOpen: false, request: null });
   const [isPOModalOpen, setIsPOModalOpen] = useState(false);
   const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState(null);
@@ -104,8 +244,43 @@ export const InventoryPage = () => {
   const [editingItem, setEditingItem] = useState(null);
   const [itemToDelete, setItemToDelete] = useState(null);
 
+  // Kitchen Requisition Edit & Delete states
+  const [editingKitchenRequest, setEditingKitchenRequest] = useState(null);
+  const [kitchenRequestToDelete, setKitchenRequestToDelete] = useState(null);
+
   const [actionLoadingId, setActionLoadingId] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
+
+  const handleSaveEditKitchenRequest = async (request, qty, additionalData) => {
+    try {
+      setModalLoading(true);
+      await updateKitchenRequest(request, qty, additionalData);
+      setEditingKitchenRequest(null);
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const handleConfirmDeleteKitchenRequest = async () => {
+    if (!kitchenRequestToDelete) return;
+    try {
+      setModalLoading(true);
+      await deleteKitchenRequest(kitchenRequestToDelete);
+      setKitchenRequestToDelete(null);
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const handleConfirmRejectKitchenRequest = async (request, reason) => {
+    try {
+      setModalLoading(true);
+      await rejectKitchenRequest(request, reason);
+      setRejectModal({ isOpen: false, request: null });
+    } finally {
+      setModalLoading(false);
+    }
+  };
 
   const handleOpenAddItem = () => {
     setEditingItem(null);
@@ -221,10 +396,23 @@ export const InventoryPage = () => {
   return (
     <div>
       <PageHeader
-        title="Main Inventory & Stock Management"
-        description="Maintain central campus raw materials, stock quantities, reorder thresholds, purchase orders, and supplier relationships."
+        title={isWarehouseView ? "Central Warehouse Inventory & Master Store" : `${currentScopeOutlet?.name || 'Kitchen'} Inventory & Stock Ledger`}
+        description={isWarehouseView
+          ? "Maintain central campus raw materials, stock quantities, reorder thresholds, purchase orders, and supplier relationships."
+          : `Manage ${currentScopeOutlet?.name || 'kitchen'} stock, record daily kitchen issues, track stock requisition history, and receive items from Central Warehouse.`}
         actions={
           <div style={{ display: 'flex', gap: '8px' }}>
+            {/* If Kitchen Requests tab on an outlet, show 'Request Items / Goods' button */}
+            {!isWarehouseView && activeTab === 'kitchen-requests' && (
+              <Button
+                variant="primary"
+                icon={PlusCircle}
+                onClick={() => setIsRequestModalOpen(true)}
+              >
+                Request Items / Goods
+              </Button>
+            )}
+
             {activeTab === 'items' && (
               <>
                 <Button
@@ -246,7 +434,7 @@ export const InventoryPage = () => {
               </>
             )}
 
-            {activeTab === 'pos' && (
+            {isWarehouseView && activeTab === 'pos' && (
               <Button
                 variant="primary"
                 icon={PlusCircle}
@@ -256,7 +444,7 @@ export const InventoryPage = () => {
               </Button>
             )}
 
-            {activeTab === 'suppliers' && (
+            {isWarehouseView && activeTab === 'suppliers' && (
               <Button
                 variant="primary"
                 icon={PlusCircle}
@@ -292,9 +480,9 @@ export const InventoryPage = () => {
             Inventory Scope:
           </span>
           <select
-            value={selectedOutlet}
+            value={inventoryScope}
             onChange={(e) => {
-              setSelectedOutlet(e.target.value);
+              setInventoryScope(e.target.value);
               setCurrentPage(1);
               setLedgerPage(1);
               setPosPage(1);
@@ -316,64 +504,95 @@ export const InventoryPage = () => {
           >
             <optgroup label="🏢 Central Administration">
               {warehouseOutlet ? (
-                <option value={warehouseOutlet.outletId || warehouseOutlet.id}>
+                <option value={String(warehouseOutlet.outletId || warehouseOutlet.id)}>
                   📦 Central Warehouse (Admin Master Store)
                 </option>
               ) : (
                 <option value="4">📦 Central Warehouse (Admin Master Store)</option>
               )}
-              <option value="ALL">🌐 Consolidated (All Outlets & Central Warehouse)</option>
             </optgroup>
             <optgroup label="🍳 Campus Kitchen Outlets">
               {kitchenOutlets.map(out => (
-                <option key={out.outletId || out.id} value={out.outletId || out.id}>
-                  🍽️ {out.name} (Kitchen Inventory)
+                <option key={out.outletId || out.id} value={String(out.outletId || out.id)}>
+                  🍽️ {out.name || out.outletName || `Outlet ${out.outletId || out.id}`} (Kitchen Inventory)
                 </option>
               ))}
             </optgroup>
           </select>
         </div>
 
-        <div style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {isWarehouseView ? (
-            <span style={{
-              backgroundColor: 'rgba(59, 130, 246, 0.1)',
-              color: '#2563eb',
-              padding: '5px 12px',
-              borderRadius: '6px',
-              fontWeight: 600,
-              fontSize: '12px',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}>
-              <span>📦 <strong>Admin Central Warehouse</strong> • Bulk procurement & supplier replenishment (Dispatches to kitchens)</span>
-            </span>
-          ) : selectedOutlet === 'ALL' ? (
-            <span style={{
-              backgroundColor: 'rgba(107, 114, 128, 0.1)',
-              color: 'var(--text-secondary)',
-              padding: '5px 12px',
-              borderRadius: '6px',
+        {/* Search Bar in place of consolidate message with priority search */}
+        <div style={{ position: 'relative', minWidth: '240px', maxWidth: '340px', flex: '1 1 240px' }}>
+          <Search
+            size={15}
+            style={{
+              position: 'absolute',
+              left: '12px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              color: 'var(--text-muted)',
+              pointerEvents: 'none'
+            }}
+          />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+              setLedgerPage(1);
+              setPosPage(1);
+              setKitchenRequestsPage(1);
+            }}
+            placeholder="Search items by name, code..."
+            aria-label="Search items by name, code"
+            style={{
+              width: '100%',
+              height: '38px',
+              padding: searchTerm ? '0 32px 0 34px' : '0 14px 0 34px',
+              fontSize: '13px',
               fontWeight: 500,
-              fontSize: '12px'
-            }}>
-              🏢 Consolidated stock across <strong>all {outlets.length} campus locations</strong>
-            </span>
-          ) : (
-            <span style={{
-              backgroundColor: 'rgba(16, 185, 129, 0.1)',
-              color: '#059669',
-              padding: '5px 12px',
-              borderRadius: '6px',
-              fontWeight: 600,
-              fontSize: '12px',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}>
-              <span>🍳 <strong>{currentOutletName} Kitchen</strong> • Local cooking stock (Requests stock from Central Warehouse)</span>
-            </span>
+              border: '1.5px solid var(--border-color)',
+              borderRadius: 'var(--border-radius-md)',
+              backgroundColor: 'var(--bg-app)',
+              color: 'var(--text-primary)',
+              outline: 'none',
+              boxSizing: 'border-box',
+              transition: 'border-color var(--transition-fast)'
+            }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--color-primary)'; }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-color)'; }}
+          />
+          {searchTerm && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchTerm('');
+                setCurrentPage(1);
+                setLedgerPage(1);
+                setPosPage(1);
+                setKitchenRequestsPage(1);
+              }}
+              title="Clear search"
+              aria-label="Clear search"
+              style={{
+                position: 'absolute',
+                right: '8px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'none',
+                border: 'none',
+                color: 'var(--text-muted)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '4px',
+                borderRadius: '50%'
+              }}
+            >
+              <X size={14} />
+            </button>
           )}
         </div>
       </div>
@@ -431,51 +650,57 @@ export const InventoryPage = () => {
           <span>Movement Ledger</span>
         </button>
 
-        <button
-          type="button"
-          onClick={() => setActiveTab('pos')}
-          style={{
-            padding: '10px 16px',
-            fontSize: '13px',
-            fontWeight: activeTab === 'pos' ? 600 : 500,
-            color: activeTab === 'pos' ? 'var(--color-primary)' : 'var(--text-secondary)',
-            borderBottom: activeTab === 'pos' ? '2.5px solid var(--color-primary)' : '2.5px solid transparent',
-            background: 'none',
-            borderTop: 'none',
-            borderLeft: 'none',
-            borderRight: 'none',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}
-        >
-          <ShoppingCart size={15} />
-          <span>Purchase Orders</span>
-        </button>
+        {/* Purchase Orders Tab (Admin Central Warehouse only) */}
+        {isWarehouseView && (
+          <button
+            type="button"
+            onClick={() => setActiveTab('pos')}
+            style={{
+              padding: '10px 16px',
+              fontSize: '13px',
+              fontWeight: activeTab === 'pos' ? 600 : 500,
+              color: activeTab === 'pos' ? 'var(--color-primary)' : 'var(--text-secondary)',
+              borderBottom: activeTab === 'pos' ? '2.5px solid var(--color-primary)' : '2.5px solid transparent',
+              background: 'none',
+              borderTop: 'none',
+              borderLeft: 'none',
+              borderRight: 'none',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            <ShoppingCart size={15} />
+            <span>Purchase Orders</span>
+          </button>
+        )}
 
-        <button
-          type="button"
-          onClick={() => setActiveTab('suppliers')}
-          style={{
-            padding: '10px 16px',
-            fontSize: '13px',
-            fontWeight: activeTab === 'suppliers' ? 600 : 500,
-            color: activeTab === 'suppliers' ? 'var(--color-primary)' : 'var(--text-secondary)',
-            borderBottom: activeTab === 'suppliers' ? '2.5px solid var(--color-primary)' : '2.5px solid transparent',
-            background: 'none',
-            borderTop: 'none',
-            borderLeft: 'none',
-            borderRight: 'none',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}
-        >
-          <Users size={15} />
-          <span>Suppliers</span>
-        </button>
+        {/* Suppliers Tab (Admin Central Warehouse only) */}
+        {isWarehouseView && (
+          <button
+            type="button"
+            onClick={() => setActiveTab('suppliers')}
+            style={{
+              padding: '10px 16px',
+              fontSize: '13px',
+              fontWeight: activeTab === 'suppliers' ? 600 : 500,
+              color: activeTab === 'suppliers' ? 'var(--color-primary)' : 'var(--text-secondary)',
+              borderBottom: activeTab === 'suppliers' ? '2.5px solid var(--color-primary)' : '2.5px solid transparent',
+              background: 'none',
+              borderTop: 'none',
+              borderLeft: 'none',
+              borderRight: 'none',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            <Users size={15} />
+            <span>Suppliers</span>
+          </button>
+        )}
 
         <button
           type="button"
@@ -512,7 +737,7 @@ export const InventoryPage = () => {
           footer={
             <Pagination
               currentPage={currentPage}
-              totalItems={items.length}
+              totalItems={filteredItems.length}
               pageSize={pageSize}
               onPageChange={setCurrentPage}
               onPageSizeChange={(sz) => { setPageSize(sz); setCurrentPage(1); }}
@@ -529,7 +754,7 @@ export const InventoryPage = () => {
           footer={
             <Pagination
               currentPage={ledgerPage}
-              totalItems={ledger.length}
+              totalItems={filteredLedger.length}
               pageSize={ledgerPageSize}
               onPageChange={setLedgerPage}
               onPageSizeChange={(sz) => { setLedgerPageSize(sz); setLedgerPage(1); }}
@@ -539,7 +764,7 @@ export const InventoryPage = () => {
         />
       )}
 
-      {activeTab === 'pos' && (
+      {isWarehouseView && activeTab === 'pos' && (
         <PurchaseOrdersTable
           orders={paginatedPOs}
           loading={loading}
@@ -548,7 +773,7 @@ export const InventoryPage = () => {
           footer={
             <Pagination
               currentPage={posPage}
-              totalItems={purchaseOrders.length}
+              totalItems={filteredPOs.length}
               pageSize={posPageSize}
               onPageChange={setPosPage}
               onPageSizeChange={(sz) => { setPosPageSize(sz); setPosPage(1); }}
@@ -558,9 +783,9 @@ export const InventoryPage = () => {
         />
       )}
 
-      {activeTab === 'suppliers' && (
+      {isWarehouseView && activeTab === 'suppliers' && (
         <SuppliersTable
-          suppliers={suppliers}
+          suppliers={filteredSuppliers}
           loading={loading}
           onEdit={handleOpenEditSupplier}
           onDelete={handleDeleteSupplier}
@@ -572,12 +797,16 @@ export const InventoryPage = () => {
         <KitchenRequestsTable
           requests={paginatedKitchenRequests}
           loading={loading}
+          isWarehouseScope={isWarehouseView}
           onOpenApprove={(req) => setApproveModal({ isOpen: true, request: req })}
+          onOpenReject={(req) => setRejectModal({ isOpen: true, request: req })}
           onMarkReceived={markKitchenRequestReceived}
+          onEditRequest={(req) => setEditingKitchenRequest(req)}
+          onDeleteRequest={(req) => setKitchenRequestToDelete(req)}
           footer={
             <Pagination
               currentPage={kitchenRequestsPage}
-              totalItems={kitchenRequests.length}
+              totalItems={filteredKitchenRequests.length}
               pageSize={kitchenRequestsPageSize}
               onPageChange={setKitchenRequestsPage}
               onPageSizeChange={(sz) => { setKitchenRequestsPageSize(sz); setKitchenRequestsPage(1); }}
@@ -586,6 +815,25 @@ export const InventoryPage = () => {
           }
         />
       )}
+
+      {/* Requisition Request Modal for Kitchen Outlets */}
+      <RequestStockModal
+        isOpen={isRequestModalOpen}
+        onClose={() => setIsRequestModalOpen(false)}
+        currentOutlet={currentScopeOutlet}
+        warehouseOutlet={warehouseOutlet}
+        centralItems={centralItems}
+        loading={modalLoading}
+        onSubmitRequest={async (itemsList, commonData) => {
+          try {
+            setModalLoading(true);
+            await submitBatchStockRequests(itemsList, commonData);
+            setIsRequestModalOpen(false);
+          } finally {
+            setModalLoading(false);
+          }
+        }}
+      />
 
       {/* Modals */}
       <ApproveKitchenRequestModal
@@ -604,6 +852,14 @@ export const InventoryPage = () => {
         }}
       />
 
+      <RejectKitchenRequestModal
+        isOpen={rejectModal.isOpen}
+        onClose={() => !modalLoading && setRejectModal({ isOpen: false, request: null })}
+        request={rejectModal.request}
+        loading={modalLoading}
+        onReject={handleConfirmRejectKitchenRequest}
+      />
+
       {/* Modals */}
       <StockMovementModal
         isOpen={movementModal.isOpen}
@@ -619,7 +875,7 @@ export const InventoryPage = () => {
         onClose={() => !modalLoading && setIsPOModalOpen(false)}
         suppliers={suppliers}
         outlets={outlets}
-        defaultOutletId={selectedOutlet !== 'ALL' ? Number(selectedOutlet) : (outlets[0]?.outletId || outlets[0]?.id || 1)}
+        defaultOutletId={Number(inventoryScope) || (outlets[0]?.outletId || outlets[0]?.id || 1)}
         loading={modalLoading}
         onCreatePO={handleCreatePO}
       />
@@ -660,6 +916,7 @@ export const InventoryPage = () => {
         onSave={handleSaveItem}
         initialData={editingItem}
         outlets={outlets}
+        defaultOutletId={Number(inventoryScope) || (warehouseOutletId || 4)}
         loading={modalLoading}
       />
 
@@ -670,6 +927,25 @@ export const InventoryPage = () => {
         title="Delete Stock Item"
         message={`Are you sure you want to remove "${itemToDelete?.ingredientName || itemToDelete?.name || 'this item'}" from inventory? This action will permanently remove the item and its movement records.`}
         confirmText="Delete Material"
+        variant="danger"
+        loading={modalLoading}
+      />
+
+      <EditKitchenRequestModal
+        isOpen={Boolean(editingKitchenRequest)}
+        onClose={() => !modalLoading && setEditingKitchenRequest(null)}
+        request={editingKitchenRequest}
+        loading={modalLoading}
+        onSave={handleSaveEditKitchenRequest}
+      />
+
+      <ConfirmationModal
+        isOpen={Boolean(kitchenRequestToDelete)}
+        onClose={() => !modalLoading && setKitchenRequestToDelete(null)}
+        onConfirm={handleConfirmDeleteKitchenRequest}
+        title="Delete Stock Requisition"
+        message={`Are you sure you want to delete the requisition for "${kitchenRequestToDelete?.itemName || kitchenRequestToDelete?.ingredientName || 'this item'}" (${kitchenRequestToDelete?.requestedQuantity || kitchenRequestToDelete?.quantity || 0} ${kitchenRequestToDelete?.unit || 'units'})? This action cannot be undone.`}
+        confirmText="Delete Requisition"
         variant="danger"
         loading={modalLoading}
       />
