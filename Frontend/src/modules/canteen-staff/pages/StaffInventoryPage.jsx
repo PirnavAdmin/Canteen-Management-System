@@ -23,6 +23,7 @@ import {
   Calendar,
   Utensils,
   History,
+  Sparkles,
   X
 } from 'lucide-react';
 import { useStaffInventory } from '../hooks/useStaffInventory';
@@ -37,6 +38,21 @@ import { EmptyState } from '../../../components/common/EmptyState';
 import { formatDate, formatNumber, isSameIstDate, isWithinDaysIST } from '../../../utils/formatters';
 import { ConfirmReceiptModal } from '../components/ConfirmReceiptModal';
 import { LogKitchenUsageModal } from '../components/LogKitchenUsageModal';
+import { SearchableIngredientSelect } from '../components/SearchableIngredientSelect';
+
+const INGREDIENT_CATEGORIES = [
+  'Vegetables',
+  'Groceries',
+  'Dairy',
+  'Spices',
+  'Beverages',
+  'Grains',
+  'Fruits',
+  'Oils',
+  'Bakery',
+  'Packaging',
+  'General Kitchen Supplies'
+];
 
 export const StaffInventoryPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -169,6 +185,8 @@ export const StaffInventoryPage = () => {
 
   // Requisition Form state (used by Request Stock Modal)
   const [requestItemName, setRequestItemName] = useState(() => searchParams.get('item') || '');
+  const [requestCategory, setRequestCategory] = useState('General Kitchen Supplies');
+  const [requestIsCustom, setRequestIsCustom] = useState(false);
   const [requestQuantity, setRequestQuantity] = useState('');
   const [requestUnit, setRequestUnit] = useState(() => searchParams.get('unit') || 'kg');
   const [requestPriority, setRequestPriority] = useState('Normal');
@@ -192,20 +210,32 @@ export const StaffInventoryPage = () => {
   }, [searchParams]);
 
   const selectedStockItemObj = useMemo(() => {
-    if (!requestItemName) return null;
+    if (!requestItemName || requestIsCustom) return null;
     return kitchenStock.find(
       (i) => i.ingredientName.trim().toLowerCase() === requestItemName.trim().toLowerCase()
     );
-  }, [kitchenStock, requestItemName]);
+  }, [kitchenStock, requestItemName, requestIsCustom]);
 
-  const handleSelectRequestItem = (name) => {
-    setRequestItemName(name);
-    const found = kitchenStock.find((i) => i.ingredientName === name);
-    if (found) {
-      setRequestUnit(found.unit || 'kg');
-      if (Number(found.availableQuantity) <= Number(found.reorderLevel)) {
+  const handleSelectIngredient = (selection) => {
+    if (!selection || !selection.itemName) {
+      setRequestItemName('');
+      setRequestCategory('General Kitchen Supplies');
+      setRequestIsCustom(false);
+      return;
+    }
+
+    setRequestItemName(selection.itemName);
+    setRequestCategory(selection.category || 'General Kitchen Supplies');
+    setRequestUnit(selection.unit || 'kg');
+    setRequestIsCustom(Boolean(selection.isCustom));
+
+    if (selection.isCustom) {
+      setRequestPriority('Normal');
+      setRequestReason('Required for kitchen operations.');
+    } else {
+      if (Number(selection.availableQuantity) <= Number(selection.reorderLevel)) {
         setRequestPriority('Urgent');
-        setRequestReason(`Kitchen stock low (${found.availableQuantity} ${found.unit} remaining). Reorder required.`);
+        setRequestReason(`Kitchen stock low (${selection.availableQuantity} ${selection.unit || 'kg'} remaining). Reorder required.`);
       } else {
         setRequestPriority('Normal');
         setRequestReason('Kitchen stock replenishment.');
@@ -215,9 +245,11 @@ export const StaffInventoryPage = () => {
 
   const handleQuickRequestFromStock = (item) => {
     setRequestItemName(item.ingredientName);
+    setRequestCategory(item.category || 'General Kitchen Supplies');
     setRequestUnit(item.unit || 'kg');
     setRequestQuantity(String(item.reorderLevel || 10));
     setRequestPriority(Number(item.availableQuantity) <= Number(item.reorderLevel) ? 'Urgent' : 'Normal');
+    setRequestIsCustom(false);
     setRequestReason(`Kitchen stock low (${item.availableQuantity} ${item.unit} remaining). Reorder required.`);
     setIsRequestModalOpen(true);
   };
@@ -241,11 +273,13 @@ export const StaffInventoryPage = () => {
       );
 
       const created = await createRequest({
+        ingredientId: (!requestIsCustom && matched?.id) ? matched.id : null,
+        itemId: (!requestIsCustom && matched?.id) ? matched.id : null,
         itemName: requestItemName.trim(),
-        itemCode: matched?.itemCode || 'ING-REQ',
-        category: matched?.category || 'General Kitchen Supplies',
+        itemCode: matched?.itemCode || (requestIsCustom ? 'ING-NEW-REQ' : 'ING-REQ'),
+        category: requestCategory || matched?.category || 'General Kitchen Supplies',
         requestedQuantity: q,
-        unit: requestUnit,
+        unit: requestUnit || matched?.unit || 'kg',
         urgency: requestPriority,
         requiredByDate: requestNeededBy,
         notes: requestReason.trim(),
@@ -253,8 +287,14 @@ export const StaffInventoryPage = () => {
         outletName: activeOutletName
       });
 
-      showToast('success', `Requisition #${created.id || 'REQ'} submitted to Central Warehouse! Status: PENDING.`);
+      showToast(
+        'success',
+        `Requisition #${created.id || 'REQ'} for "${requestItemName.trim()}" submitted to Central Warehouse! Status: PENDING.`
+      );
       setIsRequestModalOpen(false);
+      setRequestItemName('');
+      setRequestCategory('General Kitchen Supplies');
+      setRequestIsCustom(false);
       setRequestQuantity('');
       setRequestReason('Kitchen stock replenishment.');
     } catch (err) {
@@ -2032,37 +2072,86 @@ export const StaffInventoryPage = () => {
             {/* Modal Body Form */}
             <form onSubmit={handleSubmitStockRequest} style={{ display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
               <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {/* Field 1: Kitchen Ingredient Selector */}
+                {/* Field 1: Searchable Kitchen Ingredient Selector */}
                 <div>
-                  <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '6px' }}>
-                    Select Kitchen Ingredient <span style={{ color: '#ef4444' }}>*</span>
-                  </label>
-                  <select
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <label style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      Ingredient Name <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    {requestIsCustom && (
+                      <span style={{
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        color: '#ea580c',
+                        backgroundColor: 'rgba(234, 88, 12, 0.1)',
+                        padding: '2px 7px',
+                        borderRadius: '4px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}>
+                        <Sparkles size={11} /> New Custom Ingredient
+                      </span>
+                    )}
+                  </div>
+                  <SearchableIngredientSelect
                     value={requestItemName}
-                    onChange={(e) => handleSelectRequestItem(e.target.value)}
-                    required
-                    style={{
-                      width: '100%',
-                      padding: '9px 12px',
-                      borderRadius: '8px',
-                      border: '1px solid var(--border-color)',
-                      backgroundColor: 'var(--bg-app)',
-                      color: 'var(--text-primary)',
-                      fontSize: '13px',
-                      outline: 'none'
-                    }}
-                  >
-                    <option value="">-- Choose ingredient from kitchen stock --</option>
-                    {kitchenStock.map((it) => (
-                      <option key={it.id || it.itemCode || it.ingredientName} value={it.ingredientName}>
-                        {it.ingredientName} ({it.category}) — In Stock: {it.availableQuantity} {it.unit}
-                      </option>
-                    ))}
-                  </select>
+                    onSelect={handleSelectIngredient}
+                    kitchenStock={kitchenStock}
+                    disabled={isSubmittingRequest}
+                    placeholder="Search kitchen ingredient (e.g. Rice, Sugar, Green Chillies)..."
+                  />
                 </div>
 
-                {/* Field 2: Current Kitchen Stock Balance Indicator */}
-                {selectedStockItemObj ? (
+                {/* Field 1b: If Custom Ingredient, Show Informative Card & Category Dropdown */}
+                {requestIsCustom ? (
+                  <div style={{
+                    padding: '12px 14px',
+                    borderRadius: '8px',
+                    backgroundColor: 'rgba(234, 88, 12, 0.06)',
+                    border: '1px solid rgba(234, 88, 12, 0.25)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                      <Sparkles size={16} style={{ color: '#ea580c', marginTop: '2px', flexShrink: 0 }} />
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: '#ea580c' }}>
+                          Special Requisition: "{requestItemName}"
+                        </div>
+                        <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                          This ingredient does not exist in your kitchen inventory. Central Admin will review, source, and dispatch it. Once received, it will automatically initialize in your kitchen inventory.
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '5px' }}>
+                        Ingredient Category <span style={{ color: '#ef4444' }}>*</span>
+                      </label>
+                      <select
+                        value={requestCategory}
+                        onChange={(e) => setRequestCategory(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '7px 10px',
+                          borderRadius: '6px',
+                          border: '1px solid var(--border-color)',
+                          backgroundColor: 'var(--bg-app)',
+                          color: 'var(--text-primary)',
+                          fontSize: '12.5px',
+                          outline: 'none'
+                        }}
+                      >
+                        {INGREDIENT_CATEGORIES.map((cat) => (
+                          <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                ) : selectedStockItemObj ? (
+                  /* Field 2: Current Kitchen Stock Balance Indicator */
                   <div
                     style={{
                       padding: '12px 14px',
@@ -2120,17 +2209,6 @@ export const StaffInventoryPage = () => {
                       )}
                     </div>
                   </div>
-                ) : requestItemName ? (
-                  <div style={{
-                    padding: '10px 12px',
-                    borderRadius: '8px',
-                    backgroundColor: 'var(--bg-muted)',
-                    border: '1px dashed var(--border-color)',
-                    fontSize: '12px',
-                    color: 'var(--text-secondary)'
-                  }}>
-                    ℹ️ Special Requisition: Item is not currently in the local kitchen store. Admin approval will initialize inventory upon receipt.
-                  </div>
                 ) : null}
 
                 {/* Fields 3 & 4: Requested Quantity & Unit */}
@@ -2179,7 +2257,9 @@ export const StaffInventoryPage = () => {
                       }}
                     >
                       <option value="kg">kg (Kilograms)</option>
+                      <option value="g">g (Grams)</option>
                       <option value="litre">litre (Litres)</option>
+                      <option value="ml">ml (Millilitres)</option>
                       <option value="pieces">pieces (Pcs)</option>
                       <option value="packets">packets (Packets)</option>
                       <option value="boxes">boxes (Boxes)</option>

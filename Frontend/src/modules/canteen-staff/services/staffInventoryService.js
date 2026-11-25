@@ -209,6 +209,48 @@ export const staffInventoryService = {
   },
 
   /**
+   * POST /api/v1/canteen-inventory/items
+   * Create a new inventory ingredient item in the kitchen outlet store
+   */
+  addItem: async (itemData) => {
+    const payload = {
+      ingredientName: itemData.ingredientName?.trim(),
+      category: itemData.category || 'General Kitchen Supplies',
+      availableQuantity: Number(itemData.availableQuantity || itemData.quantity || 0),
+      unit: itemData.unit || 'kg',
+      reorderLevel: Number(itemData.reorderLevel || 5),
+      costPerUnit: Number(itemData.costPerUnit || 0),
+      outletId: cleanOutletId(itemData.outletId) || 1,
+      batchNumber: itemData.batchNumber || null,
+      expiryDate: itemData.expiryDate || null,
+      status: itemData.status || 'In Stock'
+    };
+    const response = await apiClient.post(API_ENDPOINTS.INVENTORY.ITEMS, payload);
+    return response?.data ?? response;
+  },
+
+  /**
+   * PUT /api/v1/canteen-inventory/items/{id}
+   * Update an existing kitchen inventory item (e.g. stock level on receipt)
+   */
+  updateItem: async (id, itemData) => {
+    const payload = {
+      ingredientName: itemData.ingredientName?.trim(),
+      category: itemData.category,
+      availableQuantity: itemData.availableQuantity !== undefined ? Number(itemData.availableQuantity) : undefined,
+      unit: itemData.unit,
+      reorderLevel: itemData.reorderLevel !== undefined ? Number(itemData.reorderLevel) : undefined,
+      costPerUnit: itemData.costPerUnit !== undefined ? Number(itemData.costPerUnit) : undefined,
+      outletId: itemData.outletId ? cleanOutletId(itemData.outletId) : undefined,
+      batchNumber: itemData.batchNumber || null,
+      expiryDate: itemData.expiryDate || null,
+      status: itemData.status
+    };
+    const response = await apiClient.put(API_ENDPOINTS.INVENTORY.ITEM_BY_ID(id), payload);
+    return response?.data ?? response;
+  },
+
+  /**
    * Get Low Stock items where availableQuantity <= reorderLevel
    */
   getLowStockItems: async (outletId = null, preloadedItems = null) => {
@@ -370,26 +412,88 @@ export const staffInventoryService = {
 
   /**
    * Confirm receipt of incoming stock and synchronize with backend inventory
+   * Handles both existing ingredients (increasing available quantity) and custom requested
+   * ingredients (adding new kitchen inventory item upon physical receipt).
    */
   confirmReceipt: async (params) => {
     let requestResult = null;
-    if (params.requestId) {
+    const reqId = params.requestId || params.id;
+    if (reqId) {
       try {
-        requestResult = await staffInventoryService.markStockReceived(params.requestId);
+        requestResult = await staffInventoryService.markStockReceived(reqId);
       } catch (err) {
         console.warn('Backend mark received notice:', err.message);
       }
     }
 
-    if (params.itemId || params.ingredientId) {
-      await staffInventoryService.recordMovement({
-        ingredientId: params.itemId || params.ingredientId,
-        movementType: 'Stock In',
-        quantity: Number(params.quantity || params.receivedQuantity || 0),
-        reference: params.reference || `RCV-${Date.now().toString().slice(-4)}`,
-        reason: params.reason || 'Received from Central Admin Warehouse',
-        performedBy: params.receivedBy || 'Staff Attendant'
-      });
+    const outletId = cleanOutletId(params.outletId) || 1;
+    const receivedQty = Number(params.receivedQuantity || params.quantity || 0);
+    const ingredientName = (params.ingredientName || params.itemName || '').trim();
+
+    if (receivedQty > 0 && ingredientName) {
+      try {
+        // Fetch current items in this kitchen outlet to check if the ingredient exists
+        const kitchenItems = await staffInventoryService.getAllInventory(outletId);
+        const targetItem = kitchenItems.find((i) =>
+          (params.ingredientId && String(i.id) === String(params.ingredientId)) ||
+          (params.itemId && String(i.id) === String(params.itemId)) ||
+          ((i.ingredientName || '').trim().toLowerCase() === ingredientName.toLowerCase())
+        );
+
+        let finalItemId = null;
+        if (targetItem) {
+          // Item exists in kitchen -> update availableQuantity
+          finalItemId = targetItem.id;
+          const currentQty = Number(targetItem.availableQuantity || 0);
+          const newQty = currentQty + receivedQty;
+          try {
+            await staffInventoryService.updateItem(targetItem.id, {
+              availableQuantity: newQty,
+              status: newQty > 0 ? 'In Stock' : targetItem.status
+            });
+          } catch (updateErr) {
+            console.warn('Failed to update kitchen stock quantity on receipt:', updateErr);
+          }
+        } else {
+          // New / custom ingredient requested by kitchen -> create new item in kitchen inventory
+          try {
+            const created = await staffInventoryService.addItem({
+              ingredientName,
+              category: params.category || 'General Kitchen Supplies',
+              availableQuantity: receivedQty,
+              unit: params.unit || 'kg',
+              reorderLevel: 5,
+              costPerUnit: 0,
+              outletId,
+              status: 'In Stock'
+            });
+            finalItemId = created?.data?.id ?? created?.id;
+          } catch (createErr) {
+            console.warn('Failed to auto-create new ingredient in kitchen inventory on receipt:', createErr);
+          }
+        }
+
+        // Record Stock In movement to Stock Ledger
+        const movementItemId = finalItemId || params.itemId || params.ingredientId;
+        if (movementItemId) {
+          try {
+            await staffInventoryService.recordMovement({
+              ingredientId: movementItemId,
+              movementType: 'Stock In',
+              quantity: receivedQty,
+              reference: params.reference || `REQ-${reqId || 'RCV'}`,
+              reason: targetItem
+                ? 'Received from Central Admin Warehouse'
+                : 'Initial receipt of new requested ingredient from Central Admin',
+              performedBy: params.receivedBy || 'Staff Attendant'
+            });
+          } catch (movErr) {
+            console.warn('Failed to record stock inward movement:', movErr);
+          }
+        }
+      } catch (syncErr) {
+        console.warn('Stock inward synchronization warning:', syncErr);
+      }
     }
 
     window.dispatchEvent(new CustomEvent('cms:inventory_updated', {
@@ -454,6 +558,8 @@ export const staffInventoryService = {
     const payload = {
       outletId,
       outletName: requestData.outletName || 'Central Dining Hall',
+      ingredientId: requestData.ingredientId ? Number(requestData.ingredientId) : null,
+      itemId: requestData.ingredientId ? Number(requestData.ingredientId) : null,
       itemCode: requestData.itemCode || 'ING-REQ',
       itemName: requestData.itemName.trim(),
       category: requestData.category || 'General Kitchen Supplies',

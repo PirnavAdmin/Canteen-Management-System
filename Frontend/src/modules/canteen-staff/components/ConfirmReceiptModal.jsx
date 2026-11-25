@@ -43,8 +43,10 @@ export const ConfirmReceiptModal = ({
       setError('');
       await onConfirm({
         transferId: transfer.transferId || transfer.id,
-        requestId: transfer.requestId,
-        ingredientName: transfer.ingredientName,
+        requestId: transfer.requestId || transfer.id,
+        ingredientId: transfer.ingredientId || transfer.itemId,
+        ingredientName: transfer.ingredientName || transfer.itemName,
+        category: transfer.category,
         dispatchedQuantity: dispatchedQty,
         receivedQuantity: enteredQty,
         unit: transfer.unit || 'kg',
