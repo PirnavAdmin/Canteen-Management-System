@@ -10,7 +10,9 @@ export const CanteenProvider = ({ children }) => {
   const [selectedCampus, setSelectedCampus] = useState('Main Campus');
   const [selectedOutlet, setSelectedOutletState] = useState(() => {
     try {
-      return localStorage.getItem('cms_selected_outlet') || 'ALL';
+      const saved = localStorage.getItem('cms_selected_outlet');
+      if (saved === '4' || saved === 'WH-01') return 'ALL';
+      return saved || 'ALL';
     } catch {
       return 'ALL';
     }
@@ -20,7 +22,8 @@ export const CanteenProvider = ({ children }) => {
   const { success, error: toastError, info } = useToast();
 
   const setSelectedOutlet = useCallback((outletId) => {
-    const val = String(outletId || 'ALL');
+    let val = String(outletId || 'ALL');
+    if (val === '4' || val === 'WH-01') val = 'ALL';
     setSelectedOutletState(val);
     try {
       localStorage.setItem('cms_selected_outlet', val);
@@ -31,7 +34,11 @@ export const CanteenProvider = ({ children }) => {
 
   const selectedOutletObj = useMemo(() => {
     if (selectedOutlet === 'ALL') return null;
-    return canteens.find(c => String(c.outletId || c.id) === String(selectedOutlet)) || null;
+    const found = canteens.find(c => String(c.outletId || c.id) === String(selectedOutlet));
+    if (found && (Number(found.outletId || found.id) === 4 || found.code === 'WH-01' || (found.name || '').toLowerCase().includes('warehouse'))) {
+      return null;
+    }
+    return found || null;
   }, [canteens, selectedOutlet]);
 
   const availableCampuses = useMemo(() => {

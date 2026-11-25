@@ -132,6 +132,7 @@ export const normalizeStockRequest = (raw) => {
     unit,
     urgency,
     status,
+    rejectionReason: raw.rejectionReason ?? raw.RejectionReason ?? raw.reason ?? raw.Reason ?? (raw.status === 'Rejected' ? raw.adminNotes : '') ?? '',
     adminNotes,
     notes,
     requiredByDate,

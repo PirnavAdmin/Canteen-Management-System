@@ -211,11 +211,11 @@ export const StaffStockRequestsPage = () => {
             gap: '10px'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)', fontSize: '12.5px' }}>
-              <Building size={15} style={{ color: 'var(--color-accent)' }} />
-              <span>Requesting For: <strong>{STAFF_APP_CONFIG.canteenOutlet}</strong></span>
+              <Building size={15} style={{ color: 'var(--color-primary)' }} />
+              <span>Destination Kitchen: <strong>{STAFF_APP_CONFIG.canteenOutlet || 'Main Canteen Kitchen'}</strong></span>
             </div>
-            <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
-              Mrs. Sunitha (Central Stores)
+            <span style={{ fontSize: '12px', fontWeight: 600, color: '#2563eb' }}>
+              📦 Requisition Target: Central Warehouse (Campus Admin)
             </span>
           </div>
 

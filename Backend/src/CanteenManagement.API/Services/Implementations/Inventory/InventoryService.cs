@@ -24,6 +24,143 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
             return items.Select(MapToItemDto).ToList();
         }
 
+        public async Task<InventoryItemDto> CreateItemAsync(CreateInventoryItemDto dto, int campusId, string performedBy)
+        {
+            var item = new InventoryItem
+            {
+                CampusId = campusId,
+                OutletId = dto.OutletId ?? 1,
+                IngredientName = dto.IngredientName.Trim(),
+                Category = string.IsNullOrWhiteSpace(dto.Category) ? "Groceries" : dto.Category.Trim(),
+                AvailableQuantity = dto.AvailableQuantity,
+                Unit = string.IsNullOrWhiteSpace(dto.Unit) ? "kg" : dto.Unit.Trim(),
+                ReorderLevel = dto.ReorderLevel > 0 ? dto.ReorderLevel : 10m,
+                CostPerUnit = dto.CostPerUnit,
+                BatchNumber = dto.BatchNumber ?? $"BAT-{Random.Shared.Next(100, 999)}",
+                ExpiryDate = dto.ExpiryDate,
+                Status = dto.AvailableQuantity <= 0 ? "Out of Stock" : (dto.AvailableQuantity <= (dto.ReorderLevel > 0 ? dto.ReorderLevel : 10m) ? "Low Stock" : "In Stock"),
+                CreatedAt = DateTime.UtcNow
+            };
+
+            var created = await _repository.AddItemAsync(item);
+
+            if (dto.AvailableQuantity > 0)
+            {
+                try
+                {
+                    await _repository.AddMovementAsync(new StockMovement
+                    {
+                        ItemId = created.ItemId,
+                        MovementType = "Stock In",
+                        Quantity = dto.AvailableQuantity,
+                        BatchNumber = created.BatchNumber,
+                        ExpiryDate = created.ExpiryDate,
+                        Reference = "INITIAL-STOCK",
+                        Reason = "Initial stock entry on item registration",
+                        PerformedBy = performedBy,
+                        DateTime = DateTime.UtcNow
+                    });
+                }
+                catch { }
+            }
+
+            await _auditService.LogActionAsync(
+                campusId,
+                null,
+                performedBy,
+                "CREATE_INVENTORY_ITEM",
+                "InventoryItem",
+                created.ItemId.ToString(),
+                $"Added raw material '{created.IngredientName}' with initial stock {created.AvailableQuantity} {created.Unit}."
+            );
+
+            return MapToItemDto(created);
+        }
+
+        public async Task<InventoryItemDto?> UpdateItemAsync(int id, UpdateInventoryItemDto dto, int campusId, string performedBy)
+        {
+            var item = await _repository.GetItemByIdAsync(id, campusId);
+            if (item == null) return null;
+
+            var oldQty = item.AvailableQuantity;
+
+            if (!string.IsNullOrWhiteSpace(dto.IngredientName)) item.IngredientName = dto.IngredientName.Trim();
+            if (!string.IsNullOrWhiteSpace(dto.Category)) item.Category = dto.Category.Trim();
+            if (!string.IsNullOrWhiteSpace(dto.Unit)) item.Unit = dto.Unit.Trim();
+            if (dto.ReorderLevel.HasValue) item.ReorderLevel = dto.ReorderLevel.Value;
+            if (dto.CostPerUnit.HasValue) item.CostPerUnit = dto.CostPerUnit.Value;
+            if (dto.OutletId.HasValue && dto.OutletId.Value > 0) item.OutletId = dto.OutletId.Value;
+            if (!string.IsNullOrWhiteSpace(dto.BatchNumber)) item.BatchNumber = dto.BatchNumber;
+            if (dto.ExpiryDate.HasValue) item.ExpiryDate = dto.ExpiryDate.Value;
+
+            if (dto.AvailableQuantity.HasValue)
+            {
+                item.AvailableQuantity = dto.AvailableQuantity.Value;
+            }
+
+            if (item.AvailableQuantity <= 0) item.Status = "Out of Stock";
+            else if (item.AvailableQuantity <= item.ReorderLevel) item.Status = "Low Stock";
+            else item.Status = "In Stock";
+
+            if (!string.IsNullOrWhiteSpace(dto.Status)) item.Status = dto.Status;
+
+            var updated = await _repository.UpdateItemAsync(item);
+
+            if (dto.AvailableQuantity.HasValue && dto.AvailableQuantity.Value != oldQty)
+            {
+                var diff = dto.AvailableQuantity.Value - oldQty;
+                try
+                {
+                    await _repository.AddMovementAsync(new StockMovement
+                    {
+                        ItemId = item.ItemId,
+                        MovementType = "Adjustment",
+                        Quantity = diff,
+                        BatchNumber = item.BatchNumber,
+                        ExpiryDate = item.ExpiryDate,
+                        Reference = "DIRECT-UPDATE",
+                        Reason = $"Direct stock edit by {performedBy} (from {oldQty} to {item.AvailableQuantity} {item.Unit})",
+                        PerformedBy = performedBy,
+                        DateTime = DateTime.UtcNow
+                    });
+                }
+                catch { }
+            }
+
+            await _auditService.LogActionAsync(
+                campusId,
+                null,
+                performedBy,
+                "UPDATE_INVENTORY_ITEM",
+                "InventoryItem",
+                item.ItemId.ToString(),
+                $"Updated inventory item '{item.IngredientName}'. Stock: {item.AvailableQuantity} {item.Unit}."
+            );
+
+            return MapToItemDto(updated);
+        }
+
+        public async Task<bool> DeleteItemAsync(int id, int campusId, string performedBy)
+        {
+            var item = await _repository.GetItemByIdAsync(id, campusId);
+            if (item == null) return false;
+
+            var success = await _repository.DeleteItemAsync(id, campusId);
+            if (success)
+            {
+                await _auditService.LogActionAsync(
+                    campusId,
+                    null,
+                    performedBy,
+                    "DELETE_INVENTORY_ITEM",
+                    "InventoryItem",
+                    id.ToString(),
+                    $"Deleted inventory item '{item.IngredientName}'."
+                );
+            }
+            return success;
+        }
+
         public async Task<StockMovementLedgerDto> RecordMovementAsync(RecordStockMovementDto dto, int campusId, string performedBy)
         {
             var item = await _repository.GetItemByIdAsync(dto.IngredientId, campusId);
@@ -508,6 +645,302 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
                 Status = updated.Status
             };
         }
+
+        public async Task<IEnumerable<StockRequestDto>> GetStockRequestsAsync(int campusId, int? outletId = null, string? status = null)
+        {
+            var list = await _repository.GetStockRequestsAsync(campusId, outletId, status);
+            return list.Select(MapToStockRequestDto).ToList();
+        }
+
+        public async Task<StockRequestDto> CreateStockRequestAsync(CreateStockRequestDto dto, int campusId, string requestedBy)
+        {
+            var req = new StockRequest
+            {
+                CampusId = campusId,
+                OutletId = dto.OutletId,
+                ItemId = dto.ItemId,
+                ItemCode = dto.ItemCode ?? (dto.ItemId.HasValue ? $"ING-{dto.ItemId.Value:D3}" : "ING-REQ"),
+                ItemName = dto.ItemName.Trim(),
+                Category = string.IsNullOrWhiteSpace(dto.Category) ? "Groceries" : dto.Category.Trim(),
+                RequestedQuantity = dto.RequestedQuantity,
+                Unit = string.IsNullOrWhiteSpace(dto.Unit) ? "kg" : dto.Unit.Trim(),
+                Urgency = string.IsNullOrWhiteSpace(dto.Urgency) ? "Normal" : dto.Urgency.Trim(),
+                Status = "Pending Review",
+                Notes = dto.Notes?.Trim(),
+                RequiredByDate = dto.RequiredByDate,
+                RequestedBy = !string.IsNullOrWhiteSpace(dto.RequestedBy) ? dto.RequestedBy : requestedBy,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            var created = await _repository.CreateStockRequestAsync(req);
+
+            await _auditService.LogActionAsync(
+                campusId,
+                dto.OutletId,
+                requestedBy,
+                "CREATE_STOCK_REQUEST",
+                "StockRequest",
+                created.RequestId.ToString(),
+                $"Kitchen requisition submitted for {created.RequestedQuantity} {created.Unit} of '{created.ItemName}' ({created.Urgency} urgency)."
+            );
+
+            var loaded = await _repository.GetStockRequestByIdAsync(created.RequestId, campusId);
+            return MapToStockRequestDto(loaded ?? created);
+        }
+
+        public async Task<StockRequestDto> DispatchStockRequestAsync(string id, DispatchStockRequestDto dto, int campusId, string performedBy)
+        {
+            var req = await _repository.GetStockRequestByIdAsync(id, campusId);
+            if (req == null)
+            {
+                throw new KeyNotFoundException($"Stock request with ID {id} was not found.");
+            }
+
+            if (req.Status == "Received")
+            {
+                throw new InvalidOperationException("Stock request has already been received and fulfilled.");
+            }
+
+            var issuedQty = dto.IssuedQuantity > 0 ? dto.IssuedQuantity : req.RequestedQuantity;
+
+            // Find matching item in Central / Main Inventory (prioritize Central Warehouse Outlet #4 / WH-01)
+            var centralItems = await _repository.GetItemsAsync(campusId);
+            var centralItem = centralItems.FirstOrDefault(i =>
+                (i.OutletId == 4 || i.Outlet?.Code == "WH-01" || (i.Outlet?.Name ?? "").Contains("Warehouse")) &&
+                (string.Equals(i.IngredientName.Trim(), req.ItemName.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                 (req.ItemId.HasValue && i.ItemId == req.ItemId.Value)))
+                ?? centralItems.FirstOrDefault(i =>
+                (req.ItemId.HasValue && i.ItemId == req.ItemId.Value) ||
+                string.Equals(i.IngredientName.Trim(), req.ItemName.Trim(), StringComparison.OrdinalIgnoreCase));
+
+            if (centralItem != null)
+            {
+                if (centralItem.AvailableQuantity < issuedQty)
+                {
+                    throw new InvalidOperationException($"Insufficient central stock: Only {centralItem.AvailableQuantity} {centralItem.Unit} available in Main Inventory, cannot issue {issuedQty} {centralItem.Unit}.");
+                }
+
+                centralItem.AvailableQuantity -= issuedQty;
+                if (centralItem.AvailableQuantity <= 0) centralItem.Status = "Out of Stock";
+                else if (centralItem.AvailableQuantity <= centralItem.ReorderLevel) centralItem.Status = "Low Stock";
+                else centralItem.Status = "In Stock";
+
+                await _repository.UpdateItemAsync(centralItem);
+
+                try
+                {
+                    await _repository.AddMovementAsync(new StockMovement
+                    {
+                        ItemId = centralItem.ItemId,
+                        MovementType = "Stock Out",
+                        Quantity = issuedQty,
+                        BatchNumber = centralItem.BatchNumber,
+                        ExpiryDate = centralItem.ExpiryDate,
+                        Reference = $"INDENT-DISP-{req.RequestId}",
+                        Reason = $"Dispatched {issuedQty} {centralItem.Unit} to {req.Outlet?.Name ?? $"Outlet #{req.OutletId}"} Kitchen (Req #{req.RequestId})",
+                        PerformedBy = performedBy,
+                        DateTime = DateTime.UtcNow
+                    });
+                }
+                catch { }
+            }
+
+            req.IssuedQuantity = issuedQty;
+            req.Status = "Dispatched";
+            req.AdminNotes = dto.AdminNotes?.Trim();
+            req.DispatchedBy = performedBy;
+            req.DispatchedAt = DateTime.UtcNow;
+
+            var updated = await _repository.UpdateStockRequestAsync(req);
+
+            await _auditService.LogActionAsync(
+                campusId,
+                req.OutletId,
+                performedBy,
+                "DISPATCH_STOCK_REQUEST",
+                "StockRequest",
+                req.RequestId.ToString(),
+                $"Stock dispatched: {issuedQty} {req.Unit} of '{req.ItemName}' issued to {req.Outlet?.Name ?? $"Outlet #{req.OutletId}"} Kitchen."
+            );
+
+            return MapToStockRequestDto(updated);
+        }
+
+        public async Task<StockRequestDto> ReceiveStockRequestAsync(string id, int campusId, string performedBy)
+        {
+            var req = await _repository.GetStockRequestByIdAsync(id, campusId);
+            if (req == null)
+            {
+                throw new KeyNotFoundException($"Stock request with ID {id} was not found.");
+            }
+
+            if (req.Status == "Received")
+            {
+                return MapToStockRequestDto(req);
+            }
+
+            var receivedQty = req.IssuedQuantity ?? req.RequestedQuantity;
+
+            // Check if this outlet kitchen already has an inventory item for this ingredient
+            var outletItems = await _repository.GetItemsAsync(campusId, req.OutletId);
+            var kitchenItem = outletItems.FirstOrDefault(i =>
+                string.Equals(i.IngredientName, req.ItemName, StringComparison.OrdinalIgnoreCase));
+
+            if (kitchenItem != null)
+            {
+                kitchenItem.AvailableQuantity += receivedQty;
+                if (kitchenItem.AvailableQuantity <= 0) kitchenItem.Status = "Out of Stock";
+                else if (kitchenItem.AvailableQuantity <= kitchenItem.ReorderLevel) kitchenItem.Status = "Low Stock";
+                else kitchenItem.Status = "In Stock";
+
+                await _repository.UpdateItemAsync(kitchenItem);
+
+                try
+                {
+                    await _repository.AddMovementAsync(new StockMovement
+                    {
+                        ItemId = kitchenItem.ItemId,
+                        MovementType = "Stock In",
+                        Quantity = receivedQty,
+                        BatchNumber = kitchenItem.BatchNumber,
+                        ExpiryDate = kitchenItem.ExpiryDate,
+                        Reference = $"INDENT-RECV-{req.RequestId}",
+                        Reason = $"Received from Main Inventory transfer (Req #{req.RequestId})",
+                        PerformedBy = performedBy,
+                        DateTime = DateTime.UtcNow
+                    });
+                }
+                catch { }
+            }
+            else
+            {
+                var newItem = new InventoryItem
+                {
+                    CampusId = campusId,
+                    OutletId = req.OutletId,
+                    IngredientName = req.ItemName,
+                    Category = req.Category,
+                    AvailableQuantity = receivedQty,
+                    Unit = req.Unit,
+                    ReorderLevel = 10,
+                    CostPerUnit = 0,
+                    Status = "In Stock",
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                var createdItem = await _repository.AddItemAsync(newItem);
+
+                try
+                {
+                    await _repository.AddMovementAsync(new StockMovement
+                    {
+                        ItemId = createdItem.ItemId,
+                        MovementType = "Stock In",
+                        Quantity = receivedQty,
+                        BatchNumber = createdItem.BatchNumber,
+                        ExpiryDate = createdItem.ExpiryDate,
+                        Reference = $"INDENT-RECV-{req.RequestId}",
+                        Reason = $"Initial kitchen stock received from Main Inventory transfer (Req #{req.RequestId})",
+                        PerformedBy = performedBy,
+                        DateTime = DateTime.UtcNow
+                    });
+                }
+                catch { }
+            }
+
+            req.Status = "Received";
+            req.ReceivedBy = performedBy;
+            req.ReceivedAt = DateTime.UtcNow;
+
+            var updated = await _repository.UpdateStockRequestAsync(req);
+
+            await _auditService.LogActionAsync(
+                campusId,
+                req.OutletId,
+                performedBy,
+                "RECEIVE_STOCK_REQUEST",
+                "StockRequest",
+                req.RequestId.ToString(),
+                $"Stock receipt confirmed by {performedBy}: {receivedQty} {req.Unit} of '{req.ItemName}' added to kitchen inventory."
+            );
+
+            return MapToStockRequestDto(updated);
+        }
+
+        public async Task<StockRequestDto> RejectStockRequestAsync(string id, string reason, int campusId, string performedBy)
+        {
+            var req = await _repository.GetStockRequestByIdAsync(id, campusId);
+            if (req == null)
+            {
+                throw new KeyNotFoundException($"Stock request with ID {id} was not found.");
+            }
+
+            req.Status = "Rejected";
+            req.AdminNotes = reason;
+            req.UpdatedAt = DateTime.UtcNow;
+
+            var updated = await _repository.UpdateStockRequestAsync(req);
+
+            await _auditService.LogActionAsync(
+                campusId,
+                req.OutletId,
+                performedBy,
+                "REJECT_STOCK_REQUEST",
+                "StockRequest",
+                req.RequestId.ToString(),
+                $"Stock request #{req.RequestId} rejected by {performedBy}. Reason: {reason}."
+            );
+
+            return MapToStockRequestDto(updated);
+        }
+
+        public async Task<bool> DeleteStockRequestAsync(string id, int campusId, string performedBy)
+        {
+            var req = await _repository.GetStockRequestByIdAsync(id, campusId);
+            if (req == null) return false;
+
+            var success = await _repository.DeleteStockRequestAsync(id, campusId);
+            if (success)
+            {
+                await _auditService.LogActionAsync(
+                    campusId,
+                    req.OutletId,
+                    performedBy,
+                    "DELETE_STOCK_REQUEST",
+                    "StockRequest",
+                    id.ToString(),
+                    $"Deleted stock requisition #{id} ('{req.ItemName}')."
+                );
+            }
+            return success;
+        }
+
+        private static StockRequestDto MapToStockRequestDto(StockRequest r) => new()
+        {
+            Id = r.RequestId,
+            CampusId = r.CampusId,
+            OutletId = r.OutletId,
+            OutletName = r.Outlet?.Name ?? (r.OutletId == 1 ? "Main Canteen Kitchen" : (r.OutletId == 4 ? "Central Warehouse" : $"Outlet #{r.OutletId} Kitchen")),
+            SourceOutletId = r.SourceOutletId,
+            ItemId = r.ItemId,
+            ItemCode = r.ItemCode ?? (r.ItemId.HasValue ? $"ING-{r.ItemId.Value:D3}" : "ING-REQ"),
+            ItemName = r.ItemName,
+            Category = r.Category,
+            RequestedQuantity = r.RequestedQuantity,
+            IssuedQuantity = r.IssuedQuantity,
+            Unit = r.Unit,
+            Urgency = r.Urgency,
+            Status = r.Status,
+            Notes = r.Notes,
+            AdminNotes = r.AdminNotes,
+            RequiredByDate = r.RequiredByDate?.ToString("yyyy-MM-dd"),
+            RequestedBy = r.RequestedBy,
+            DispatchedBy = r.DispatchedBy,
+            ReceivedBy = r.ReceivedBy,
+            CreatedAt = r.CreatedAt,
+            DispatchedAt = r.DispatchedAt,
+            ReceivedAt = r.ReceivedAt
+        };
 
         private static InventoryItemDto MapToItemDto(InventoryItem i) => new()
         {

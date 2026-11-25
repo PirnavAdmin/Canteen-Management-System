@@ -63,11 +63,17 @@ export const Header = ({ onOpenSidebar }) => {
   const [outletSearchQuery, setOutletSearchQuery] = useState('');
 
   const filteredOutlets = useMemo(() => {
-    const list = canteens || [];
+    // Exclude central warehouse from navbar outlet dropdown (show only dining outlets)
+    const list = (canteens || []).filter(o => {
+      const oid = Number(o.outletId || o.id);
+      const name = (o.name || o.outletName || '').toLowerCase();
+      const code = (o.code || '').toUpperCase();
+      return oid !== 4 && code !== 'WH-01' && !name.includes('warehouse');
+    });
     if (!outletSearchQuery.trim()) return list;
     const q = outletSearchQuery.toLowerCase();
     return list.filter(o =>
-      (o.name && o.name.toLowerCase().includes(q)) ||
+      ((o.name || o.outletName) && (o.name || o.outletName).toLowerCase().includes(q)) ||
       (o.code && o.code.toLowerCase().includes(q)) ||
       (o.campus && o.campus.toLowerCase().includes(q))
     );
@@ -146,7 +152,7 @@ export const Header = ({ onOpenSidebar }) => {
         </button>
 
         {/* Sidebar Modules Search Bar */}
-        <div style={{ position: 'relative', width: '260px', maxWidth: '48vw' }}>
+        <div style={{ position: 'relative', width: '240px', maxWidth: '36vw', minWidth: '100px', flexShrink: 1 }}>
           <Search
             size={14}
             style={{
@@ -307,7 +313,9 @@ export const Header = ({ onOpenSidebar }) => {
               border: '1px solid var(--border-color)',
               cursor: 'pointer',
               transition: 'all var(--transition-fast)',
-              maxWidth: '150px'
+              maxWidth: '140px',
+              minWidth: 0,
+              flexShrink: 1
             }}
             title="Institutional campus location"
             aria-label="Select institutional campus"
@@ -455,7 +463,9 @@ export const Header = ({ onOpenSidebar }) => {
               border: selectedOutlet !== 'ALL' ? '1px solid var(--color-primary-border, var(--border-color))' : '1px solid var(--border-color)',
               cursor: 'pointer',
               transition: 'all var(--transition-fast)',
-              maxWidth: '180px'
+              maxWidth: '160px',
+              minWidth: 0,
+              flexShrink: 1
             }}
             title="Active Canteen / Dining Outlet"
             aria-label="Select Canteen Outlet"
@@ -472,7 +482,9 @@ export const Header = ({ onOpenSidebar }) => {
                 textOverflow: 'ellipsis'
               }}
             >
-              {selectedOutlet === 'ALL' ? 'All Campus Outlets' : (selectedOutletObj?.name || 'All Campus Outlets')}
+              {selectedOutlet === 'ALL' || (selectedOutletObj && (selectedOutletObj.code === 'WH-01' || Number(selectedOutletObj.outletId || selectedOutletObj.id) === 4 || (selectedOutletObj.name || '').toLowerCase().includes('warehouse')))
+                ? 'All Campus Outlets'
+                : (selectedOutletObj?.name || 'All Campus Outlets')}
             </span>
             <ChevronDown size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
           </button>
@@ -607,7 +619,7 @@ export const Header = ({ onOpenSidebar }) => {
                         />
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {outlet.name}
+                            {outlet.name || outlet.outletName || 'Dining Outlet'}
                           </div>
                           {outlet.code && (
                             <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>

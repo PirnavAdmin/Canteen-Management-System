@@ -195,12 +195,16 @@
   justify-content: space-between;
   padding: 0 var(--spacing-xl);
   box-shadow: var(--shadow-xs);
+  gap: var(--spacing-sm);
+  min-width: 0;
 }
 
 .headerLeft {
   display: flex;
   align-items: center;
-  gap: var(--spacing-md);
+  gap: var(--spacing-sm);
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .mobileMenuBtn {
@@ -219,7 +223,9 @@
 .headerRight {
   display: flex;
   align-items: center;
-  gap: var(--spacing-md);
+  gap: 8px;
+  flex-shrink: 0;
+  min-width: 0;
 }
 
 .portalIndicator {
@@ -319,7 +325,35 @@
   }
 
   .header {
-    padding: 0 var(--spacing-lg);
+    padding: 0 var(--spacing-md);
+    gap: 8px;
+  }
+}
+
+@media (max-width: 768px) {
+  .header {
+    padding: 0 var(--spacing-sm);
+    gap: 6px;
+  }
+
+  .headerLeft {
+    gap: 6px;
+  }
+
+  .headerRight {
+    gap: 6px;
+  }
+
+  .userProfile {
+    padding-left: 4px;
+    gap: 4px;
+  }
+
+  .userName {
+    max-width: 90px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 
@@ -334,6 +368,10 @@
   
   .userInfo {
     display: none;
+  }
+
+  .header {
+    padding: 0 8px;
   }
 }
 

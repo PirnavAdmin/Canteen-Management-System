@@ -17,7 +17,7 @@ export const StaffStockRequestHistoryPage = () => {
     if (statusFilter === 'ALL') return true;
     if (statusFilter === 'PENDING') return req.status === 'Pending Review';
     if (statusFilter === 'APPROVED') return req.status === 'Approved' || req.status === 'Dispatched';
-    if (statusFilter === 'FULFILLED') return req.status === 'Fulfilled';
+    if (statusFilter === 'FULFILLED') return req.status === 'Fulfilled' || req.status === 'Received';
     if (statusFilter === 'REJECTED') return req.status === 'Rejected';
     return true;
   });
@@ -35,8 +35,10 @@ export const StaffStockRequestHistoryPage = () => {
   const getStatusBadge = (status) => {
     switch (status) {
       case 'Fulfilled':
+      case 'Received':
         return { bg: 'var(--color-success-bg)', color: 'var(--color-success)', border: 'var(--color-success-border)', label: '✓ Delivered & Received' };
       case 'Dispatched':
+      case 'Stock Issued':
         return { bg: 'var(--color-primary-light)', color: 'var(--color-primary)', border: 'var(--color-primary-border)', label: '🚚 In Transit / Dispatched' };
       case 'Approved':
         return { bg: 'var(--color-info-bg)', color: 'var(--color-info)', border: 'var(--color-info-border)', label: '✓ Approved by Admin' };

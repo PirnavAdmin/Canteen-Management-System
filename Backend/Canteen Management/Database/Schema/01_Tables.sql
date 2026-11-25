@@ -238,6 +238,33 @@ CREATE TABLE IF NOT EXISTS StockMovements (
     CONSTRAINT fk_movement_item FOREIGN KEY (ItemId) REFERENCES InventoryItems (ItemId) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS StockRequests (
+    RequestId INT AUTO_INCREMENT PRIMARY KEY,
+    CampusId INT NOT NULL DEFAULT 1,
+    OutletId INT NOT NULL,
+    SourceOutletId INT NULL,
+    ItemId INT NULL,
+    ItemCode VARCHAR(50) NULL,
+    ItemName VARCHAR(100) NOT NULL,
+    Category VARCHAR(50) NOT NULL DEFAULT 'Groceries',
+    RequestedQuantity DECIMAL(10,2) NOT NULL,
+    IssuedQuantity DECIMAL(10,2) NULL,
+    Unit VARCHAR(20) NOT NULL DEFAULT 'kg',
+    Urgency VARCHAR(20) NOT NULL DEFAULT 'Normal',
+    Status VARCHAR(30) NOT NULL DEFAULT 'Pending Review',
+    Notes TEXT NULL,
+    AdminNotes TEXT NULL,
+    RequiredByDate DATE NULL,
+    RequestedBy VARCHAR(100) NOT NULL,
+    DispatchedBy VARCHAR(100) NULL,
+    ReceivedBy VARCHAR(100) NULL,
+    CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    DispatchedAt DATETIME NULL,
+    ReceivedAt DATETIME NULL,
+    UpdatedAt DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_stockrequest_outlet FOREIGN KEY (OutletId) REFERENCES CanteenOutlets (OutletId)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS Suppliers (
     SupplierId INT AUTO_INCREMENT PRIMARY KEY,
     CampusId INT NOT NULL DEFAULT 1,

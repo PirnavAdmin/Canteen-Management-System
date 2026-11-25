@@ -131,8 +131,20 @@ export const OrderReceiptModal = ({ isOpen, onClose, order }) => {
         return;
       }
 
-      const html2canvasModule = (await import('html2canvas')).default;
-      const { jsPDF } = await import('jspdf');
+      let html2canvasModule = null;
+      let jsPDF = null;
+      try {
+        const h2cPkg = 'html2canvas';
+        const jspdfPkg = 'jspdf';
+        const h2c = await import(/* @vite-ignore */ h2cPkg);
+        html2canvasModule = h2c.default || h2c;
+        const jspdfMod = await import(/* @vite-ignore */ jspdfPkg);
+        jsPDF = jspdfMod.jsPDF || jspdfMod.default;
+      } catch (e) {
+        console.warn('Direct PDF export library unavailable, using print fallback:', e);
+        window.print();
+        return;
+      }
 
       const safeOutlet = String(outletName).replace(/[^a-zA-Z0-9_-]/g, '_');
       const safeToken = String(order.token || order.id).replace(/[^a-zA-Z0-9_-]/g, '_');
