@@ -9,7 +9,6 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../../app/providers/AuthProvider';
 import { STAFF_APP_CONFIG } from '../constants/staffNavigation';
-import { INITIAL_STAFF_PROFILE } from '../constants/staffConstants';
 import { PageHeader } from '../../../components/common/PageHeader';
 
 export const StaffProfilePage = () => {
@@ -25,12 +24,12 @@ export const StaffProfilePage = () => {
     }
   };
 
-  const displayName = user?.fullName || user?.name || INITIAL_STAFF_PROFILE.fullName;
-  const username = user?.username || INITIAL_STAFF_PROFILE.username;
-  const staffId = user?.id || INITIAL_STAFF_PROFILE.id;
-  const staffRole = INITIAL_STAFF_PROFILE.role;
-  const staffShift = INITIAL_STAFF_PROFILE.shift;
-  const staffPhone = INITIAL_STAFF_PROFILE.contactNumber;
+  const displayName = user?.fullName || user?.name || 'Staff Member';
+  const username = user?.username || '—';
+  const staffId = user?.id ? `STF-${user.id}` : 'STF-ACTIVE';
+  const staffRole = user?.role || 'Canteen Staff (Kitchen & Pickup Counter)';
+  const staffShift = user?.shift || 'Standard Operational Shift';
+  const staffPhone = user?.phone || user?.contactNumber || '—';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '800px', margin: '0 auto' }}>

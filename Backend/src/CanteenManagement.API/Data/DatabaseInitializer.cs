@@ -101,6 +101,7 @@ namespace CanteenManagement.API.Data
                     try { await alterConn.ExecuteAsync("ALTER TABLE StockRequests ADD COLUMN IF NOT EXISTS ReceivedBy VARCHAR(100) NULL;"); } catch { }
                     try { await alterConn.ExecuteAsync("ALTER TABLE StockRequests ADD COLUMN IF NOT EXISTS DispatchedAt DATETIME NULL;"); } catch { }
                     try { await alterConn.ExecuteAsync("ALTER TABLE StockRequests ADD COLUMN IF NOT EXISTS ReceivedAt DATETIME NULL;"); } catch { }
+                    try { await alterConn.ExecuteAsync("ALTER TABLE StockRequests ADD COLUMN IF NOT EXISTS RejectionReason TEXT NULL;"); } catch { }
                     try { await alterConn.ExecuteAsync("DELETE FROM StockRequests WHERE RequestId = '' OR RequestId IS NULL;"); } catch { }
                 }
                 catch (Exception ex)

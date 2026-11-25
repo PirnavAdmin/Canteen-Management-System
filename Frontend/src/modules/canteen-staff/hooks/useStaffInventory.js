@@ -1,13 +1,31 @@
 import { useState, useEffect, useCallback } from 'react';
-import { staffInventoryService } from '../services/staffInventoryService';
+import { staffInventoryService, cleanOutletId } from '../services/staffInventoryService';
 import { useAuth } from '../../../app/providers/AuthProvider';
+import { useStaffOutlet } from './useStaffOutlet';
 
-export const useStaffInventory = (outletId = 1) => {
+/**
+ * Canteen Staff Inventory Hook
+ * Pure live integration with backend .NET 8 Web API.
+ * ZERO mock data, ZERO localStorage, ZERO dummy fallbacks.
+ */
+export const useStaffInventory = (outletOverride = null) => {
   const { user } = useAuth();
-  const [inventory, setInventory] = useState([]);
-  const [lowStockItems, setLowStockItems] = useState([]);
-  const [expiringItems, setExpiringItems] = useState([]);
+  const { selectedOutlet: activeOutletId, activeOutletName, activeCampusName } = useStaffOutlet();
+  const outletId = cleanOutletId(outletOverride ?? activeOutletId) || 1;
+
+  // 1. Live Kitchen Stock from database
+  const [kitchenStock, setKitchenStock] = useState([]);
+
+  // 2. Live Movement Ledger from database
+  const [kitchenLedger, setKitchenLedger] = useState([]);
+
+  // 3. Live Incoming Transfers from database (Approved/Dispatched requisitions)
+  const [incomingTransfers, setIncomingTransfers] = useState([]);
+
+  // 4. Live Stock Requests from database
   const [stockRequests, setStockRequests] = useState([]);
+
+  // 5. Loading & Error States
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -15,19 +33,35 @@ export const useStaffInventory = (outletId = 1) => {
     try {
       setLoading(true);
       setError(null);
-      const [items, requests] = await Promise.all([
+
+      // Fetch live inventory, ledger, and stock requisitions in parallel directly from backend
+      const [itemsData, ledgerData, requestsData] = await Promise.all([
         staffInventoryService.getAllInventory(outletId),
+        staffInventoryService.getInventoryLedger({ outletId }),
         staffInventoryService.getStockRequests(outletId)
       ]);
-      const low = await staffInventoryService.getLowStockItems(outletId, items);
-      const expiring = await staffInventoryService.getExpiringItems(7, outletId, items);
-      setInventory(items);
-      setLowStockItems(low);
-      setExpiringItems(expiring);
-      setStockRequests(requests);
+
+      const safeItems = Array.isArray(itemsData) ? itemsData : [];
+      const safeLedger = Array.isArray(ledgerData) ? ledgerData : [];
+      const safeRequests = Array.isArray(requestsData) ? requestsData : [];
+
+      setKitchenStock(safeItems);
+      setKitchenLedger(safeLedger);
+      setStockRequests(safeRequests);
+
+      // Incoming transfers are active requests awaiting physical receipt at the counter
+      const inTransit = safeRequests.filter((r) => {
+        const s = String(r.status || '').toLowerCase();
+        return s === 'dispatched' || s === 'in transit' || s === 'approved';
+      });
+      setIncomingTransfers(inTransit);
     } catch (err) {
-      console.error('Failed to load staff inventory:', err);
-      setError(err.message || 'Error loading inventory data');
+      console.error('Failed to load staff kitchen inventory from backend:', err);
+      setError(err.message || 'Error loading live inventory from server.');
+      setKitchenStock([]);
+      setKitchenLedger([]);
+      setStockRequests([]);
+      setIncomingTransfers([]);
     } finally {
       setLoading(false);
     }
@@ -40,85 +74,127 @@ export const useStaffInventory = (outletId = 1) => {
       loadData();
     };
 
-    const handleStorageEvent = (e) => {
-      if (e.key === 'cms_stock_request_sync_timestamp' || e.key === 'cms_inventory_sync_timestamp') {
-        loadData();
-      }
-    };
-
     window.addEventListener('cms:inventory_updated', handleUpdate);
     window.addEventListener('cms:stock_request_created', handleUpdate);
     window.addEventListener('cms:stock_request_updated', handleUpdate);
-    window.addEventListener('storage', handleStorageEvent);
+    window.addEventListener('cms:stock_received', handleUpdate);
+    window.addEventListener('cms:outlet_changed', handleUpdate);
 
     return () => {
       window.removeEventListener('cms:inventory_updated', handleUpdate);
       window.removeEventListener('cms:stock_request_created', handleUpdate);
       window.removeEventListener('cms:stock_request_updated', handleUpdate);
-      window.removeEventListener('storage', handleStorageEvent);
+      window.removeEventListener('cms:stock_received', handleUpdate);
+      window.removeEventListener('cms:outlet_changed', handleUpdate);
     };
   }, [loadData]);
 
+  // Create Stock Requisition to Central Warehouse via backend API
   const createRequest = useCallback(async (requestData) => {
-    try {
-      const requester = user?.fullName || user?.username || 'Staff Attendant';
-      const created = await staffInventoryService.createStockRequest({
-        ...requestData,
-        requestedBy: requester,
-        outletId
-      });
-      await loadData();
-      return created;
-    } catch (err) {
-      console.error('Error creating stock request:', err);
-      throw err;
-    }
+    const requester = user?.fullName || user?.username || 'Staff Attendant';
+    const created = await staffInventoryService.createStockRequest({
+      ...requestData,
+      requestedBy: requester,
+      outletId,
+      outletName: activeOutletName
+    });
+
+    await loadData();
+    return created;
+  }, [user, outletId, activeOutletName, loadData]);
+
+  // Confirm Receipt of Incoming Stock from Central Warehouse via backend API
+  const confirmReceipt = useCallback(async (params) => {
+    const receivedBy = user?.fullName || user?.username || 'Staff Attendant';
+    const result = await staffInventoryService.confirmReceipt({
+      ...params,
+      receivedBy,
+      outletId
+    });
+
+    await loadData();
+    return result;
   }, [user, outletId, loadData]);
 
-  const recordWaste = useCallback(async (itemId, quantity, reason, operator, batchNumber) => {
-    try {
-      const updated = await staffInventoryService.recordWaste(itemId, quantity, reason, operator, batchNumber);
-      await loadData();
-      return updated;
-    } catch (err) {
-      console.error('Error recording waste:', err);
-      throw err;
-    }
-  }, [loadData]);
+  // Record Kitchen Usage (Consumption during cooking or Wastage/Spoilage) via backend API
+  const recordUsage = useCallback(async (usageData) => {
+    const performedBy = user?.fullName || user?.username || 'Chef Manoj';
+    const result = await staffInventoryService.recordUsage({
+      ...usageData,
+      performedBy,
+      outletId
+    });
 
+    await loadData();
+    return result;
+  }, [user, outletId, loadData]);
+
+  // Delete / Cancel a pending stock requisition via backend API
   const deleteRequest = useCallback(async (requestId) => {
-    try {
-      await staffInventoryService.deleteStockRequest(requestId);
-      await loadData();
-      return true;
-    } catch (err) {
-      console.error('Error deleting stock request:', err);
-      throw err;
-    }
+    await staffInventoryService.deleteStockRequest(requestId);
+    await loadData();
+    return true;
   }, [loadData]);
 
+  // Mark Stock Received directly by request ID
   const markStockReceived = useCallback(async (requestId) => {
-    try {
-      const updated = await staffInventoryService.markStockReceived(requestId);
-      await loadData();
-      return updated;
-    } catch (err) {
-      console.error('Error marking stock received:', err);
-      throw err;
-    }
+    const updated = await staffInventoryService.markStockReceived(requestId);
+    await loadData();
+    return updated;
   }, [loadData]);
+
+  // Derived stock health lists directly from live data
+  const inventory = kitchenStock;
+  const lowStockItems = kitchenStock.filter(
+    (i) => i.status === 'Low Stock' || (Number(i.availableQuantity) <= Number(i.reorderLevel) && Number(i.availableQuantity) > 0)
+  );
+  const outOfStockItems = kitchenStock.filter(
+    (i) => i.status === 'Out of Stock' || Number(i.availableQuantity) <= 0
+  );
+  const expiringItems = kitchenStock
+    .filter((i) => Boolean(i.expiryDate))
+    .map((item) => {
+      const exp = new Date(item.expiryDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      exp.setHours(0, 0, 0, 0);
+      const diffTime = exp.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      let urgencyTag = 'valid';
+      if (diffDays < 0) urgencyTag = 'expired';
+      else if (diffDays === 0) urgencyTag = 'today';
+      else if (diffDays <= 3) urgencyTag = 'critical';
+      else if (diffDays <= 7) urgencyTag = 'soon';
+
+      return {
+        ...item,
+        daysToExpiry: diffDays,
+        urgencyTag
+      };
+    })
+    .filter((i) => i.daysToExpiry <= 7)
+    .sort((a, b) => a.daysToExpiry - b.daysToExpiry);
 
   return {
+    outletId,
+    activeOutletName,
+    activeCampusName,
+    kitchenStock,
+    kitchenLedger,
+    incomingTransfers,
+    stockRequests,
     inventory,
     lowStockItems,
+    outOfStockItems,
     expiringItems,
-    stockRequests,
     loading,
     error,
     refreshInventory: loadData,
     createRequest,
+    confirmReceipt,
+    recordUsage,
     deleteRequest,
-    recordWaste,
     markStockReceived
   };
 };

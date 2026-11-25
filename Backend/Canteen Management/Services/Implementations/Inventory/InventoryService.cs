@@ -688,6 +688,52 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
             return MapToStockRequestDto(loaded ?? created);
         }
 
+        public async Task<StockRequestDto> UpdateStockRequestAsync(string id, UpdateStockRequestDto dto, int campusId, string performedBy)
+        {
+            var req = await _repository.GetStockRequestByIdAsync(id, campusId);
+            if (req == null)
+            {
+                throw new KeyNotFoundException($"Stock request with ID {id} was not found.");
+            }
+
+            if (!req.Status.StartsWith("Pending", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("Cannot edit a requisition that has already been approved, dispatched, or received.");
+            }
+
+            if (dto.RequestedQuantity.HasValue && dto.RequestedQuantity.Value > 0)
+            {
+                req.RequestedQuantity = dto.RequestedQuantity.Value;
+            }
+            if (dto.Notes != null)
+            {
+                req.Notes = dto.Notes.Trim();
+            }
+            if (dto.RequiredByDate.HasValue)
+            {
+                req.RequiredByDate = dto.RequiredByDate.Value;
+            }
+            if (!string.IsNullOrWhiteSpace(dto.Urgency))
+            {
+                req.Urgency = dto.Urgency.Trim();
+            }
+            req.UpdatedAt = DateTime.UtcNow;
+
+            var updated = await _repository.UpdateStockRequestAsync(req);
+
+            await _auditService.LogActionAsync(
+                campusId,
+                req.OutletId,
+                performedBy,
+                "UPDATE_STOCK_REQUEST",
+                "StockRequest",
+                req.RequestId,
+                $"Updated stock requisition #{req.RequestId} ({req.RequestedQuantity} {req.Unit})."
+            );
+
+            return MapToStockRequestDto(updated);
+        }
+
         public async Task<StockRequestDto> DispatchStockRequestAsync(string id, DispatchStockRequestDto dto, int campusId, string performedBy)
         {
             var req = await _repository.GetStockRequestByIdAsync(id, campusId);
@@ -875,8 +921,14 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
                 throw new KeyNotFoundException($"Stock request with ID {id} was not found.");
             }
 
+            if (!req.Status.StartsWith("Pending", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException($"Cannot reject a requisition with status '{req.Status}'. Only pending requisitions can be rejected.");
+            }
+
             req.Status = "Rejected";
-            req.AdminNotes = reason;
+            req.RejectionReason = reason.Trim();
+            req.AdminNotes = reason.Trim();
             req.UpdatedAt = DateTime.UtcNow;
 
             var updated = await _repository.UpdateStockRequestAsync(req);
@@ -898,6 +950,11 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
         {
             var req = await _repository.GetStockRequestByIdAsync(id, campusId);
             if (req == null) return false;
+
+            if (!req.Status.StartsWith("Pending", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("Cannot delete a requisition that has already been dispatched or received.");
+            }
 
             var success = await _repository.DeleteStockRequestAsync(id, campusId);
             if (success)
@@ -933,6 +990,7 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
             Status = r.Status,
             Notes = r.Notes,
             AdminNotes = r.AdminNotes,
+            RejectionReason = r.RejectionReason ?? (r.Status == "Rejected" ? r.AdminNotes : null),
             RequiredByDate = r.RequiredByDate?.ToString("yyyy-MM-dd"),
             RequestedBy = r.RequestedBy,
             DispatchedBy = r.DispatchedBy,

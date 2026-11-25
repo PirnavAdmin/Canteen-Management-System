@@ -193,7 +193,24 @@ export const normalizeOrder = (raw) => {
     }
   }
 
-  // 1. Preparation Start Timestamp: Extract from payload, timeline or persistent storage
+  // Acceptance Timestamp: Extract from payload, timeline or persistent storage
+  let acceptedAt = raw.acceptedAt ?? raw.AcceptedAt ?? null;
+  if (!acceptedAt && Array.isArray(timeline)) {
+    for (const t of timeline) {
+      if (t.note && t.note.includes('ORDER_ACCEPTED:')) {
+        const m = t.note.match(/ORDER_ACCEPTED:([^\s;]+)/);
+        if (m && m[1]) {
+          acceptedAt = m[1];
+          break;
+        }
+      }
+      if (String(t.status).toLowerCase() === 'accepted' && (t.fullTimestamp || t.timestamp)) {
+        acceptedAt = t.fullTimestamp || t.timestamp;
+      }
+    }
+  }
+
+  // 1. Preparation Start Timestamp: Extract from payload or timeline
   let prepStartedAt = raw.prepStartedAt ?? raw.preparationStartedAt ?? raw.preparingAt ?? raw.PreparingAt ?? null;
   if (!prepStartedAt && Array.isArray(timeline)) {
     for (const t of timeline) {
@@ -206,12 +223,8 @@ export const normalizeOrder = (raw) => {
       }
     }
   }
-  if (!prepStartedAt && typeof window !== 'undefined' && window.localStorage && id) {
-    const localStart = window.localStorage.getItem(`cms_prep_start_${id}`);
-    if (localStart) prepStartedAt = localStart;
-  }
 
-  // 2. Preparation Completion Timestamp & Duration: Extract from payload, timeline or history
+  // 2. Preparation Completion Timestamp & Duration: Extract from payload or timeline
   let prepCompletedAt = raw.prepCompletedAt ?? raw.preparationCompletedAt ?? raw.readyAt ?? raw.ReadyAt ?? null;
   let prepDurationSeconds = Number(raw.prepDurationSeconds ?? raw.preparationDurationSeconds ?? 0);
   let prepDurationFormatted = raw.prepDurationFormatted ?? '';
@@ -235,26 +248,18 @@ export const normalizeOrder = (raw) => {
     }
   }
 
-  // Also check persistent preparation history cache
-  if (typeof window !== 'undefined' && window.localStorage && id) {
-    try {
-      const hist = JSON.parse(window.localStorage.getItem('cms_prep_history') || '[]');
-      const entry = hist.find(h => String(h.orderId) === String(id));
-      if (entry) {
-        if (!prepStartedAt && entry.prepStartedAt) prepStartedAt = entry.prepStartedAt;
-        if (!prepCompletedAt && entry.prepCompletedAt) prepCompletedAt = entry.prepCompletedAt;
-        if (!prepDurationSeconds && entry.durationSeconds) prepDurationSeconds = entry.durationSeconds;
-        if (!prepDurationFormatted && entry.durationFormatted) prepDurationFormatted = entry.durationFormatted;
-        if (!collectedAt && entry.collectedAt) collectedAt = entry.collectedAt;
-      }
-    } catch {}
-  }
-
   if (prepDurationSeconds > 0 && !prepDurationFormatted) {
     const mins = Math.floor(prepDurationSeconds / 60);
     const secs = prepDurationSeconds % 60;
     prepDurationFormatted = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   }
+
+  const resolvedOutletId = cleanOutletId(raw.outletId ?? raw.OutletId) || 1;
+  const defaultOutletName = resolvedOutletId === 2
+    ? 'North Campus Canteen'
+    : resolvedOutletId === 3
+      ? 'South Campus Canteen'
+      : 'Central Dining Hall';
 
   return {
     ...raw,
@@ -271,8 +276,8 @@ export const normalizeOrder = (raw) => {
     totalAmount,
     paymentStatus,
     paymentMethod,
-    outletId: cleanOutletId(raw.outletId ?? raw.OutletId) || 1,
-    outletName: raw.outletName ?? raw.OutletName ?? 'Central Dining Hall',
+    outletId: resolvedOutletId,
+    outletName: raw.outletName ?? raw.OutletName ?? defaultOutletName,
     notes: raw.notes ?? raw.Notes ?? '',
     acceptedAt: raw.acceptedAt ?? raw.AcceptedAt,
     preparingAt: raw.preparingAt ?? raw.PreparingAt,
@@ -427,78 +432,39 @@ export const staffOrderService = {
       detail: updatedOrder
     }));
 
-    // Cross-tab synchronization trigger
-    try {
-      localStorage.setItem('cms_order_sync_timestamp', Date.now().toString());
-    } catch {}
-
     return updatedOrder;
   },
 
   /**
    * Order Workflow Shortcuts
    */
-  acceptOrder: async (orderId, operatorName = 'Staff Attendant') => {
-    try {
-      // Directly transition from Placed to Preparing as required
-      // Note: Timer does NOT start here. Timer starts only when Kitchen Staff clicks Prepare.
-      return await staffOrderService.updateOrderStatus(
-        orderId,
-        ORDER_STATUS.PREPARING,
-        `Order accepted by ${operatorName}`,
-        operatorName
-      );
-    } catch (err) {
-      if (err.message && err.message.includes('Invalid status transition')) {
-        await staffOrderService.updateOrderStatus(
-          orderId,
-          ORDER_STATUS.ACCEPTED,
-          `Order accepted by ${operatorName}`,
-          operatorName
-        );
-        return await staffOrderService.updateOrderStatus(
-          orderId,
-          ORDER_STATUS.PREPARING,
-          `Order accepted by ${operatorName}`,
-          operatorName
-        );
-      }
-      throw err;
-    }
+  acceptOrder: async (orderId, operatorName = 'Cashier') => {
+    const acceptedAt = new Date().toISOString();
+    const updated = await staffOrderService.updateOrderStatus(
+      orderId,
+      ORDER_STATUS.ACCEPTED,
+      `ORDER_ACCEPTED:${acceptedAt} by ${operatorName}`,
+      operatorName
+    );
+    updated.acceptedAt = acceptedAt;
+    return updated;
   },
 
   startPreparation: async (orderId, operatorName = 'Chef / Kitchen Staff') => {
     const prepStartedAt = new Date().toISOString();
-    if (typeof window !== 'undefined' && window.localStorage) {
-      window.localStorage.setItem(`cms_prep_start_${orderId}`, prepStartedAt);
-      window.localStorage.setItem('cms_order_sync_timestamp', Date.now().toString());
-    }
-
     const updated = await staffOrderService.updateOrderStatus(
       orderId,
       ORDER_STATUS.PREPARING,
       `PREP_STARTED:${prepStartedAt} by ${operatorName}`,
       operatorName
     );
-
     updated.prepStartedAt = prepStartedAt;
     return updated;
   },
 
   markReadyForPickup: async (orderId, operatorName = 'Kitchen & Counter Staff') => {
-    let prepStartedAt = null;
-    if (typeof window !== 'undefined' && window.localStorage) {
-      prepStartedAt = window.localStorage.getItem(`cms_prep_start_${orderId}`);
-    }
-
     const prepCompletedAt = new Date().toISOString();
-    const startMs = prepStartedAt ? new Date(prepStartedAt).getTime() : Date.now();
-    const durationSeconds = Math.max(0, Math.round((new Date(prepCompletedAt).getTime() - startMs) / 1000));
-    const mins = Math.floor(durationSeconds / 60);
-    const secs = durationSeconds % 60;
-    const durationFormatted = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-
-    const note = `PREP_COMPLETED:duration=${durationSeconds}s;start=${prepStartedAt || ''};end=${prepCompletedAt} by ${operatorName}`;
+    const note = `PREP_COMPLETED:end=${prepCompletedAt} by ${operatorName}`;
 
     let updated;
     try {
@@ -527,62 +493,14 @@ export const staffOrderService = {
       }
     }
 
-    updated.prepStartedAt = prepStartedAt;
+    updated.status = ORDER_STATUS.READY_FOR_PICKUP;
     updated.prepCompletedAt = prepCompletedAt;
-    updated.prepDurationSeconds = durationSeconds;
-    updated.prepDurationFormatted = durationFormatted;
-
-    // Save to persistent Preparation History
-    staffOrderService.saveToPreparationHistory({
-      orderId: updated.id,
-      token: updated.token,
-      customerName: updated.customer?.name,
-      customerRole: updated.customer?.role,
-      items: updated.items,
-      totalAmount: updated.totalAmount,
-      orderType: updated.orderType,
-      prepStartedAt,
-      prepCompletedAt,
-      durationSeconds,
-      durationFormatted,
-      status: ORDER_STATUS.READY_FOR_PICKUP,
-      completedAt: prepCompletedAt
-    });
-
-    // Clean up active timer state
-    if (typeof window !== 'undefined' && window.localStorage) {
-      window.localStorage.removeItem(`cms_prep_start_${orderId}`);
-      window.localStorage.setItem('cms_order_sync_timestamp', Date.now().toString());
-    }
-
     return updated;
   },
 
-  getPreparationHistory: () => {
-    if (typeof window === 'undefined' || !window.localStorage) return [];
-    try {
-      const raw = window.localStorage.getItem('cms_prep_history');
-      const parsed = JSON.parse(raw || '[]');
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  },
+  getPreparationHistory: () => [],
 
-  saveToPreparationHistory: (record) => {
-    if (typeof window === 'undefined' || !window.localStorage || !record || !record.orderId) return;
-    try {
-      const existing = staffOrderService.getPreparationHistory();
-      const filtered = existing.filter(h => String(h.orderId) !== String(record.orderId));
-      filtered.unshift({
-        ...record,
-        savedAt: new Date().toISOString()
-      });
-      window.localStorage.setItem('cms_prep_history', JSON.stringify(filtered.slice(0, 500)));
-    } catch (err) {
-      console.warn('Failed to save to Preparation History:', err);
-    }
-  },
+  saveToPreparationHistory: () => {},
 
   rejectOrder: async (orderId, reason = 'Item unavailable', operatorName = 'Staff Attendant') => {
     return staffOrderService.updateOrderStatus(
@@ -605,46 +523,6 @@ export const staffOrderService = {
     updated.status = 'Collected';
     updated.collectedAt = collectedAt;
     updated.completedAt = collectedAt;
-
-    // Update or insert into persistent Preparation History
-    try {
-      const history = staffOrderService.getPreparationHistory();
-      const existingIdx = history.findIndex(h => String(h.orderId) === String(orderId));
-      if (existingIdx >= 0) {
-        history[existingIdx] = {
-          ...history[existingIdx],
-          status: 'Collected',
-          collectedAt,
-          completedAt: collectedAt
-        };
-      } else {
-        history.unshift({
-          orderId: updated.id,
-          token: updated.token,
-          customerName: updated.customer?.name,
-          customerRole: updated.customer?.role,
-          items: updated.items,
-          totalAmount: updated.totalAmount,
-          orderType: updated.orderType,
-          prepStartedAt: updated.prepStartedAt,
-          prepCompletedAt: updated.prepCompletedAt,
-          durationSeconds: updated.prepDurationSeconds,
-          durationFormatted: updated.prepDurationFormatted,
-          status: 'Collected',
-          collectedAt,
-          completedAt: collectedAt,
-          orderDate: updated.orderDate || updated.createdAt
-        });
-      }
-      if (typeof window !== 'undefined' && window.localStorage) {
-        window.localStorage.setItem('cms_prep_history', JSON.stringify(history.slice(0, 500)));
-        window.localStorage.removeItem(`cms_prep_start_${orderId}`);
-        window.localStorage.setItem('cms_order_sync_timestamp', Date.now().toString());
-      }
-    } catch (err) {
-      console.warn('Failed to update preparation history for collection:', err);
-    }
-
     return updated;
   },
 

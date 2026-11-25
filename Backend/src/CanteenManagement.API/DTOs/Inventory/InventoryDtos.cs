@@ -231,6 +231,7 @@ namespace CanteenManagement.API.DTOs.Inventory
         public string Status { get; set; } = "Pending Review";
         public string? Notes { get; set; }
         public string? AdminNotes { get; set; }
+        public string? RejectionReason { get; set; }
         public string? RequiredByDate { get; set; }
         public string RequestedBy { get; set; } = string.Empty;
         public string? DispatchedBy { get; set; }
@@ -282,8 +283,21 @@ namespace CanteenManagement.API.DTOs.Inventory
 
     public class RejectStockRequestDto
     {
-        [Required]
+        [Required(ErrorMessage = "Rejection reason is required.")]
+        [StringLength(500, MinimumLength = 3, ErrorMessage = "Reason must be between 3 and 500 characters.")]
         public string Reason { get; set; } = string.Empty;
+    }
+
+    public class UpdateStockRequestDto
+    {
+        public decimal? RequestedQuantity { get; set; }
+
+        [MaxLength(20)]
+        public string? Urgency { get; set; }
+
+        public string? Notes { get; set; }
+
+        public DateTime? RequiredByDate { get; set; }
     }
 }
 

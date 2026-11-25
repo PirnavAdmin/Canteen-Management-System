@@ -23,19 +23,32 @@ import styles from '../../../styles/layout.module.css';
 import { useAuth } from '../../../app/providers/AuthProvider';
 import { useTheme } from '../../../hooks/useTheme';
 import { STAFF_APP_CONFIG, STAFF_NAV_CONFIG } from '../constants/staffNavigation';
+import { useStaffOutlet } from '../hooks/useStaffOutlet';
 
 export const StaffHeader = ({ onOpenSidebar }) => {
   const { user, logout } = useAuth();
   const { toggleTheme, isDark } = useTheme();
   const navigate = useNavigate();
 
+  const {
+    outlets,
+    selectedOutlet,
+    activeOutletName,
+    activeCampusName,
+    changeOutlet,
+    isStaffRestricted,
+    assignedOutletId,
+    availableCampuses,
+    selectedCampus: globalCampus,
+    setSelectedCampus: setGlobalCampus
+  } = useStaffOutlet();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isCampusOpen, setIsCampusOpen] = useState(false);
   const [isOutletOpen, setIsOutletOpen] = useState(false);
-  const [selectedCampus, setSelectedCampus] = useState('Main Campus');
-  const [selectedOutlet, setSelectedOutlet] = useState('Central Dining Hall');
+  const [selectedCampus, setSelectedCampus] = useState(globalCampus || activeCampusName || 'Main Campus');
 
   const displayName = user?.fullName || user?.name || 'Ravi Kumar';
   const displayRole = user?.role || 'Canteen Staff';
@@ -270,12 +283,13 @@ export const StaffHeader = ({ onOpenSidebar }) => {
                   padding: '4px'
                 }}
               >
-                {['Main Campus', 'North Campus', 'Engineering Block'].map((campus) => (
+                {(availableCampuses || ['Main Campus', 'North Campus', 'South Campus', 'Engineering Block']).map((campus) => (
                   <button
                     key={campus}
                     type="button"
                     onClick={() => {
                       setSelectedCampus(campus);
+                      if (setGlobalCampus) setGlobalCampus(campus);
                       setIsCampusOpen(false);
                     }}
                     style={{
@@ -303,11 +317,14 @@ export const StaffHeader = ({ onOpenSidebar }) => {
         <div style={{ position: 'relative' }}>
           <button
             type="button"
+            disabled={isStaffRestricted}
             onClick={() => {
+              if (isStaffRestricted) return;
               setIsOutletOpen((prev) => !prev);
               setIsCampusOpen(false);
               setIsProfileOpen(false);
             }}
+            title={isStaffRestricted ? `Assigned to ${activeOutletName}` : 'Switch canteen outlet'}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -318,15 +335,17 @@ export const StaffHeader = ({ onOpenSidebar }) => {
               padding: '5px 10px',
               borderRadius: 'var(--border-radius-full)',
               border: '1px solid var(--border-color)',
-              cursor: 'pointer',
+              cursor: isStaffRestricted ? 'default' : 'pointer',
               transition: 'all var(--transition-fast)'
             }}
           >
             <Store size={13} style={{ color: 'var(--color-accent)' }} />
             <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-              {selectedOutlet}
+              {activeOutletName}
             </span>
-            <ChevronDown size={12} style={{ color: 'var(--text-muted)' }} />
+            {!isStaffRestricted && (
+              <ChevronDown size={12} style={{ color: 'var(--text-muted)' }} />
+            )}
           </button>
 
           {isOutletOpen && (
@@ -340,39 +359,75 @@ export const StaffHeader = ({ onOpenSidebar }) => {
                   position: 'absolute',
                   top: 'calc(100% + 6px)',
                   left: 0,
-                  minWidth: '220px',
+                  minWidth: '240px',
                   backgroundColor: 'var(--bg-surface)',
                   border: '1px solid var(--border-color)',
                   borderRadius: 'var(--border-radius-md)',
                   boxShadow: 'var(--shadow-md)',
                   zIndex: 70,
-                  padding: '4px'
+                  padding: '6px'
                 }}
               >
-                {['Central Dining Hall', 'North Campus Food Court', 'Engineering Block Kiosk'].map((out) => (
-                  <button
-                    key={out}
-                    type="button"
-                    onClick={() => {
-                      setSelectedOutlet(out);
-                      setIsOutletOpen(false);
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '7px 10px',
-                      borderRadius: 'var(--border-radius-sm)',
-                      border: 'none',
-                      backgroundColor: selectedOutlet === out ? 'var(--color-primary-light)' : 'transparent',
-                      color: selectedOutlet === out ? 'var(--color-primary)' : 'var(--text-primary)',
-                      fontSize: '12px',
-                      fontWeight: selectedOutlet === out ? 700 : 500,
-                      cursor: 'pointer',
-                      textAlign: 'left'
-                    }}
-                  >
-                    {out}
-                  </button>
-                ))}
+                <div style={{
+                  padding: '4px 8px 6px 8px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  color: 'var(--text-muted)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  borderBottom: '1px solid var(--border-color)',
+                  marginBottom: '4px'
+                }}>
+                  Select Canteen Outlet
+                </div>
+                {outlets.map((out) => {
+                  const isSelected = String(out.id) === String(selectedOutlet) || String(out.outletId) === String(selectedOutlet);
+                  return (
+                    <button
+                      key={out.id}
+                      type="button"
+                      onClick={() => {
+                        changeOutlet(out.id);
+                        setIsOutletOpen(false);
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '8px 10px',
+                        borderRadius: 'var(--border-radius-sm)',
+                        border: 'none',
+                        backgroundColor: isSelected ? 'var(--color-primary-light)' : 'transparent',
+                        color: isSelected ? 'var(--color-primary)' : 'var(--text-primary)',
+                        fontSize: '12px',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '2px',
+                        transition: 'background-color var(--transition-fast)'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                        <span style={{ fontWeight: isSelected ? 700 : 600 }}>{out.name}</span>
+                        {isSelected && (
+                          <span style={{
+                            fontSize: '10px',
+                            fontWeight: 700,
+                            color: 'var(--color-primary)',
+                            backgroundColor: '#ffffff',
+                            padding: '1px 6px',
+                            borderRadius: '4px',
+                            border: '1px solid var(--border-color)'
+                          }}>
+                            Active
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>
+                        {out.campus} {out.code ? `• ${out.code}` : ''}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </>
           )}

@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import {
   Search,
   RefreshCw,
@@ -14,8 +13,7 @@ import {
   RotateCcw,
   CheckCircle2,
   AlertCircle,
-  History,
-  Flame
+  History
 } from 'lucide-react';
 import { useStaffOrders } from '../hooks/useStaffOrders';
 import { STAFF_APP_CONFIG } from '../constants/staffNavigation';
@@ -47,7 +45,9 @@ export const StaffOrderBoardPage = () => {
     startPreparation,
     markReadyForPickup,
     completeOrder,
-    rejectOrder
+    rejectOrder,
+    activeOutletName,
+    activeCampusName
   } = useStaffOrders();
 
   // View Mode: 'active' (Operational Orders) | 'history' (Completed Orders)
@@ -348,7 +348,7 @@ export const StaffOrderBoardPage = () => {
               border: '1px solid var(--border-color)'
             }}>
               <Store size={12} />
-              {STAFF_APP_CONFIG.canteenOutlet} • {STAFF_APP_CONFIG.campusName}
+              {activeOutletName || STAFF_APP_CONFIG.canteenOutlet} • {activeCampusName || STAFF_APP_CONFIG.campusName}
             </span>
 
             <span style={{
@@ -370,11 +370,6 @@ export const StaffOrderBoardPage = () => {
         }
         actions={
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Link to="/staff/kitchen" style={{ textDecoration: 'none' }}>
-              <Button variant="secondary" icon={Flame}>
-                Kitchen Display (KDS)
-              </Button>
-            </Link>
             <Button
               variant={viewMode === 'history' ? 'primary' : 'secondary'}
               icon={History}
@@ -856,10 +851,8 @@ export const StaffOrderBoardPage = () => {
           currentPage={currentPage}
           pageSize={pageSize}
           onViewDetails={(order) => setSelectedOrderForView(order)}
-          onAccept={handleAcceptOrder}
           onStartCooking={handleStartCooking}
           onMarkReady={handleMarkReady}
-          onCompleteOrder={handleCompleteOrder}
           onReject={handleOpenReject}
         />
       ) : (
@@ -893,10 +886,8 @@ export const StaffOrderBoardPage = () => {
           isOpen={Boolean(selectedOrderForView)}
           onClose={() => setSelectedOrderForView(null)}
           order={selectedOrderForView}
-          onAccept={handleAcceptOrder}
           onStartCooking={handleStartCooking}
           onMarkReady={handleMarkReady}
-          onCompleteOrder={handleCompleteOrder}
           onReject={handleOpenReject}
         />
       )}

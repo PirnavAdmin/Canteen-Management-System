@@ -5,11 +5,12 @@ export const Pagination = ({
   currentPage = 1,
   totalItems = 0,
   pageSize = 5,
+  totalPages: propTotalPages,
   onPageChange,
   onPageSizeChange,
   pageSizeOptions = [5, 10, 15, 20]
 }) => {
-  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const totalPages = propTotalPages ? Math.max(1, propTotalPages) : Math.max(1, Math.ceil(totalItems / pageSize));
   const [isCustom, setIsCustom] = React.useState(![5, 10, 15, 20].includes(pageSize));
   const [customInput, setCustomInput] = React.useState(pageSize || '');
 

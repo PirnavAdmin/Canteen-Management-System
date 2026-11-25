@@ -54,6 +54,8 @@ namespace CanteenManagement.API.Models.Inventory
 
         public string? AdminNotes { get; set; }
 
+        public string? RejectionReason { get; set; }
+
         [Column(TypeName = "date")]
         public DateTime? RequiredByDate { get; set; }
 
