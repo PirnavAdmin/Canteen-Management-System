@@ -16,7 +16,6 @@ import {
 import { useStaffOrders } from '../hooks/useStaffOrders';
 import { useStaffInventory } from '../hooks/useStaffInventory';
 import { STAFF_APP_CONFIG } from '../constants/staffNavigation';
-import { ORDER_STATUS } from '../../../constants/appConstants';
 import {
   isStatusPlaced,
   isStatusAccepted,
@@ -28,13 +27,12 @@ import {
 } from '../services/staffOrderService';
 import { PageHeader } from '../../../components/common/PageHeader';
 import { Button } from '../../../components/common/Button';
-import { formatNumber } from '../../../utils/formatters';
+import { formatNumber, isSameIstDate } from '../../../utils/formatters';
 
 export const StaffDashboardPage = () => {
   const {
     orders,
     loading: ordersLoading,
-    acceptOrder,
     startPreparation,
     markReadyForPickup,
     refreshOrders,
@@ -159,10 +157,14 @@ export const StaffDashboardPage = () => {
     return alerts.slice(0, 5);
   }, [inventory, expiringItems]);
 
-  // 3. Live Order Activity Stream (Active orders only, sorted newest first)
+  // 3. Live Order Activity Stream (Active orders created today in local Asia/Kolkata timezone only, sorted newest first)
   const activeOrders = useMemo(() => {
     return orders
-      .filter(o => !isStatusCompleted(o.status) && !isStatusCancelled(o.status))
+      .filter((o) => {
+        if (isStatusCompleted(o.status) || isStatusCancelled(o.status)) return false;
+        const orderTimestamp = o.createdAt || o.orderDate;
+        return isSameIstDate(orderTimestamp);
+      })
       .sort((a, b) => new Date(b.orderDate || b.createdAt || 0) - new Date(a.orderDate || a.createdAt || 0))
       .slice(0, 5);
   }, [orders]);

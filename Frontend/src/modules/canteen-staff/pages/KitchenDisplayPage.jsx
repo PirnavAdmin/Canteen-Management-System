@@ -26,6 +26,12 @@ import {
   isStatusReady,
   isStatusCompleted
 } from '../services/staffOrderService';
+import { KITCHEN_STATIONS, ORDER_URGENCY_MINUTES } from '../constants/staffConstants';
+import { PageHeader } from '../../../components/common/PageHeader';
+import { Button } from '../../../components/common/Button';
+import { Pagination } from '../../../components/common/Pagination';
+import { StaffOrderDetailsModal } from '../components/StaffOrderDetailsModal';
+import { isSameIstDate, isWithinDaysIST } from '../../../utils/formatters';
 
 // Fallback safeguard to guarantee isStatusCompleted can never throw ReferenceError
 const checkCompleted = (status) => {
@@ -35,12 +41,6 @@ const checkCompleted = (status) => {
   const s = String(status || '').trim().toLowerCase();
   return s === 'completed' || s === 'collected';
 };
-import { KITCHEN_STATIONS, ORDER_URGENCY_MINUTES } from '../constants/staffConstants';
-import { PageHeader } from '../../../components/common/PageHeader';
-import { Button } from '../../../components/common/Button';
-import { Pagination } from '../../../components/common/Pagination';
-import { StaffOrderDetailsModal } from '../components/StaffOrderDetailsModal';
-import { isSameIstDate, isWithinDaysIST } from '../../../utils/formatters';
 
 export const KitchenDisplayPage = () => {
   const {
