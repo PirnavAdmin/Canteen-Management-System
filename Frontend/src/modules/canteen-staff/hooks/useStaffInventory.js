@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { staffInventoryService, cleanOutletId } from '../services/staffInventoryService';
 import { useAuth } from '../../../app/providers/AuthProvider';
 import { useStaffOutlet } from './useStaffOutlet';
@@ -10,31 +10,42 @@ import { useStaffOutlet } from './useStaffOutlet';
  */
 export const useStaffInventory = (outletOverride = null) => {
   const { user } = useAuth();
-  const { selectedOutlet: activeOutletId, activeOutletName, activeCampusName } = useStaffOutlet();
-  const outletId = cleanOutletId(outletOverride ?? activeOutletId) || 1;
+  const {
+    selectedOutlet: activeOutletId,
+    activeOutletName,
+    activeCampusName,
+    outletsLoading,
+    outletsError
+  } = useStaffOutlet();
 
-  // 1. Live Kitchen Stock from database
+  const outletId = cleanOutletId(outletOverride ?? activeOutletId);
+
   const [kitchenStock, setKitchenStock] = useState([]);
-
-  // 2. Live Movement Ledger from database
   const [kitchenLedger, setKitchenLedger] = useState([]);
-
-  // 3. Live Incoming Transfers from database (Approved/Dispatched requisitions)
   const [incomingTransfers, setIncomingTransfers] = useState([]);
-
-  // 4. Live Stock Requests from database
   const [stockRequests, setStockRequests] = useState([]);
 
-  // 5. Loading & Error States
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const loadData = useCallback(async () => {
+    if (outletsLoading && !outletId) {
+      return;
+    }
+    if (!outletId) {
+      setKitchenStock([]);
+      setKitchenLedger([]);
+      setStockRequests([]);
+      setIncomingTransfers([]);
+      setError(outletsError || 'No active canteen outlet available.');
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
 
-      // Fetch live inventory, ledger, and stock requisitions in parallel directly from backend
       const [itemsData, ledgerData, requestsData] = await Promise.all([
         staffInventoryService.getAllInventory(outletId),
         staffInventoryService.getInventoryLedger({ outletId }),
@@ -49,15 +60,14 @@ export const useStaffInventory = (outletOverride = null) => {
       setKitchenLedger(safeLedger);
       setStockRequests(safeRequests);
 
-      // Incoming transfers are active requests awaiting physical receipt at the counter
       const inTransit = safeRequests.filter((r) => {
         const s = String(r.status || '').toLowerCase();
-        return s === 'dispatched' || s === 'in transit' || s === 'approved';
+        return s === 'dispatched' || s === 'in transit' || s === 'approved' || s === 'received' || s === 'partially received';
       });
       setIncomingTransfers(inTransit);
     } catch (err) {
       console.error('Failed to load staff kitchen inventory from backend:', err);
-      setError(err.message || 'Error loading live inventory from server.');
+      setError(err.message || 'Unable to load inventory from server.');
       setKitchenStock([]);
       setKitchenLedger([]);
       setStockRequests([]);
@@ -65,7 +75,7 @@ export const useStaffInventory = (outletOverride = null) => {
     } finally {
       setLoading(false);
     }
-  }, [outletId]);
+  }, [outletId, outletsLoading, outletsError]);
 
   useEffect(() => {
     loadData();
@@ -89,92 +99,111 @@ export const useStaffInventory = (outletOverride = null) => {
     };
   }, [loadData]);
 
-  // Create Stock Requisition to Central Warehouse via backend API
+  const operatorName = user?.fullName || user?.username || user?.name || 'Staff';
+
   const createRequest = useCallback(async (requestData) => {
-    const requester = user?.fullName || user?.username || 'Staff Attendant';
     const created = await staffInventoryService.createStockRequest({
       ...requestData,
-      requestedBy: requester,
-      outletId,
-      outletName: activeOutletName
+      requestedBy: operatorName,
+      outletId: cleanOutletId(requestData.outletId) || outletId,
+      outletName: requestData.outletName || activeOutletName
     });
 
     await loadData();
     return created;
-  }, [user, outletId, activeOutletName, loadData]);
+  }, [operatorName, outletId, activeOutletName, loadData]);
 
-  // Confirm Receipt of Incoming Stock from Central Warehouse via backend API
+  const updateRequest = useCallback(async (requestId, requestData) => {
+    const updated = await staffInventoryService.updateStockRequest(requestId, requestData);
+    await loadData();
+    return updated;
+  }, [loadData]);
+
   const confirmReceipt = useCallback(async (params) => {
-    const receivedBy = user?.fullName || user?.username || 'Staff Attendant';
     const result = await staffInventoryService.confirmReceipt({
       ...params,
-      receivedBy,
+      receivedBy: operatorName,
       outletId
     });
 
     await loadData();
     return result;
-  }, [user, outletId, loadData]);
+  }, [operatorName, outletId, loadData]);
 
-  // Record Kitchen Usage (Consumption during cooking or Wastage/Spoilage) via backend API
   const recordUsage = useCallback(async (usageData) => {
-    const performedBy = user?.fullName || user?.username || 'Chef Manoj';
     const result = await staffInventoryService.recordUsage({
       ...usageData,
-      performedBy,
+      performedBy: operatorName,
       outletId
     });
 
     await loadData();
     return result;
-  }, [user, outletId, loadData]);
+  }, [operatorName, outletId, loadData]);
 
-  // Delete / Cancel a pending stock requisition via backend API
+  const recordWaste = useCallback(async (itemId, quantity, reason, _operator, batchNumber = null) => {
+    const result = await staffInventoryService.recordWaste(
+      itemId,
+      quantity,
+      reason,
+      operatorName,
+      batchNumber
+    );
+    await loadData();
+    return result;
+  }, [operatorName, loadData]);
+
   const deleteRequest = useCallback(async (requestId) => {
     await staffInventoryService.deleteStockRequest(requestId);
     await loadData();
     return true;
   }, [loadData]);
 
-  // Mark Stock Received directly by request ID
   const markStockReceived = useCallback(async (requestId) => {
     const updated = await staffInventoryService.markStockReceived(requestId);
     await loadData();
     return updated;
   }, [loadData]);
 
-  // Derived stock health lists directly from live data
-  const inventory = kitchenStock;
-  const lowStockItems = kitchenStock.filter(
-    (i) => i.status === 'Low Stock' || (Number(i.availableQuantity) <= Number(i.reorderLevel) && Number(i.availableQuantity) > 0)
-  );
-  const outOfStockItems = kitchenStock.filter(
-    (i) => i.status === 'Out of Stock' || Number(i.availableQuantity) <= 0
-  );
-  const expiringItems = kitchenStock
-    .filter((i) => Boolean(i.expiryDate))
-    .map((item) => {
-      const exp = new Date(item.expiryDate);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      exp.setHours(0, 0, 0, 0);
-      const diffTime = exp.getTime() - today.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  const lowStockItems = useMemo(() => {
+    return kitchenStock.filter(
+      (i) => i.status === 'Low Stock' || (Number(i.availableQuantity) <= Number(i.reorderLevel) && Number(i.availableQuantity) > 0)
+    );
+  }, [kitchenStock]);
 
-      let urgencyTag = 'valid';
-      if (diffDays < 0) urgencyTag = 'expired';
-      else if (diffDays === 0) urgencyTag = 'today';
-      else if (diffDays <= 3) urgencyTag = 'critical';
-      else if (diffDays <= 7) urgencyTag = 'soon';
+  const outOfStockItems = useMemo(() => {
+    return kitchenStock.filter(
+      (i) => i.status === 'Out of Stock' || Number(i.availableQuantity) <= 0
+    );
+  }, [kitchenStock]);
 
-      return {
-        ...item,
-        daysToExpiry: diffDays,
-        urgencyTag
-      };
-    })
-    .filter((i) => i.daysToExpiry <= 7)
-    .sort((a, b) => a.daysToExpiry - b.daysToExpiry);
+  const expiringItems = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return kitchenStock
+      .filter((i) => Boolean(i.expiryDate))
+      .map((item) => {
+        const exp = new Date(item.expiryDate);
+        exp.setHours(0, 0, 0, 0);
+        const diffTime = exp.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        let urgencyTag = 'valid';
+        if (diffDays < 0) urgencyTag = 'expired';
+        else if (diffDays === 0) urgencyTag = 'today';
+        else if (diffDays <= 3) urgencyTag = 'critical';
+        else if (diffDays <= 7) urgencyTag = 'soon';
+
+        return {
+          ...item,
+          daysToExpiry: diffDays,
+          urgencyTag
+        };
+      })
+      .filter((i) => i.daysToExpiry <= 7)
+      .sort((a, b) => a.daysToExpiry - b.daysToExpiry);
+  }, [kitchenStock]);
 
   return {
     outletId,
@@ -184,7 +213,7 @@ export const useStaffInventory = (outletOverride = null) => {
     kitchenLedger,
     incomingTransfers,
     stockRequests,
-    inventory,
+    inventory: kitchenStock,
     lowStockItems,
     outOfStockItems,
     expiringItems,
@@ -192,8 +221,10 @@ export const useStaffInventory = (outletOverride = null) => {
     error,
     refreshInventory: loadData,
     createRequest,
+    updateRequest,
     confirmReceipt,
     recordUsage,
+    recordWaste,
     deleteRequest,
     markStockReceived
   };

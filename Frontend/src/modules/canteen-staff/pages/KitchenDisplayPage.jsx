@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   Clock,
   CheckCircle2,
@@ -15,61 +15,87 @@ import {
   RotateCcw,
   Eye,
   AlertTriangle,
+  AlertCircle,
   Play,
-  Store
+  Store,
+  X
 } from 'lucide-react';
 import { useStaffOrders } from '../hooks/useStaffOrders';
+import { useToast } from '../../../app/providers/ToastProvider';
 import { ORDER_STATUS } from '../../../constants/appConstants';
 import {
+  staffOrderService,
   isStatusPreparing,
   isStatusAccepted,
   isStatusReady,
   isStatusCompleted
 } from '../services/staffOrderService';
-import { KITCHEN_STATIONS, ORDER_URGENCY_MINUTES } from '../constants/staffConstants';
+import { ORDER_URGENCY_MINUTES } from '../constants/staffConstants';
 import { PageHeader } from '../../../components/common/PageHeader';
 import { Button } from '../../../components/common/Button';
 import { Pagination } from '../../../components/common/Pagination';
+import { EmptyState } from '../../../components/common/EmptyState';
+import { StatusBadge } from '../../../components/common/StatusBadge';
+import { DataTable } from '../../../components/tables/DataTable';
 import { StaffOrderDetailsModal } from '../components/StaffOrderDetailsModal';
-import { isSameIstDate, isWithinDaysIST } from '../../../utils/formatters';
-
-// Fallback safeguard to guarantee isStatusCompleted can never throw ReferenceError
-const checkCompleted = (status) => {
-  if (typeof isStatusCompleted === 'function') {
-    return isStatusCompleted(status);
-  }
-  const s = String(status || '').trim().toLowerCase();
-  return s === 'completed' || s === 'collected';
-};
+import { formatTimeIST, isSameIstDate, isWithinDaysIST } from '../../../utils/formatters';
+import styles from '../styles/staff.module.css';
 
 export const KitchenDisplayPage = () => {
+  const navigate = useNavigate();
+  const { success, error: toastError } = useToast();
   const {
     orders,
+    loading,
+    error,
     refreshOrders,
     startPreparation,
     markReadyForPickup,
-    activeOutletName
+    activeOutletName,
+    selectedOutlet
   } = useStaffOrders();
 
-  // Active View Tab: 'queue' (Active Cooking) | 'pickup' (Ready for Pickup Counter) | 'history' (Preparation History)
   const [activeTab, setActiveTab] = useState('queue');
-
-  const [stations, setStations] = useState(KITCHEN_STATIONS);
+  const [stations, setStations] = useState([{ id: 'all', name: 'All Kitchen Stations' }]);
+  const [itemStationMap, setItemStationMap] = useState({ byMenuItemId: {}, byItemName: {} });
+  const [stationsError, setStationsError] = useState(null);
   const [selectedStation, setSelectedStation] = useState('all');
   const [checkedItems, setCheckedItems] = useState({});
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [kdsToast, setKdsToast] = useState('');
   const [actionLoadingId, setActionLoadingId] = useState(null);
 
-  // History Filter States
   const [historySearch, setHistorySearch] = useState('');
-  const [historyDateFilter, setHistoryDateFilter] = useState('ALL'); // 'ALL' | 'TODAY' | 'YESTERDAY' | 'WEEK'
+  const [historyDateFilter, setHistoryDateFilter] = useState('ALL');
   const [historyPage, setHistoryPage] = useState(1);
   const [historyPageSize, setHistoryPageSize] = useState(10);
   const [selectedOrderForView, setSelectedOrderForView] = useState(null);
 
-  // 1. High-frequency 1-second timer for live preparation counters
+  // Load kitchen stations from live backend categories & outlet menu
+  const loadStations = useCallback(async () => {
+    try {
+      setStationsError(null);
+      const params = selectedOutlet && selectedOutlet !== 'ALL' ? { outletId: selectedOutlet } : {};
+      const { stations: liveStations, itemStationMap: liveMap } = await staffOrderService.getKitchenStationData(params);
+      if (Array.isArray(liveStations) && liveStations.length > 0) {
+        setStations(liveStations);
+        setSelectedStation((prev) => (prev === 'all' || liveStations.some((s) => s.id === prev) ? prev : 'all'));
+      } else {
+        setStations([{ id: 'all', name: 'All Kitchen Stations' }]);
+        setSelectedStation('all');
+      }
+      setItemStationMap(liveMap || { byMenuItemId: {}, byItemName: {} });
+    } catch (err) {
+      setStationsError(err.message || 'Unable to load kitchen stations from server.');
+      setStations([{ id: 'all', name: 'All Kitchen Stations' }]);
+      setItemStationMap({ byMenuItemId: {}, byItemName: {} });
+    }
+  }, [selectedOutlet]);
+
+  useEffect(() => {
+    loadStations();
+  }, [loadStations]);
+
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
@@ -77,7 +103,6 @@ export const KitchenDisplayPage = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // Format Elapsed Prep Time in MM:SS (Calculated from actual prepStartedAt timestamp)
   const formatElapsedPrepTime = useCallback((prepStartedAt) => {
     if (!prepStartedAt) return null;
     const startMs = new Date(prepStartedAt).getTime();
@@ -95,112 +120,79 @@ export const KitchenDisplayPage = () => {
     };
   }, [currentTime]);
 
-  // 3. Active Kitchen Cooking Tickets (Preparing or Accepted, strictly excluding Ready for Pickup)
   const cookingOrders = useMemo(() => {
     return orders.filter((o) => {
       const isCooking = isStatusPreparing(o.status) || isStatusAccepted(o.status);
       if (!isCooking) return false;
-      if (isStatusReady(o.status) || checkCompleted(o.status)) return false;
+      if (isStatusReady(o.status) || isStatusCompleted(o.status)) return false;
       if (selectedStation === 'all') return true;
 
-      if (o.stationId === selectedStation) return true;
-      if (Array.isArray(o.items) && o.items.some((item) => item.stationId === selectedStation)) return true;
-
-      if (selectedStation === 'station-1') {
-        return Array.isArray(o.items) && o.items.some((i) => {
-          const cat = (i.category || i.name || '').toLowerCase();
-          return cat.includes('curry') || cat.includes('biryani') || cat.includes('dosa') || cat.includes('meal') || cat.includes('chole') || cat.includes('noodles') || cat.includes('rice') || cat.includes('main');
-        });
-      }
-      if (selectedStation === 'station-2') {
-        return Array.isArray(o.items) && o.items.some((i) => {
-          const cat = (i.category || i.name || '').toLowerCase();
-          return cat.includes('snack') || cat.includes('roll') || cat.includes('samosa') || cat.includes('sandwich') || cat.includes('bites');
-        });
-      }
-      if (selectedStation === 'station-3') {
-        return Array.isArray(o.items) && o.items.some((i) => {
-          const cat = (i.category || i.name || '').toLowerCase();
-          return cat.includes('coffee') || cat.includes('tea') || cat.includes('lemonade') || cat.includes('lassi') || cat.includes('shake') || cat.includes('juice') || cat.includes('beverage');
-        });
+      if (String(o.stationId || '') === String(selectedStation)) return true;
+      if (Array.isArray(o.items) && o.items.some((item) => {
+        const mappedCat =
+          itemStationMap.byMenuItemId?.[String(item.menuItemId ?? '')] ||
+          itemStationMap.byItemName?.[String(item.name || '').trim().toLowerCase()];
+        const effectiveStation = item.stationId ?? item.categoryId ?? mappedCat ?? '';
+        return String(effectiveStation) === String(selectedStation);
+      })) {
+        return true;
       }
       return false;
     });
-  }, [orders, selectedStation]);
+  }, [orders, selectedStation, itemStationMap]);
 
-  // 4. Ready for Pickup Orders (Food plated, waiting at counter for collection)
-  const readyOrders = useMemo(() => {
-    return orders.filter((o) => isStatusReady(o.status));
-  }, [orders]);
+  const readyOrders = useMemo(
+    () => orders.filter((o) => isStatusReady(o.status)),
+    [orders]
+  );
 
-  // 5. Preparation History (All prepared orders directly from live backend DB)
   const prepHistoryOrders = useMemo(() => {
     const list = orders
-      .filter((o) => isStatusReady(o.status) || checkCompleted(o.status) || o.status === 'Completed' || o.status === 'Collected')
-      .map((o) => {
-        const id = String(o.id);
-        const statusToDisplay = isStatusReady(o.status)
-          ? ORDER_STATUS.READY_FOR_PICKUP
-          : (o.status || ORDER_STATUS.READY_FOR_PICKUP);
+      .filter((o) => isStatusReady(o.status) || isStatusCompleted(o.status))
+      .map((o) => ({
+        orderId: String(o.id),
+        id: String(o.id),
+        token: o.token,
+        customerName: o.customer?.name || 'Customer',
+        customerRole: o.customer?.role || '',
+        items: Array.isArray(o.items) ? o.items : [],
+        totalAmount: o.totalAmount ?? 0,
+        orderType: o.orderType || 'Pickup',
+        prepStartedAt: o.prepStartedAt || o.preparingAt || o.createdAt,
+        prepCompletedAt: o.prepCompletedAt || o.readyAt || o.updatedAt,
+        durationSeconds: o.prepDurationSeconds || 0,
+        durationFormatted: o.prepDurationFormatted || '—',
+        status: isStatusReady(o.status) ? ORDER_STATUS.READY_FOR_PICKUP : (o.status || 'Collected'),
+        orderDate: o.orderDate || o.createdAt
+      }));
 
-        return {
-          orderId: id,
-          token: o.token,
-          customerName: o.customer?.name || 'Customer',
-          customerRole: o.customer?.role || 'Student',
-          items: (o.items && o.items.length > 0) ? o.items : [],
-          totalAmount: o.totalAmount ?? 0,
-          orderType: o.orderType || 'Pickup',
-          prepStartedAt: o.prepStartedAt || o.preparingAt || o.createdAt,
-          prepCompletedAt: o.prepCompletedAt || o.readyAt || o.updatedAt,
-          durationSeconds: o.prepDurationSeconds || 0,
-          durationFormatted: o.prepDurationFormatted || '—',
-          status: statusToDisplay,
-          orderDate: o.orderDate || o.createdAt
-        };
-      });
-
-    // Apply Filters
-    return list.filter((item) => {
-      // Search filter (Token, Order ID, Customer Name)
-      if (historySearch.trim()) {
-        const q = historySearch.toLowerCase().trim();
-        const id = String(item.orderId || '').toLowerCase();
-        const token = String(item.token || '').toLowerCase();
-        const customer = String(item.customerName || '').toLowerCase();
-        if (!id.includes(q) && !token.includes(q) && !customer.includes(q)) {
-          return false;
+    return list
+      .filter((item) => {
+        if (historySearch.trim()) {
+          const q = historySearch.toLowerCase().trim();
+          const id = String(item.orderId || '').toLowerCase();
+          const token = String(item.token || '').toLowerCase();
+          const customer = String(item.customerName || '').toLowerCase();
+          if (!id.includes(q) && !token.includes(q) && !customer.includes(q)) return false;
         }
-      }
 
-      // Date range filter
-      if (historyDateFilter !== 'ALL') {
-        const dateVal = item.prepCompletedAt || item.orderDate || item.prepStartedAt;
-        if (!dateVal) return false;
+        if (historyDateFilter !== 'ALL') {
+          const dateVal = item.prepCompletedAt || item.orderDate || item.prepStartedAt;
+          if (!dateVal) return false;
+          if (historyDateFilter === 'TODAY') return isSameIstDate(dateVal);
+          if (historyDateFilter === 'YESTERDAY') {
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            return isSameIstDate(dateVal, yesterday);
+          }
+          if (historyDateFilter === 'WEEK') return isWithinDaysIST(dateVal, 7) || isSameIstDate(dateVal);
+        }
 
-        if (historyDateFilter === 'TODAY') {
-          return isSameIstDate(dateVal);
-        }
-        if (historyDateFilter === 'YESTERDAY') {
-          const d = new Date(dateVal);
-          const yesterday = new Date();
-          yesterday.setDate(yesterday.getDate() - 1);
-          return isSameIstDate(d, yesterday);
-        }
-        if (historyDateFilter === 'WEEK') {
-          return isWithinDaysIST(dateVal, 7) || isSameIstDate(dateVal);
-        }
-      }
-
-      return true;
-    }).sort((a, b) => {
-      const timeA = new Date(a.prepCompletedAt || a.prepStartedAt || 0).getTime();
-      const timeB = new Date(b.prepCompletedAt || b.prepStartedAt || 0).getTime();
-      return timeB - timeA;
-    });
+        return true;
+      })
+      .sort((a, b) => new Date(b.prepCompletedAt || b.prepStartedAt || 0) - new Date(a.prepCompletedAt || a.prepStartedAt || 0));
   }, [orders, historySearch, historyDateFilter]);
 
-  // Reset pagination when history filter changes
   useEffect(() => {
     setHistoryPage(1);
   }, [historySearch, historyDateFilter]);
@@ -212,72 +204,174 @@ export const KitchenDisplayPage = () => {
 
   const toggleItemCheck = (orderId, itemIndex) => {
     const key = `${orderId}-${itemIndex}`;
-    setCheckedItems(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
+    setCheckedItems((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  // Kitchen Staff clicks "Start Preparing" -> Records preparation start timestamp in DB, live timer starts
   const handleStartPrepare = async (order) => {
     try {
       setActionLoadingId(order.id);
       await startPreparation(order.id);
-      setKdsToast(`⏱️ Preparation started for Ticket #${order.token || order.id}. Live timer active!`);
-      setTimeout(() => setKdsToast(''), 4500);
+      success('Preparation Started', `Live timer active for Ticket #${order.token || order.id}.`);
     } catch (err) {
-      alert(err.message || 'Error starting preparation');
+      toastError('Start Failed', err.message || 'Error starting preparation.');
     } finally {
       setActionLoadingId(null);
     }
   };
 
-  // Kitchen Staff clicks "Ready for Pickup Counter" -> Updates status to Ready for Pickup, stops timer, removes from active queue, adds to Preparation History
   const handleMarkReady = async (order) => {
     try {
       setActionLoadingId(order.id);
       await markReadyForPickup(order.id);
-      setKdsToast(`✅ Ticket #${order.token || order.id} moved to Ready for Pickup Counter & Preparation History!`);
-      setTimeout(() => setKdsToast(''), 4500);
+      success('Ready for Pickup', `Ticket #${order.token || order.id} moved to pickup counter.`);
     } catch (err) {
-      alert(err.message || 'Error updating order for pickup counter');
+      toastError('Update Failed', err.message || 'Error updating order for pickup counter.');
     } finally {
       setActionLoadingId(null);
     }
   };
 
+  const historyColumns = [
+    {
+      key: 'serial',
+      header: '#',
+      width: '48px',
+      align: 'center',
+      render: (_, __, idx) => (
+        <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>
+          {(historyPage - 1) * historyPageSize + idx + 1}
+        </span>
+      )
+    },
+    {
+      key: 'token',
+      header: 'Token & Order ID',
+      render: (val, rec) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span className={styles.tokenBadge}>{val || 'T-ORD'}</span>
+          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>#{String(rec.orderId).slice(-6)}</span>
+        </div>
+      )
+    },
+    {
+      key: 'customerName',
+      header: 'Customer',
+      render: (val, rec) => (
+        <div>
+          <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{val || 'Customer'}</div>
+          {rec.customerRole && <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{rec.customerRole}</div>}
+        </div>
+      )
+    },
+    {
+      key: 'items',
+      header: 'Food Order Details',
+      render: (items) => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+          {Array.isArray(items) && items.slice(0, 2).map((item, i) => (
+            <span key={i} style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+              {item.quantity}x {item.name}
+            </span>
+          ))}
+          {Array.isArray(items) && items.length > 2 && (
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+              +{items.length - 2} more item(s)
+            </span>
+          )}
+        </div>
+      )
+    },
+    {
+      key: 'prepStartedAt',
+      header: 'Prep Started',
+      render: (val) => (val ? formatTimeIST(val) : '—')
+    },
+    {
+      key: 'prepCompletedAt',
+      header: 'Prep Completed',
+      render: (val) => (val ? formatTimeIST(val) : '—')
+    },
+    {
+      key: 'durationFormatted',
+      header: 'Total Duration',
+      render: (val) => (
+        <span style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '4px',
+          padding: '2px 8px',
+          borderRadius: 'var(--border-radius-xs)',
+          backgroundColor: 'var(--color-success-bg)',
+          color: 'var(--color-success-text)',
+          fontWeight: 700,
+          fontSize: '11.5px',
+          border: '1px solid var(--color-success-border)'
+        }}>
+          <Clock size={11} />
+          {val || '—'}
+        </span>
+      )
+    },
+    {
+      key: 'status',
+      header: 'Final Status',
+      align: 'center',
+      render: (val) => <StatusBadge status={val} size="sm" />
+    },
+    {
+      key: 'actions',
+      header: 'Action',
+      align: 'center',
+      width: '80px',
+      render: (_, rec) => (
+        <Button
+          variant="secondary"
+          size="sm"
+          icon={Eye}
+          onClick={() => {
+            const fullOrder = orders.find((o) => String(o.id) === String(rec.orderId));
+            setSelectedOrderForView(fullOrder || rec);
+          }}
+        >
+          View
+        </Button>
+      )
+    }
+  ];
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-      {/* 1. Header with Controls */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <PageHeader
         title="Kitchen Display System (KDS)"
-        description="Touch-friendly live chef cooking tickets, preparation timers, and counter handoff."
+        description="Live chef cooking tickets, preparation timers, and counter handoff."
         badge={
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '5px',
-              padding: '3px 10px',
-              borderRadius: '9999px',
-              backgroundColor: 'var(--color-primary-light)',
-              color: 'var(--color-primary)',
-              fontSize: '12px',
-              fontWeight: 600,
-              border: '1px solid var(--border-color)'
-            }}>
-              <Store size={12} />
-              {activeOutletName || 'Central Dining Hall'}
-            </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            {activeOutletName && (
+              <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '3px 10px',
+                borderRadius: 'var(--border-radius-full)',
+                backgroundColor: 'var(--color-primary-light)',
+                color: 'var(--color-primary)',
+                fontSize: '11.5px',
+                fontWeight: 600,
+                border: '1px solid var(--color-primary-border)'
+              }}>
+                <Store size={12} />
+                {activeOutletName}
+              </span>
+            )}
             <span style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: '4px',
               padding: '3px 10px',
-              borderRadius: '9999px',
+              borderRadius: 'var(--border-radius-full)',
               backgroundColor: 'var(--bg-surface)',
               color: 'var(--text-secondary)',
-              fontSize: '12px',
+              fontSize: '11.5px',
               fontWeight: 600,
               border: '1px solid var(--border-color)'
             }}>
@@ -288,31 +382,23 @@ export const KitchenDisplayPage = () => {
         }
         actions={
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <button
+            <Button
+              variant="secondary"
+              icon={soundEnabled ? Volume2 : VolumeX}
               onClick={() => setSoundEnabled(!soundEnabled)}
-              style={{
-                height: '36px',
-                padding: '0 12px',
-                borderRadius: 'var(--border-radius-md)',
-                backgroundColor: 'var(--bg-surface)',
-                border: '1px solid var(--border-color)',
-                color: soundEnabled ? 'var(--color-success)' : 'var(--text-muted)',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                fontSize: '12.5px',
-                fontWeight: 600
-              }}
+              style={{ color: soundEnabled ? 'var(--color-success)' : 'var(--text-muted)' }}
             >
-              {soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
-              <span>{soundEnabled ? 'Sound ON' : 'MUTE'}</span>
-            </button>
+              {soundEnabled ? 'Sound ON' : 'Muted'}
+            </Button>
 
             <Button
               variant="secondary"
               icon={RefreshCw}
-              onClick={refreshOrders}
+              onClick={() => {
+                refreshOrders();
+                loadStations();
+              }}
+              loading={loading}
             >
               Refresh
             </Button>
@@ -320,44 +406,48 @@ export const KitchenDisplayPage = () => {
         }
       />
 
-      {/* 2. Top KDS View Tabs (Active Queue | Ready Counter | History) */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        backgroundColor: 'var(--bg-surface)',
-        padding: '6px',
-        borderRadius: 'var(--border-radius-lg)',
-        border: '1px solid var(--border-color)',
-        boxShadow: 'var(--shadow-xs)'
-      }}>
+      {/* API Error Banners */}
+      {error && (
+        <div className={styles.errorBanner} role="alert">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertCircle size={16} />
+            <span>{error}</span>
+          </div>
+          <Button variant="secondary" size="sm" icon={RefreshCw} onClick={refreshOrders}>
+            Retry
+          </Button>
+        </div>
+      )}
+
+      {stationsError && (
+        <div className={styles.errorBanner} role="alert">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertCircle size={16} />
+            <span>{stationsError}</span>
+          </div>
+          <Button variant="secondary" size="sm" icon={RefreshCw} onClick={loadStations}>
+            Retry Stations
+          </Button>
+        </div>
+      )}
+
+      {/* Underline Tabs matching Admin InventoryPage */}
+      <div className={styles.tabList} role="tablist" aria-label="Kitchen Display Views">
         <button
           type="button"
+          role="tab"
+          aria-selected={activeTab === 'queue'}
           onClick={() => setActiveTab('queue')}
-          style={{
-            flex: 1,
-            padding: '9px 16px',
-            borderRadius: 'var(--border-radius-md)',
-            border: 'none',
-            backgroundColor: activeTab === 'queue' ? 'var(--color-accent)' : 'transparent',
-            color: activeTab === 'queue' ? '#ffffff' : 'var(--text-secondary)',
-            fontWeight: 700,
-            fontSize: '13px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            transition: 'all 0.15s ease'
-          }}
+          className={styles.tabButton}
         >
-          <Flame size={16} />
+          <Flame size={15} />
           <span>Active Kitchen Queue</span>
           <span style={{
             padding: '1px 7px',
-            borderRadius: '9999px',
+            borderRadius: 'var(--border-radius-full)',
             fontSize: '11px',
-            backgroundColor: activeTab === 'queue' ? 'rgba(255,255,255,0.25)' : 'var(--bg-muted)',
+            fontWeight: 700,
+            backgroundColor: activeTab === 'queue' ? 'var(--color-primary)' : 'var(--bg-muted)',
             color: activeTab === 'queue' ? '#ffffff' : 'var(--text-primary)'
           }}>
             {cookingOrders.length}
@@ -366,31 +456,19 @@ export const KitchenDisplayPage = () => {
 
         <button
           type="button"
+          role="tab"
+          aria-selected={activeTab === 'pickup'}
           onClick={() => setActiveTab('pickup')}
-          style={{
-            flex: 1,
-            padding: '9px 16px',
-            borderRadius: 'var(--border-radius-md)',
-            border: 'none',
-            backgroundColor: activeTab === 'pickup' ? '#059669' : 'transparent',
-            color: activeTab === 'pickup' ? '#ffffff' : 'var(--text-secondary)',
-            fontWeight: 700,
-            fontSize: '13px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            transition: 'all 0.15s ease'
-          }}
+          className={styles.tabButton}
         >
-          <BellRing size={16} />
+          <BellRing size={15} />
           <span>Ready for Pickup Counter</span>
           <span style={{
             padding: '1px 7px',
-            borderRadius: '9999px',
+            borderRadius: 'var(--border-radius-full)',
             fontSize: '11px',
-            backgroundColor: activeTab === 'pickup' ? 'rgba(255,255,255,0.25)' : 'var(--bg-muted)',
+            fontWeight: 700,
+            backgroundColor: activeTab === 'pickup' ? 'var(--color-primary)' : 'var(--bg-muted)',
             color: activeTab === 'pickup' ? '#ffffff' : 'var(--text-primary)'
           }}>
             {readyOrders.length}
@@ -399,31 +477,19 @@ export const KitchenDisplayPage = () => {
 
         <button
           type="button"
+          role="tab"
+          aria-selected={activeTab === 'history'}
           onClick={() => setActiveTab('history')}
-          style={{
-            flex: 1,
-            padding: '9px 16px',
-            borderRadius: 'var(--border-radius-md)',
-            border: 'none',
-            backgroundColor: activeTab === 'history' ? '#4f46e5' : 'transparent',
-            color: activeTab === 'history' ? '#ffffff' : 'var(--text-secondary)',
-            fontWeight: 700,
-            fontSize: '13px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            transition: 'all 0.15s ease'
-          }}
+          className={styles.tabButton}
         >
-          <History size={16} />
+          <History size={15} />
           <span>Preparation History</span>
           <span style={{
             padding: '1px 7px',
-            borderRadius: '9999px',
+            borderRadius: 'var(--border-radius-full)',
             fontSize: '11px',
-            backgroundColor: activeTab === 'history' ? 'rgba(255,255,255,0.25)' : 'var(--bg-muted)',
+            fontWeight: 700,
+            backgroundColor: activeTab === 'history' ? 'var(--color-primary)' : 'var(--bg-muted)',
             color: activeTab === 'history' ? '#ffffff' : 'var(--text-primary)'
           }}>
             {prepHistoryOrders.length}
@@ -431,95 +497,52 @@ export const KitchenDisplayPage = () => {
         </button>
       </div>
 
-      {/* Action Notification Toast Banner */}
-      {kdsToast && (
-        <div style={{
-          padding: '11px 18px',
-          borderRadius: 'var(--border-radius-md)',
-          backgroundColor: '#ecfdf5',
-          border: '1px solid #a7f3d0',
-          color: '#065f46',
-          fontSize: '13px',
-          fontWeight: 700,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          boxShadow: 'var(--shadow-sm)'
-        }}>
-          <CheckCircle2 size={17} style={{ color: '#059669' }} />
-          <span>{kdsToast}</span>
-        </div>
-      )}
-
-      {/* ======================================================== */}
-      {/* TAB 1: ACTIVE KITCHEN QUEUE                              */}
-      {/* ======================================================== */}
+      {/* TAB 1: ACTIVE KITCHEN QUEUE */}
       {activeTab === 'queue' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {/* Station Filter Tabs */}
+        <div role="tabpanel" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            {stations.map((station) => (
-              <button
-                key={station.id}
-                onClick={() => setSelectedStation(station.id)}
-                style={{
-                  padding: '7px 14px',
-                  borderRadius: 'var(--border-radius-sm)',
-                  border: '1px solid',
-                  borderColor: selectedStation === station.id ? 'var(--color-accent)' : 'var(--border-color)',
-                  backgroundColor: selectedStation === station.id ? 'var(--color-accent)' : 'var(--bg-surface)',
-                  color: selectedStation === station.id ? '#ffffff' : 'var(--text-secondary)',
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease'
-                }}
-              >
-                {station.name}
-              </button>
-            ))}
+            {stations.map((station) => {
+              const isActive = selectedStation === station.id;
+              return (
+                <button
+                  key={station.id}
+                  type="button"
+                  onClick={() => setSelectedStation(station.id)}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: 'var(--border-radius-md)',
+                    border: '1px solid',
+                    borderColor: isActive ? 'var(--color-primary)' : 'var(--border-color)',
+                    backgroundColor: isActive ? 'var(--color-primary)' : 'var(--bg-surface)',
+                    color: isActive ? '#ffffff' : 'var(--text-secondary)',
+                    fontSize: '12.5px',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  {station.name}
+                </button>
+              );
+            })}
           </div>
 
-          {cookingOrders.length === 0 ? (
-            <div style={{
-              padding: '60px 20px',
-              textAlign: 'center',
-              backgroundColor: 'var(--bg-surface)',
-              borderRadius: 'var(--border-radius-lg)',
-              border: '1px solid var(--border-color)'
-            }}>
-              <ChefHat size={44} style={{ color: 'var(--text-muted)', margin: '0 auto 12px auto' }} />
-              <h3 style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-                Kitchen Queue is All Clear!
-              </h3>
-              <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '6px 0 16px 0' }}>
-                No active orders awaiting cooking. Accepted orders will automatically appear here.
-              </p>
-              <Link
-                to="/staff/board"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '8px 16px',
-                  borderRadius: 'var(--border-radius-sm)',
-                  backgroundColor: 'var(--color-accent)',
-                  color: '#ffffff',
-                  fontSize: '12.5px',
-                  fontWeight: 600,
-                  textDecoration: 'none'
-                }}
-              >
-                <span>Check Order Management</span>
-                <ArrowRight size={14} />
-              </Link>
+          {loading && orders.length === 0 ? (
+            <div className={styles.kdsGrid}>
+              {[1, 2, 3].map((n) => (
+                <div key={n} className="skeleton-box" style={{ height: '240px', borderRadius: 'var(--border-radius-lg)' }} />
+              ))}
             </div>
+          ) : cookingOrders.length === 0 ? (
+            <EmptyState
+              icon={ChefHat}
+              title="Kitchen Queue is All Clear"
+              message="No active orders awaiting cooking. Accepted orders will automatically appear here."
+              actionLabel="Check Order Management"
+              actionIcon={ArrowRight}
+              onAction={() => navigate('/staff/board')}
+            />
           ) : (
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))',
-              gap: '16px'
-            }}>
+            <div className={styles.kdsGrid}>
               {cookingOrders.map((order) => {
                 const effectivePrepStart = order.prepStartedAt || (isStatusPreparing(order.status) ? (order.updatedAt || order.orderDate) : null);
                 const isPrepStarted = Boolean(effectivePrepStart);
@@ -528,78 +551,65 @@ export const KitchenDisplayPage = () => {
                 const isOverdue = elapsedMins >= ORDER_URGENCY_MINUTES.WARNING;
                 const isWarning = elapsedMins >= ORDER_URGENCY_MINUTES.NORMAL;
 
-                const timerBg = isOverdue ? '#fef2f2' : isWarning ? '#fffbeb' : '#ecfdf5';
-                const timerBorder = isOverdue ? '#fca5a5' : isWarning ? '#fde68a' : '#a7f3d0';
-                const timerColor = isOverdue ? '#dc2626' : isWarning ? '#d97706' : '#059669';
+                const timerBg = isOverdue
+                  ? 'var(--color-danger-bg)'
+                  : isWarning
+                    ? 'var(--color-warning-bg)'
+                    : 'var(--color-success-bg)';
+                const timerBorder = isOverdue
+                  ? 'var(--color-danger-border)'
+                  : isWarning
+                    ? 'var(--color-warning-border)'
+                    : 'var(--color-success-border)';
+                const timerColor = isOverdue
+                  ? 'var(--color-danger-text)'
+                  : isWarning
+                    ? 'var(--color-warning-text)'
+                    : 'var(--color-success-text)';
 
                 const isLoading = actionLoadingId === order.id;
+                const cardClass = `${styles.kdsCard} ${
+                  isPrepStarted && isOverdue
+                    ? styles.kdsCardOverdue
+                    : !isPrepStarted
+                      ? styles.kdsCardWaiting
+                      : ''
+                }`;
 
                 return (
-                  <div
-                    key={order.id}
-                    style={{
-                      backgroundColor: 'var(--bg-surface)',
-                      borderRadius: 'var(--border-radius-lg)',
-                      border: isPrepStarted && isOverdue
-                        ? '2px solid #dc2626'
-                        : isPrepStarted
-                          ? '1.5px solid var(--border-color)'
-                          : '1.5px dashed #93c5fd',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      overflow: 'hidden',
-                      boxShadow: 'var(--shadow-xs)'
-                    }}
-                  >
-                    {/* Live Preparation Timer Banner (Top of Order Card) */}
+                  <div key={order.id} className={cardClass}>
+                    {/* Live Preparation Timer Banner */}
                     <div style={{
                       padding: '8px 16px',
-                      backgroundColor: isPrepStarted ? timerBg : '#eff6ff',
-                      borderBottom: `1px solid ${isPrepStarted ? timerBorder : '#bfdbfe'}`,
+                      backgroundColor: isPrepStarted ? timerBg : 'var(--color-info-bg)',
+                      borderBottom: `1px solid ${isPrepStarted ? timerBorder : 'var(--color-info-border)'}`,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      fontSize: '12.5px'
+                      fontSize: '12px'
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Clock size={15} style={{ color: isPrepStarted ? timerColor : '#2563eb' }} />
-                        <span style={{
-                          fontWeight: 800,
-                          color: isPrepStarted ? timerColor : '#1d4ed8',
-                          letterSpacing: '0.02em'
-                        }}>
+                        <Clock size={14} style={{ color: isPrepStarted ? timerColor : 'var(--color-info-text)' }} />
+                        <span style={{ fontWeight: 700, color: isPrepStarted ? timerColor : 'var(--color-info-text)' }}>
                           {isPrepStarted
                             ? `Preparation Time: ${prepTime?.formatted || '00:00'}`
-                            : 'Awaiting Preparation (Timer Paused)'}
+                            : 'Awaiting Preparation'}
                         </span>
                       </div>
 
-                      {isPrepStarted ? (
-                        <span style={{
-                          fontSize: '10px',
-                          fontWeight: 800,
-                          padding: '2px 6px',
-                          borderRadius: '4px',
-                          backgroundColor: timerBorder,
-                          color: timerColor
-                        }}>
-                          {isOverdue ? 'OVERDUE' : isWarning ? 'RUSH' : 'COOKING'}
-                        </span>
-                      ) : (
-                        <span style={{
-                          fontSize: '10px',
-                          fontWeight: 700,
-                          padding: '2px 6px',
-                          borderRadius: '4px',
-                          backgroundColor: '#dbeafe',
-                          color: '#1e40af'
-                        }}>
-                          READY TO COOK
-                        </span>
-                      )}
+                      <span style={{
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        backgroundColor: isPrepStarted ? timerBorder : 'var(--color-primary-light)',
+                        color: isPrepStarted ? timerColor : 'var(--color-primary)'
+                      }}>
+                        {isPrepStarted ? (isOverdue ? 'OVERDUE' : isWarning ? 'RUSH' : 'COOKING') : 'QUEUED'}
+                      </span>
                     </div>
 
-                    {/* Ticket Token & Identification Header */}
+                    {/* Ticket Header */}
                     <div style={{
                       padding: '12px 16px',
                       backgroundColor: 'var(--bg-app)',
@@ -609,12 +619,7 @@ export const KitchenDisplayPage = () => {
                       justifyContent: 'space-between'
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{
-                          fontSize: '20px',
-                          fontWeight: 900,
-                          color: 'var(--text-primary)',
-                          fontFamily: 'monospace'
-                        }}>
+                        <span style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
                           {order.token || 'T-ORD'}
                         </span>
                         <span style={{
@@ -631,9 +636,9 @@ export const KitchenDisplayPage = () => {
 
                       <span style={{
                         fontSize: '11.5px',
-                        fontWeight: 700,
+                        fontWeight: 600,
                         padding: '3px 8px',
-                        borderRadius: '6px',
+                        borderRadius: 'var(--border-radius-sm)',
                         backgroundColor: 'var(--bg-surface)',
                         border: '1px solid var(--border-color)',
                         color: 'var(--text-secondary)'
@@ -654,39 +659,31 @@ export const KitchenDisplayPage = () => {
                       borderBottom: '1px solid var(--border-color-subtle)'
                     }}>
                       <span style={{ fontWeight: 600 }}>{order.customer?.name || 'Customer'}</span>
-                      <span style={{ fontWeight: 700 }}>
-                        {order.customer?.role || 'Student'}
-                      </span>
+                      {order.customer?.role && <span style={{ fontWeight: 700 }}>{order.customer.role}</span>}
                     </div>
 
-                    {/* Chef Instructions Banner */}
+                    {/* Chef Notes */}
                     {(order.notes || order.cookingNotes) && (
                       <div style={{
                         margin: '10px 16px 0 16px',
                         padding: '8px 12px',
-                        borderRadius: '6px',
-                        backgroundColor: '#fffbeb',
-                        border: '1.5px solid #fde68a',
-                        color: '#92400e',
+                        borderRadius: 'var(--border-radius-sm)',
+                        backgroundColor: 'var(--color-warning-bg)',
+                        border: '1px solid var(--color-warning-border)',
+                        color: 'var(--color-warning-text)',
                         fontSize: '12px',
-                        fontWeight: 700,
+                        fontWeight: 600,
                         display: 'flex',
                         alignItems: 'center',
                         gap: '6px'
                       }}>
-                        <AlertTriangle size={14} style={{ color: '#d97706', flexShrink: 0 }} />
+                        <AlertTriangle size={14} style={{ flexShrink: 0 }} />
                         <span>Note: {order.notes || order.cookingNotes}</span>
                       </div>
                     )}
 
                     {/* Food Items Checklist */}
-                    <div style={{
-                      padding: '14px 16px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '9px',
-                      flex: 1
-                    }}>
+                    <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
                       {Array.isArray(order.items) && order.items.map((item, idx) => {
                         const itemKey = `${order.id}-${idx}`;
                         const isChecked = Boolean(checkedItems[itemKey]);
@@ -702,28 +699,21 @@ export const KitchenDisplayPage = () => {
                               cursor: 'pointer',
                               padding: '8px 10px',
                               borderRadius: 'var(--border-radius-sm)',
-                              backgroundColor: isChecked ? '#ecfdf5' : 'var(--bg-app)',
-                              border: `1px solid ${isChecked ? '#a7f3d0' : 'var(--border-color)'}`,
-                              transition: 'all 0.15s ease'
+                              backgroundColor: isChecked ? 'var(--color-success-bg)' : 'var(--bg-app)',
+                              border: `1px solid ${isChecked ? 'var(--color-success-border)' : 'var(--border-color)'}`
                             }}
                           >
                             <input
                               type="checkbox"
                               checked={isChecked}
                               onChange={() => {}}
-                              style={{
-                                width: '16px',
-                                height: '16px',
-                                marginTop: '2px',
-                                cursor: 'pointer',
-                                accentColor: '#10b981'
-                              }}
+                              style={{ width: '15px', height: '15px', marginTop: '2px', cursor: 'pointer', accentColor: 'var(--color-success)' }}
                             />
                             <div style={{ flex: 1 }}>
                               <div style={{
                                 fontSize: '13px',
-                                fontWeight: 800,
-                                color: isChecked ? '#059669' : 'var(--text-primary)',
+                                fontWeight: 700,
+                                color: isChecked ? 'var(--color-success-text)' : 'var(--text-primary)',
                                 textDecoration: isChecked ? 'line-through' : 'none'
                               }}>
                                 {item.quantity}x {item.name}
@@ -739,62 +729,32 @@ export const KitchenDisplayPage = () => {
                       })}
                     </div>
 
-                    {/* Ticket Action Footer: Prepare OR Mark Ready */}
+                    {/* Ticket Footer */}
                     <div style={{
                       padding: '12px 16px',
                       backgroundColor: 'var(--bg-app)',
                       borderTop: '1px solid var(--border-color)'
                     }}>
                       {!isPrepStarted ? (
-                        <button
-                          type="button"
-                          disabled={isLoading}
+                        <Button
+                          variant="primary"
+                          icon={Play}
+                          loading={isLoading}
                           onClick={() => handleStartPrepare(order)}
-                          style={{
-                            width: '100%',
-                            padding: '10px 14px',
-                            borderRadius: 'var(--border-radius-sm)',
-                            backgroundColor: '#2563eb',
-                            color: '#ffffff',
-                            border: 'none',
-                            fontSize: '13px',
-                            fontWeight: 800,
-                            cursor: isLoading ? 'wait' : 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '8px',
-                            boxShadow: 'var(--shadow-xs)'
-                          }}
+                          style={{ width: '100%' }}
                         >
-                          <Play size={15} fill="#ffffff" />
-                          <span>{isLoading ? 'Starting...' : 'Start Preparing'}</span>
-                        </button>
+                          Start Preparing
+                        </Button>
                       ) : (
-                        <button
-                          type="button"
-                          disabled={isLoading}
+                        <Button
+                          variant="primary"
+                          icon={CheckCircle2}
+                          loading={isLoading}
                           onClick={() => handleMarkReady(order)}
-                          style={{
-                            width: '100%',
-                            padding: '10px 14px',
-                            borderRadius: 'var(--border-radius-sm)',
-                            backgroundColor: '#059669',
-                            color: '#ffffff',
-                            border: 'none',
-                            fontSize: '13px',
-                            fontWeight: 800,
-                            cursor: isLoading ? 'wait' : 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '8px',
-                            boxShadow: 'var(--shadow-xs)'
-                          }}
+                          style={{ width: '100%', backgroundColor: 'var(--color-success)', borderColor: 'var(--color-success)' }}
                         >
-                          <CheckCircle2 size={16} />
-                          <span>{isLoading ? 'Updating...' : 'Ready for Pickup Counter'}</span>
-                        </button>
+                          Ready for Pickup Counter
+                        </Button>
                       )}
                     </div>
                   </div>
@@ -805,74 +765,35 @@ export const KitchenDisplayPage = () => {
         </div>
       )}
 
-      {/* ======================================================== */}
-      {/* TAB 2: READY FOR PICKUP COUNTER                         */}
-      {/* ======================================================== */}
+      {/* TAB 2: READY FOR PICKUP COUNTER */}
       {activeTab === 'pickup' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            backgroundColor: 'var(--bg-surface)',
-            padding: '12px 16px',
-            borderRadius: 'var(--border-radius-md)',
-            border: '1px solid var(--border-color)',
-            boxShadow: 'var(--shadow-xs)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <BellRing size={18} style={{ color: '#059669' }} />
-              <div>
-                <strong style={{ fontSize: '13.5px', color: 'var(--text-primary)' }}>
-                  Pickup Counter Queue ({readyOrders.length} Ready)
-                </strong>
-                <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: '8px' }}>
-                  — Food preparation completed; awaiting student and faculty pickup
-                </span>
-              </div>
+        <div role="tabpanel" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className={styles.infoBanner}>
+            <BellRing size={18} style={{ color: 'var(--color-success)' }} />
+            <div>
+              <strong style={{ fontSize: '13.5px', color: 'var(--text-primary)' }}>
+                Pickup Counter Queue ({readyOrders.length} Ready)
+              </strong>
+              <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: '8px' }}>
+                — Food preparation completed; awaiting customer pickup
+              </span>
             </div>
           </div>
 
           {readyOrders.length === 0 ? (
-            <div style={{
-              padding: '60px 20px',
-              textAlign: 'center',
-              backgroundColor: 'var(--bg-surface)',
-              borderRadius: 'var(--border-radius-lg)',
-              border: '1px solid var(--border-color)'
-            }}>
-              <BellRing size={44} style={{ color: 'var(--text-muted)', margin: '0 auto 12px auto' }} />
-              <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-                Pickup Counter is Clear
-              </h3>
-              <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '6px 0 0 0' }}>
-                Orders marked 'Ready' by the kitchen will automatically appear here.
-              </p>
-            </div>
+            <EmptyState
+              icon={BellRing}
+              title="Pickup Counter is Clear"
+              message="Orders marked Ready by the kitchen will automatically appear here."
+            />
           ) : (
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-              gap: '16px'
-            }}>
+            <div className={styles.kdsGrid}>
               {readyOrders.map((order) => (
-                <div
-                  key={order.id}
-                  style={{
-                    backgroundColor: 'var(--bg-surface)',
-                    borderRadius: 'var(--border-radius-lg)',
-                    border: '1.5px solid #a7f3d0',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    overflow: 'hidden',
-                    boxShadow: 'var(--shadow-xs)'
-                  }}
-                >
-                  {/* Top Ready Banner */}
+                <div key={order.id} className={`${styles.kdsCard} ${styles.kdsCardReady}`}>
                   <div style={{
                     padding: '8px 16px',
-                    backgroundColor: '#ecfdf5',
-                    borderBottom: '1px solid #a7f3d0',
+                    backgroundColor: 'var(--color-success-bg)',
+                    borderBottom: '1px solid var(--color-success-border)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between'
@@ -882,33 +803,29 @@ export const KitchenDisplayPage = () => {
                       alignItems: 'center',
                       gap: '5px',
                       fontSize: '12px',
-                      fontWeight: 800,
-                      color: '#059669'
+                      fontWeight: 700,
+                      color: 'var(--color-success-text)'
                     }}>
                       <CheckCircle2 size={14} />
-                      Ready for Pickup • At Counter
+                      Ready for Pickup
                     </span>
 
-                    {/* Actual Preparation Duration */}
                     <span style={{
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '4px',
-                      fontSize: '11.5px',
-                      fontWeight: 700,
+                      fontSize: '11px',
+                      fontWeight: 600,
                       padding: '2px 7px',
                       borderRadius: '4px',
-                      backgroundColor: '#d1fae5',
-                      color: '#065f46'
+                      backgroundColor: 'var(--bg-surface)',
+                      color: 'var(--color-success-text)'
                     }}>
                       <Clock size={12} />
-                      {order.prepDurationFormatted
-                        ? `Prep Duration: ${order.prepDurationFormatted}`
-                        : 'Prep Complete'}
+                      {order.prepDurationFormatted ? `Prep: ${order.prepDurationFormatted}` : 'Prep Complete'}
                     </span>
                   </div>
 
-                  {/* Order Token & ID */}
                   <div style={{
                     padding: '12px 16px',
                     backgroundColor: 'var(--bg-app)',
@@ -918,94 +835,46 @@ export const KitchenDisplayPage = () => {
                     justifyContent: 'space-between'
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{
-                        fontSize: '22px',
-                        fontWeight: 900,
-                        color: 'var(--text-primary)',
-                        fontFamily: 'monospace'
-                      }}>
+                      <span style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
                         {order.token || 'T-ORD'}
                       </span>
-                      <span style={{
-                        fontSize: '11px',
-                        padding: '2px 6px',
-                        borderRadius: '4px',
-                        backgroundColor: 'var(--bg-muted)',
-                        color: 'var(--text-muted)',
-                        fontWeight: 600
-                      }}>
+                      <span style={{ fontSize: '11px', padding: '2px 6px', borderRadius: '4px', backgroundColor: 'var(--bg-muted)', color: 'var(--text-muted)', fontWeight: 600 }}>
                         #{String(order.id).slice(-6)}
                       </span>
                     </div>
-
-                    <span style={{
-                      fontSize: '11.5px',
-                      fontWeight: 700,
-                      color: 'var(--color-primary)'
-                    }}>
+                    <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-primary)' }}>
                       {order.customer?.name || 'Customer'}
                     </span>
                   </div>
 
-                  {/* Items Summary */}
-                  <div style={{
-                    padding: '14px 16px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '8px',
-                    flex: 1
-                  }}>
+                  <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
                     {Array.isArray(order.items) && order.items.map((item, idx) => (
-                      <div
-                        key={idx}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          fontSize: '12.5px'
-                        }}
-                      >
-                        <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                      <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12.5px' }}>
+                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
                           {item.quantity}x {item.name}
                         </span>
                         {item.variant && (
-                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                            {item.variant}
-                          </span>
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{item.variant}</span>
                         )}
                       </div>
                     ))}
                   </div>
 
-                  {/* Action Footer: View Details button */}
                   <div style={{
                     padding: '10px 16px',
                     backgroundColor: 'var(--bg-app)',
                     borderTop: '1px solid var(--border-color)',
                     display: 'flex',
-                    alignItems: 'center',
                     justifyContent: 'flex-end'
                   }}>
-                    <button
-                      type="button"
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      icon={Eye}
                       onClick={() => setSelectedOrderForView(order)}
-                      style={{
-                        padding: '6px 14px',
-                        borderRadius: '6px',
-                        border: '1px solid var(--border-color)',
-                        backgroundColor: 'var(--bg-surface)',
-                        color: 'var(--text-secondary)',
-                        fontSize: '11.5px',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px'
-                      }}
                     >
-                      <Eye size={12} />
                       View Details
-                    </button>
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -1014,46 +883,36 @@ export const KitchenDisplayPage = () => {
         </div>
       )}
 
-      {/* ======================================================== */}
-      {/* TAB 3: PREPARATION HISTORY                               */}
-      {/* ======================================================== */}
+      {/* TAB 3: PREPARATION HISTORY */}
       {activeTab === 'history' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {/* History Search & Filter Toolbar */}
-          <div style={{
-            backgroundColor: 'var(--bg-surface)',
-            border: '1px solid var(--border-color)',
-            borderRadius: 'var(--border-radius-lg)',
-            padding: '12px 16px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '12px',
-            flexWrap: 'wrap'
-          }}>
-            <div style={{
-              flex: '1 1 260px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              backgroundColor: 'var(--bg-app)',
-              border: '1px solid var(--border-color)',
-              borderRadius: 'var(--border-radius-md)',
-              padding: '0 12px',
-              height: '36px'
-            }}>
-              <Search size={15} style={{ color: 'var(--text-placeholder)' }} />
+        <div role="tabpanel" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className={styles.filterToolbar}>
+            <div style={{ position: 'relative', flex: '1 1 260px' }}>
+              <Search
+                size={14}
+                style={{
+                  position: 'absolute',
+                  left: '10px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--text-muted)',
+                  pointerEvents: 'none'
+                }}
+              />
               <input
                 type="text"
                 value={historySearch}
                 onChange={(e) => setHistorySearch(e.target.value)}
-                placeholder="Search history by Order ID or Token..."
+                placeholder="Search history by Order ID, Token, or Customer..."
                 style={{
                   width: '100%',
-                  border: 'none',
-                  backgroundColor: 'transparent',
-                  color: 'var(--text-primary)',
+                  height: '34px',
+                  padding: '0 28px 0 30px',
                   fontSize: '12.5px',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: 'var(--border-radius-md)',
+                  backgroundColor: 'var(--bg-app)',
+                  color: 'var(--text-primary)',
                   outline: 'none'
                 }}
               />
@@ -1061,232 +920,63 @@ export const KitchenDisplayPage = () => {
                 <button
                   type="button"
                   onClick={() => setHistorySearch('')}
-                  style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0 }}
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <select
-                value={historyDateFilter}
-                onChange={(e) => setHistoryDateFilter(e.target.value)}
-                style={{
-                  height: '36px',
-                  padding: '0 10px',
-                  fontSize: '12px',
-                  borderRadius: '6px',
-                  border: '1px solid var(--border-color)',
-                  backgroundColor: 'var(--bg-app)',
-                  color: 'var(--text-primary)',
-                  outline: 'none',
-                  cursor: 'pointer'
-                }}
-              >
-                <option value="ALL">All Prepared Orders</option>
-                <option value="TODAY">Today's Prepared Orders</option>
-                <option value="YESTERDAY">Yesterday</option>
-                <option value="WEEK">Last 7 Days</option>
-              </select>
-
-              {(historySearch || historyDateFilter !== 'ALL') && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setHistorySearch('');
-                    setHistoryDateFilter('ALL');
-                  }}
+                  aria-label="Clear search"
                   style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    padding: '7px 12px',
-                    borderRadius: '6px',
-                    border: '1px solid var(--border-color)',
-                    backgroundColor: 'var(--bg-app)',
-                    color: 'var(--text-secondary)',
-                    fontSize: '11.5px',
-                    fontWeight: 600,
+                    position: 'absolute',
+                    right: '8px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-muted)',
                     cursor: 'pointer'
                   }}
                 >
-                  <RotateCcw size={12} />
-                  Reset
+                  <X size={13} />
                 </button>
               )}
             </div>
+
+            <select
+              value={historyDateFilter}
+              onChange={(e) => setHistoryDateFilter(e.target.value)}
+              className={styles.filterSelect}
+              aria-label="Filter history date range"
+            >
+              <option value="ALL">All Prepared Orders</option>
+              <option value="TODAY">Today's Prepared Orders</option>
+              <option value="YESTERDAY">Yesterday</option>
+              <option value="WEEK">Last 7 Days</option>
+            </select>
+
+            {(historySearch || historyDateFilter !== 'ALL') && (
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={RotateCcw}
+                onClick={() => {
+                  setHistorySearch('');
+                  setHistoryDateFilter('ALL');
+                }}
+              >
+                Reset
+              </Button>
+            )}
           </div>
 
-          {/* Preparation History Table */}
-          <div style={{
-            backgroundColor: 'var(--bg-surface)',
-            border: '1px solid var(--border-color)',
-            borderRadius: 'var(--border-radius-lg)',
-            overflow: 'hidden',
-            boxShadow: 'var(--shadow-xs)'
-          }}>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{
-                width: '100%',
-                borderCollapse: 'collapse',
-                textAlign: 'left',
-                fontSize: '12.5px'
-              }}>
-                <thead>
-                  <tr style={{
-                    backgroundColor: 'var(--bg-app)',
-                    borderBottom: '1px solid var(--border-color)',
-                    color: 'var(--text-secondary)',
-                    fontWeight: 700,
-                    fontSize: '11.5px',
-                    textTransform: 'uppercase'
-                  }}>
-                    <th style={{ padding: '12px 14px' }}>#</th>
-                    <th style={{ padding: '12px 14px' }}>Token & Order ID</th>
-                    <th style={{ padding: '12px 14px' }}>Customer</th>
-                    <th style={{ padding: '12px 14px' }}>Food Order Details</th>
-                    <th style={{ padding: '12px 14px' }}>Prep Started</th>
-                    <th style={{ padding: '12px 14px' }}>Prep Completed</th>
-                    <th style={{ padding: '12px 14px' }}>Total Duration</th>
-                    <th style={{ padding: '12px 14px' }}>Final Status</th>
-                    <th style={{ padding: '12px 14px', textAlign: 'center' }}>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedPrepHistory.length === 0 ? (
-                    <tr>
-                      <td colSpan={9} style={{ padding: '40px 16px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                        No preparation history records found matching criteria.
-                      </td>
-                    </tr>
-                  ) : (
-                    paginatedPrepHistory.map((rec, index) => {
-                      const serialNumber = (historyPage - 1) * historyPageSize + index + 1;
-                      const startTime = rec.prepStartedAt
-                        ? new Date(rec.prepStartedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                        : '—';
-                      const endTime = rec.prepCompletedAt
-                        ? new Date(rec.prepCompletedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                        : '—';
-
-                      return (
-                        <tr
-                          key={rec.orderId || index}
-                          style={{
-                            borderBottom: '1px solid var(--border-color)',
-                            transition: 'background-color 0.15s ease'
-                          }}
-                        >
-                          <td style={{ padding: '12px 14px', color: 'var(--text-muted)', fontWeight: 600 }}>
-                            {serialNumber}
-                          </td>
-                          <td style={{ padding: '12px 14px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <span style={{ fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'monospace', fontSize: '13px' }}>
-                                {rec.token || 'T-ORD'}
-                              </span>
-                              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                                #{String(rec.orderId).slice(-6)}
-                              </span>
-                            </div>
-                          </td>
-                          <td style={{ padding: '12px 14px' }}>
-                            <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                              {rec.customerName || 'Customer'}
-                            </div>
-                            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                              {rec.customerRole || 'Student'}
-                            </div>
-                          </td>
-                          <td style={{ padding: '12px 14px' }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                              {Array.isArray(rec.items) && rec.items.slice(0, 2).map((item, i) => (
-                                <span key={i} style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                                  {item.quantity}x {item.name}
-                                </span>
-                              ))}
-                              {Array.isArray(rec.items) && rec.items.length > 2 && (
-                                <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                                  +{rec.items.length - 2} more item(s)
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td style={{ padding: '12px 14px', color: 'var(--text-secondary)' }}>
-                            {startTime}
-                          </td>
-                          <td style={{ padding: '12px 14px', color: 'var(--text-secondary)' }}>
-                            {endTime}
-                          </td>
-                          <td style={{ padding: '12px 14px' }}>
-                            <span style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              padding: '2px 8px',
-                              borderRadius: '4px',
-                              backgroundColor: '#ecfdf5',
-                              color: '#059669',
-                              fontWeight: 700,
-                              fontSize: '11.5px',
-                              border: '1px solid #a7f3d0'
-                            }}>
-                              <Clock size={11} />
-                              {rec.durationFormatted || '—'}
-                            </span>
-                          </td>
-                          <td style={{ padding: '12px 14px' }}>
-                            <span style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              padding: '3px 8px',
-                              borderRadius: '9999px',
-                              backgroundColor: rec.status === 'Collected' ? '#ecfdf5' : '#eff6ff',
-                              color: rec.status === 'Collected' ? '#059669' : '#2563eb',
-                              fontWeight: 700,
-                              fontSize: '11px',
-                              border: `1px solid ${rec.status === 'Collected' ? '#a7f3d0' : '#bfdbfe'}`
-                            }}>
-                              <CheckCircle2 size={12} />
-                              {rec.status === 'Collected' ? 'Collected' : 'Ready for Pickup'}
-                            </span>
-                          </td>
-                          <td style={{ padding: '12px 14px', textAlign: 'center' }}>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const fullOrder = orders.find(o => String(o.id) === String(rec.orderId));
-                                setSelectedOrderForView(fullOrder || rec);
-                              }}
-                              style={{
-                                padding: '5px 10px',
-                                borderRadius: '6px',
-                                border: '1px solid var(--border-color)',
-                                backgroundColor: 'var(--bg-surface)',
-                                color: 'var(--text-secondary)',
-                                fontSize: '11.5px',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px'
-                              }}
-                            >
-                              <Eye size={12} />
-                              View
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {prepHistoryOrders.length > 0 && (
+          <DataTable
+            columns={historyColumns}
+            data={paginatedPrepHistory}
+            keyField="orderId"
+            loading={loading}
+            emptyState={
+              <EmptyState
+                icon={History}
+                title="No preparation history records found"
+                message="Completed and ready orders will appear here."
+              />
+            }
+            footer={
               <Pagination
                 currentPage={historyPage}
                 totalItems={prepHistoryOrders.length}
@@ -1296,10 +986,10 @@ export const KitchenDisplayPage = () => {
                   setHistoryPageSize(newSize);
                   setHistoryPage(1);
                 }}
-                pageSizeOptions={[5, 10, 20, 50]}
+                pageSizeOptions={[5, 10, 20]}
               />
-            )}
-          </div>
+            }
+          />
         </div>
       )}
 
@@ -1310,11 +1000,11 @@ export const KitchenDisplayPage = () => {
           onClose={() => setSelectedOrderForView(null)}
           order={selectedOrderForView}
           onStartCooking={(orderId) => {
-            const ord = orders.find(o => String(o.id) === String(orderId)) || selectedOrderForView;
+            const ord = orders.find((o) => String(o.id) === String(orderId)) || selectedOrderForView;
             handleStartPrepare(ord);
           }}
           onMarkReady={(orderId) => {
-            const ord = orders.find(o => String(o.id) === String(orderId)) || selectedOrderForView;
+            const ord = orders.find((o) => String(o.id) === String(orderId)) || selectedOrderForView;
             handleMarkReady(ord);
           }}
         />

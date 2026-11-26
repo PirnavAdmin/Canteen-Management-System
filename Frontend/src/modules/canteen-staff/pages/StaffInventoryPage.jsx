@@ -9,36 +9,31 @@ import {
   PlusCircle,
   AlertTriangle,
   CheckCircle2,
-  Clock,
-  ArrowDownRight,
-  ArrowDownUp,
-  Store,
-  ChefHat,
-  RefreshCw,
-  SlidersHorizontal,
   RotateCcw,
-  Boxes,
-  Check,
   XCircle,
-  Calendar,
   Utensils,
   History,
   Sparkles,
-  X
+  RefreshCw,
+  AlertCircle
 } from 'lucide-react';
 import { useStaffInventory } from '../hooks/useStaffInventory';
 import { useStaffOutlet } from '../hooks/useStaffOutlet';
-import { STAFF_APP_CONFIG } from '../constants/staffNavigation';
+import { useToast } from '../../../app/providers/ToastProvider';
 import { PageHeader } from '../../../components/common/PageHeader';
 import { Button } from '../../../components/common/Button';
 import { StatCard } from '../../../components/common/StatCard';
 import { StatusBadge } from '../../../components/common/StatusBadge';
+import { DataTable } from '../../../components/tables/DataTable';
 import { Pagination } from '../../../components/common/Pagination';
 import { EmptyState } from '../../../components/common/EmptyState';
+import { Modal } from '../../../components/modals/Modal';
+import { ConfirmationModal } from '../../../components/common/ConfirmationModal';
 import { formatDate, formatNumber, isSameIstDate, isWithinDaysIST } from '../../../utils/formatters';
 import { ConfirmReceiptModal } from '../components/ConfirmReceiptModal';
 import { LogKitchenUsageModal } from '../components/LogKitchenUsageModal';
 import { SearchableIngredientSelect } from '../components/SearchableIngredientSelect';
+import styles from '../styles/staff.module.css';
 
 const INGREDIENT_CATEGORIES = [
   'Vegetables',
@@ -55,25 +50,21 @@ const INGREDIENT_CATEGORIES = [
 ];
 
 export const StaffInventoryPage = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
+  const { success, error: toastError } = useToast();
 
-  // 1. Outlet Context & Management
   const {
-    outlets,
     selectedOutlet,
-    activeOutletName,
-    activeCampusName,
-    changeOutlet,
-    isStaffRestricted
+    activeOutletName
   } = useStaffOutlet();
 
-  // 2. Kitchen Inventory & Operations Hook
   const {
     kitchenStock,
     kitchenLedger,
     incomingTransfers,
     stockRequests,
     loading,
+    error,
     refreshInventory,
     createRequest,
     confirmReceipt,
@@ -81,7 +72,6 @@ export const StaffInventoryPage = () => {
     deleteRequest
   } = useStaffInventory(selectedOutlet);
 
-  // 3. Tab State: 'stock' | 'history' | 'incoming' | 'ledger'
   const [activeTab, setActiveTab] = useState(() => {
     const tabParam = searchParams.get('tab') || searchParams.get('view');
     if (tabParam === 'history' || tabParam === 'request') return 'history';
@@ -90,7 +80,6 @@ export const StaffInventoryPage = () => {
     return 'stock';
   });
 
-  // Keep search params in sync with tab switches
   useEffect(() => {
     const tabParam = searchParams.get('tab') || searchParams.get('view');
     if ((tabParam === 'history' || tabParam === 'request') && activeTab !== 'history') setActiveTab('history');
@@ -102,17 +91,10 @@ export const StaffInventoryPage = () => {
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [receiptModal, setReceiptModal] = useState({ isOpen: false, transfer: null });
   const [usageModal, setUsageModal] = useState({ isOpen: false, preselectedItem: null });
+  const [requestToDelete, setRequestToDelete] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
-  const [toastMessage, setToastMessage] = useState(null);
 
-  const showToast = (type, text) => {
-    setToastMessage({ type, text });
-    setTimeout(() => setToastMessage(null), 4000);
-  };
-
-  // -------------------------------------------------------------
-  // TAB 1: MY KITCHEN STOCK (FILTERS & PAGINATION)
-  // -------------------------------------------------------------
+  // TAB 1: MY KITCHEN STOCK
   const [stockSearch, setStockSearch] = useState('');
   const [stockCategoryFilter, setStockCategoryFilter] = useState('ALL');
   const [stockStatusFilter, setStockStatusFilter] = useState('ALL');
@@ -155,7 +137,6 @@ export const StaffInventoryPage = () => {
     return filteredStock.slice(start, start + stockPageSize);
   }, [filteredStock, stockPage, stockPageSize]);
 
-  // Summary Metrics for Kitchen Stock
   const stockMetrics = useMemo(() => {
     const total = kitchenStock.length;
     let inStock = 0;
@@ -164,7 +145,7 @@ export const StaffInventoryPage = () => {
 
     kitchenStock.forEach((item) => {
       const q = Number(item.availableQuantity) || 0;
-      const r = Number(item.reorderLevel) || 10;
+      const r = Number(item.reorderLevel) || 0;
       if (q <= 0 || item.status === 'Out of Stock') outOfStock++;
       else if (q <= r || item.status === 'Low Stock') lowStock++;
       else inStock++;
@@ -173,17 +154,12 @@ export const StaffInventoryPage = () => {
     return { total, inStock, lowStock, outOfStock };
   }, [kitchenStock]);
 
-  // -------------------------------------------------------------
-  // TAB 2: REQUEST STOCK (FORM & SUBMISSIONS TABLE)
-  // -------------------------------------------------------------
-  // TAB 2: REQUEST HISTORY (AUDIT LOG & STATUS TRACKING)
-  // -------------------------------------------------------------
+  // TAB 2: REQUEST HISTORY & REQUISITION MODAL
   const [requestSearch, setRequestSearch] = useState('');
   const [requestFilterStatus, setRequestFilterStatus] = useState('ALL');
   const [requestPage, setRequestPage] = useState(1);
   const [requestPageSize, setRequestPageSize] = useState(8);
 
-  // Requisition Form state (used by Request Stock Modal)
   const [requestItemName, setRequestItemName] = useState(() => searchParams.get('item') || '');
   const [requestCategory, setRequestCategory] = useState('General Kitchen Supplies');
   const [requestIsCustom, setRequestIsCustom] = useState(false);
@@ -198,7 +174,6 @@ export const StaffInventoryPage = () => {
   const [requestReason, setRequestReason] = useState('Kitchen stock is running low.');
   const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
 
-  // Pre-fill item if requested from query params or row click
   useEffect(() => {
     const queryItem = searchParams.get('item');
     const queryUnit = searchParams.get('unit');
@@ -232,14 +207,12 @@ export const StaffInventoryPage = () => {
     if (selection.isCustom) {
       setRequestPriority('Normal');
       setRequestReason('Required for kitchen operations.');
+    } else if (Number(selection.availableQuantity) <= Number(selection.reorderLevel)) {
+      setRequestPriority('Urgent');
+      setRequestReason(`Kitchen stock low (${selection.availableQuantity} ${selection.unit || 'kg'} remaining). Reorder required.`);
     } else {
-      if (Number(selection.availableQuantity) <= Number(selection.reorderLevel)) {
-        setRequestPriority('Urgent');
-        setRequestReason(`Kitchen stock low (${selection.availableQuantity} ${selection.unit || 'kg'} remaining). Reorder required.`);
-      } else {
-        setRequestPriority('Normal');
-        setRequestReason('Kitchen stock replenishment.');
-      }
+      setRequestPriority('Normal');
+      setRequestReason('Kitchen stock replenishment.');
     }
   };
 
@@ -257,12 +230,12 @@ export const StaffInventoryPage = () => {
   const handleSubmitStockRequest = async (e) => {
     e.preventDefault();
     if (!requestItemName.trim()) {
-      showToast('error', 'Please choose or enter an ingredient name.');
+      toastError('Validation Error', 'Please choose or enter an ingredient name.');
       return;
     }
     const q = Number(requestQuantity);
     if (!requestQuantity || q <= 0) {
-      showToast('error', 'Please enter a valid requested quantity greater than zero.');
+      toastError('Validation Error', 'Please enter a valid requested quantity greater than zero.');
       return;
     }
 
@@ -287,9 +260,9 @@ export const StaffInventoryPage = () => {
         outletName: activeOutletName
       });
 
-      showToast(
-        'success',
-        `Requisition #${created.id || 'REQ'} for "${requestItemName.trim()}" submitted to Central Warehouse! Status: PENDING.`
+      success(
+        'Requisition Submitted',
+        `REQ-${created.id} for "${requestItemName.trim()}" submitted to Central Warehouse.`
       );
       setIsRequestModalOpen(false);
       setRequestItemName('');
@@ -298,9 +271,23 @@ export const StaffInventoryPage = () => {
       setRequestQuantity('');
       setRequestReason('Kitchen stock replenishment.');
     } catch (err) {
-      showToast('error', err.message || 'Failed to submit stock requisition.');
+      toastError('Submission Failed', err.message || 'Failed to submit stock requisition.');
     } finally {
       setIsSubmittingRequest(false);
+    }
+  };
+
+  const handleConfirmDeleteRequest = async () => {
+    if (!requestToDelete) return;
+    try {
+      setActionLoading(true);
+      await deleteRequest(requestToDelete.id);
+      success('Requisition Cancelled', `Stock requisition REQ-${requestToDelete.id} removed.`);
+      setRequestToDelete(null);
+    } catch (err) {
+      toastError('Cancellation Failed', err.message || 'Failed to cancel stock requisition.');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -310,11 +297,9 @@ export const StaffInventoryPage = () => {
       const idStr = String(r.id || r.requestId || '').toLowerCase();
       const name = String(r.itemName || r.ingredientName || '').toLowerCase();
       const code = String(r.itemCode || '').toLowerCase();
-      const matchesSearch = !q || idStr.includes(q) || name.includes(q) || code.includes(q);
+      if (q && !idStr.includes(q) && !name.includes(q) && !code.includes(q)) return false;
 
-      if (!matchesSearch) return false;
       if (requestFilterStatus === 'ALL') return true;
-
       const s = String(r.status || 'Pending').toUpperCase();
       if (requestFilterStatus === 'PENDING') return s.includes('PENDING') || s.includes('REQUESTED');
       if (requestFilterStatus === 'APPROVED') return s === 'APPROVED';
@@ -331,9 +316,7 @@ export const StaffInventoryPage = () => {
     return filteredRequests.slice(start, start + requestPageSize);
   }, [filteredRequests, requestPage, requestPageSize]);
 
-  // -------------------------------------------------------------
-  // TAB 3: INCOMING STOCK (DISPATCHED FROM ADMIN WAREHOUSE)
-  // -------------------------------------------------------------
+  // TAB 3: INCOMING STOCK
   const [incomingSearch, setIncomingSearch] = useState('');
   const [incomingStatusFilter, setIncomingStatusFilter] = useState('ALL');
   const [incomingPage, setIncomingPage] = useState(1);
@@ -342,15 +325,16 @@ export const StaffInventoryPage = () => {
   const filteredIncoming = useMemo(() => {
     return incomingTransfers.filter((trf) => {
       const q = incomingSearch.trim().toLowerCase();
-      const name = String(trf.ingredientName || '').toLowerCase();
+      const name = String(trf.ingredientName || trf.itemName || '').toLowerCase();
       const code = String(trf.transferId || trf.id || '').toLowerCase();
       const matchesSearch = !q || name.includes(q) || code.includes(q);
 
+      const s = String(trf.status || '').toLowerCase();
       let matchesStatus = true;
       if (incomingStatusFilter === 'Pending') {
-        matchesStatus = trf.status === 'Dispatched' || trf.status === 'In Transit';
+        matchesStatus = s === 'dispatched' || s === 'in transit' || s === 'approved';
       } else if (incomingStatusFilter === 'Received') {
-        matchesStatus = trf.status === 'Received' || trf.status === 'Partially Received';
+        matchesStatus = s === 'received' || s === 'partially received' || s === 'fulfilled';
       }
 
       return matchesSearch && matchesStatus;
@@ -363,35 +347,32 @@ export const StaffInventoryPage = () => {
   }, [filteredIncoming, incomingPage, incomingPageSize]);
 
   const pendingIncomingCount = useMemo(() => {
-    return incomingTransfers.filter((t) => t.status === 'Dispatched' || t.status === 'In Transit').length;
+    return incomingTransfers.filter((t) => {
+      const s = String(t.status || '').toLowerCase();
+      return s === 'dispatched' || s === 'in transit' || s === 'approved';
+    }).length;
   }, [incomingTransfers]);
-
-  const handleOpenConfirmReceipt = (transfer) => {
-    setReceiptModal({ isOpen: true, transfer });
-  };
 
   const handleConfirmReceiptSubmit = async (payload) => {
     try {
       setActionLoading(true);
       await confirmReceipt(payload);
-      showToast(
-        'success',
-        `Confirmed! +${payload.receivedQuantity} ${payload.unit} ${payload.ingredientName} added to ${activeOutletName} kitchen stock.`
+      success(
+        'Stock Inwarded',
+        `+${payload.receivedQuantity} ${payload.unit} ${payload.ingredientName} added to ${activeOutletName || 'kitchen'} stock.`
       );
     } catch (err) {
-      showToast('error', err.message || 'Error confirming receipt');
+      toastError('Receipt Failed', err.message || 'Error confirming receipt.');
       throw err;
     } finally {
       setActionLoading(false);
     }
   };
 
-  // -------------------------------------------------------------
-  // TAB 4: STOCK LEDGER (AUDIT TRAIL)
-  // -------------------------------------------------------------
+  // TAB 4: STOCK LEDGER
   const [ledgerSearch, setLedgerSearch] = useState('');
   const [ledgerTypeFilter, setLedgerTypeFilter] = useState('ALL');
-  const [ledgerDateFilter, setLedgerDateFilter] = useState('ALL'); // 'ALL' | 'TODAY' | 'WEEK' | 'MONTH'
+  const [ledgerDateFilter, setLedgerDateFilter] = useState('ALL');
   const [ledgerPage, setLedgerPage] = useState(1);
   const [ledgerPageSize, setLedgerPageSize] = useState(8);
 
@@ -403,15 +384,15 @@ export const StaffInventoryPage = () => {
       const desc = String(entry.description || '').toLowerCase();
 
       const matchesSearch = !q || name.includes(q) || ref.includes(q) || desc.includes(q);
-      const matchesType = ledgerTypeFilter === 'ALL' || entry.transactionType === ledgerTypeFilter;
+      const matchesType = ledgerTypeFilter === 'ALL' || String(entry.transactionType || '').toUpperCase() === ledgerTypeFilter;
 
       let matchesDate = true;
       if (ledgerDateFilter === 'TODAY') {
-        matchesDate = isSameIstDate(entry.dateTime);
+        matchesDate = Boolean(entry.dateTime) && isSameIstDate(entry.dateTime);
       } else if (ledgerDateFilter === 'WEEK') {
-        matchesDate = isWithinDaysIST(entry.dateTime, 7) || isSameIstDate(entry.dateTime);
+        matchesDate = Boolean(entry.dateTime) && (isWithinDaysIST(entry.dateTime, 7) || isSameIstDate(entry.dateTime));
       } else if (ledgerDateFilter === 'MONTH') {
-        matchesDate = isWithinDaysIST(entry.dateTime, 30) || isSameIstDate(entry.dateTime);
+        matchesDate = Boolean(entry.dateTime) && (isWithinDaysIST(entry.dateTime, 30) || isSameIstDate(entry.dateTime));
       }
 
       return matchesSearch && matchesType && matchesDate;
@@ -423,55 +404,459 @@ export const StaffInventoryPage = () => {
     return filteredLedger.slice(start, start + ledgerPageSize);
   }, [filteredLedger, ledgerPage, ledgerPageSize]);
 
-  // Log usage submission
   const handleLogUsageSubmit = async (payload) => {
     try {
       setActionLoading(true);
       await recordUsage(payload);
-      showToast(
-        'success',
-        `Recorded! -${payload.quantity} ${payload.ingredientName} deducted from ${activeOutletName} stock.`
+      success(
+        'Kitchen Usage Recorded',
+        `-${payload.quantity} ${payload.ingredientName} deducted from ${activeOutletName || 'kitchen'} stock.`
       );
     } catch (err) {
-      showToast('error', err.message || 'Error recording usage');
+      toastError('Usage Error', err.message || 'Error recording usage.');
       throw err;
     } finally {
       setActionLoading(false);
     }
   };
 
+  // DataTable Columns
+  const stockColumns = [
+    {
+      key: 'ingredientName',
+      header: 'Ingredient / Material',
+      render: (val, item) => (
+        <div>
+          <strong style={{ fontSize: '13px', color: 'var(--text-primary)', display: 'block' }}>
+            {val}
+          </strong>
+          <code style={{
+            fontSize: '10.5px',
+            color: 'var(--color-primary)',
+            backgroundColor: 'var(--bg-muted)',
+            padding: '1px 5px',
+            borderRadius: '3px',
+            fontWeight: 600
+          }}>
+            {item.itemCode}
+          </code>
+        </div>
+      )
+    },
+    {
+      key: 'category',
+      header: 'Category',
+      render: (val) => (
+        <span style={{ color: 'var(--text-secondary)' }}>{val || 'General Supplies'}</span>
+      )
+    },
+    {
+      key: 'availableQuantity',
+      header: 'Available Stock',
+      align: 'right',
+      render: (val, item) => {
+        const qty = Number(val) || 0;
+        const reorder = Number(item.reorderLevel) || 0;
+        const isOut = qty <= 0;
+        const isLow = qty <= reorder && qty > 0;
+        return (
+          <strong style={{ color: isOut ? 'var(--color-danger)' : isLow ? 'var(--color-warning)' : 'var(--text-primary)' }}>
+            {formatNumber(qty)} {item.unit}
+          </strong>
+        );
+      }
+    },
+    {
+      key: 'reorderLevel',
+      header: 'Min Stock Level',
+      align: 'right',
+      render: (val, item) => (
+        <span style={{ color: 'var(--text-muted)' }}>{formatNumber(Number(val) || 0)} {item.unit}</span>
+      )
+    },
+    {
+      key: 'status',
+      header: 'Stock Status',
+      align: 'center',
+      render: (_, item) => {
+        const qty = Number(item.availableQuantity) || 0;
+        const reorder = Number(item.reorderLevel) || 0;
+        const label = qty <= 0 ? 'Out of Stock' : qty <= reorder ? 'Low Stock' : 'In Stock';
+        return <StatusBadge status={label} size="sm" />;
+      }
+    },
+    {
+      key: 'lastUpdated',
+      header: 'Last Movement',
+      render: (val, item) => (
+        <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+          {(val || item.updatedAt) ? formatDate(val || item.updatedAt) : '—'}
+        </span>
+      )
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      align: 'center',
+      render: (_, item) => {
+        const qty = Number(item.availableQuantity) || 0;
+        const reorder = Number(item.reorderLevel) || 0;
+        const needsReorder = qty <= reorder;
+        return (
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <Button
+              variant={needsReorder ? 'primary' : 'secondary'}
+              size="sm"
+              icon={Send}
+              onClick={() => handleQuickRequestFromStock(item)}
+              style={{ padding: '4px 10px', fontSize: '11.5px' }}
+            >
+              Request
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={Utensils}
+              onClick={() => setUsageModal({ isOpen: true, preselectedItem: item })}
+              style={{ padding: '4px 9px', fontSize: '11.5px' }}
+            >
+              Use
+            </Button>
+          </div>
+        );
+      }
+    }
+  ];
+
+  const requestColumns = [
+    {
+      key: 'serial',
+      header: '#',
+      width: '45px',
+      align: 'center',
+      render: (_, __, idx) => (requestPage - 1) * requestPageSize + idx + 1
+    },
+    {
+      key: 'id',
+      header: 'Request ID',
+      render: (val, req) => (
+        <code style={{
+          backgroundColor: 'var(--bg-muted)',
+          padding: '2px 6px',
+          borderRadius: '4px',
+          fontSize: '11.5px',
+          fontWeight: 700,
+          color: 'var(--color-primary)'
+        }}>
+          REQ-{val || req.requestId}
+        </code>
+      )
+    },
+    {
+      key: 'itemName',
+      header: 'Ingredient Name',
+      render: (val, req) => (
+        <div>
+          <strong style={{ display: 'block', color: 'var(--text-primary)' }}>{val || req.ingredientName}</strong>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+            {req.category || 'Kitchen Supplies'}{req.notes ? ` • Note: ${req.notes}` : ''}
+          </span>
+        </div>
+      )
+    },
+    {
+      key: 'requestedQuantity',
+      header: 'Requested Qty',
+      align: 'right',
+      render: (val, req) => (
+        <div>
+          <strong style={{ color: 'var(--color-primary)' }}>{val} {req.unit || 'kg'}</strong>
+          {req.issuedQuantity && req.issuedQuantity !== val && (
+            <div style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>
+              Approved: {req.issuedQuantity} {req.unit || 'kg'}
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
+      key: 'createdAt',
+      header: 'Request Date',
+      render: (val, req) => (
+        <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>
+          <div>Sent: {val ? formatDate(val) : '—'}</div>
+          {req.requiredByDate && (
+            <div style={{ color: 'var(--text-muted)', fontSize: '10.5px', marginTop: '2px' }}>
+              Needed: {formatDate(req.requiredByDate)}
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
+      key: 'urgency',
+      header: 'Priority',
+      align: 'center',
+      render: (val) => {
+        const isUrgent = String(val).toLowerCase() === 'urgent' || String(val).toLowerCase() === 'emergency';
+        return (
+          <span style={{
+            fontSize: '11px',
+            fontWeight: 600,
+            padding: '2px 7px',
+            borderRadius: '4px',
+            backgroundColor: isUrgent ? 'var(--color-danger-bg)' : 'var(--bg-muted)',
+            color: isUrgent ? 'var(--color-danger-text)' : 'var(--text-secondary)',
+            border: `1px solid ${isUrgent ? 'var(--color-danger-border)' : 'var(--border-color)'}`
+          }}>
+            {val || 'Normal'}
+          </span>
+        );
+      }
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      align: 'center',
+      render: (val) => <StatusBadge status={val || 'Pending'} size="sm" />
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      align: 'center',
+      render: (_, req) => {
+        const s = String(req.status || 'Pending').toUpperCase();
+        const isPending = s.includes('PENDING') || s === 'REQUESTED';
+        const isDispatched = s.includes('TRANSIT') || s.includes('DISPATCH') || s.includes('ISSUED');
+        const isReceived = s.includes('RECEIVED') || s.includes('COMPLETED') || s.includes('FULFILLED');
+
+        if (isDispatched && !isReceived) {
+          return (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setActiveTab('incoming')}
+              style={{ padding: '4px 10px', fontSize: '11.5px' }}
+            >
+              Inward Stock →
+            </Button>
+          );
+        }
+        if (isPending) {
+          return (
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={() => setRequestToDelete(req)}
+              style={{ padding: '4px 10px', fontSize: '11.5px' }}
+            >
+              Cancel
+            </Button>
+          );
+        }
+        if (isReceived) {
+          return (
+            <span style={{ fontSize: '11.5px', color: 'var(--color-success-text)', fontWeight: 600 }}>
+              Completed ✓
+            </span>
+          );
+        }
+        return <span style={{ color: 'var(--text-muted)' }}>—</span>;
+      }
+    }
+  ];
+
+  const incomingColumns = [
+    {
+      key: 'id',
+      header: 'Transfer ID',
+      render: (val, trf) => (
+        <div>
+          <code style={{
+            backgroundColor: 'var(--bg-muted)',
+            padding: '2px 6px',
+            borderRadius: '4px',
+            fontSize: '11.5px',
+            fontWeight: 700,
+            color: 'var(--color-primary)'
+          }}>
+            {trf.transferId || `TRF-${val}`}
+          </code>
+          <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginTop: '2px' }}>
+            Ref: {trf.requestId || `REQ-${val}`}
+          </div>
+        </div>
+      )
+    },
+    {
+      key: 'ingredientName',
+      header: 'Ingredient Delivered',
+      render: (val, trf) => (
+        <div>
+          <strong style={{ color: 'var(--text-primary)', display: 'block' }}>{val || trf.itemName}</strong>
+          <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>{trf.category || 'General Ingredients'}</span>
+        </div>
+      )
+    },
+    {
+      key: 'dispatchedQuantity',
+      header: 'Dispatched Qty',
+      align: 'right',
+      render: (val, trf) => (
+        <div>
+          <strong style={{ color: 'var(--color-primary)' }}>
+            {val || trf.issuedQuantity || trf.approvedQuantity || trf.requestedQuantity} {trf.unit}
+          </strong>
+          {trf.receivedQuantity && (
+            <div style={{ fontSize: '11px', color: 'var(--color-success-text)', fontWeight: 600 }}>
+              Received: {trf.receivedQuantity} {trf.unit}
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
+      key: 'dispatchDate',
+      header: 'Dispatch Date & Source',
+      render: (val, trf) => (
+        <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>
+          <div>{(val || trf.createdAt) ? formatDate(val || trf.createdAt) : '—'}</div>
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+            {trf.dispatchedBy || 'Central Warehouse'}
+          </div>
+        </div>
+      )
+    },
+    {
+      key: 'status',
+      header: 'Delivery Status',
+      align: 'center',
+      render: (val) => <StatusBadge status={val || 'Dispatched'} size="sm" />
+    },
+    {
+      key: 'actions',
+      header: 'Action',
+      align: 'center',
+      render: (_, trf) => {
+        const s = String(trf.status || '').toLowerCase();
+        const isReceived = s === 'received' || s === 'partially received' || s === 'fulfilled';
+        if (!isReceived) {
+          return (
+            <Button
+              variant="primary"
+              size="sm"
+              icon={CheckCircle2}
+              onClick={() => setReceiptModal({ isOpen: true, transfer: trf })}
+            >
+              Confirm Received
+            </Button>
+          );
+        }
+        return (
+          <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 500 }}>
+            Inwarded to Kitchen
+          </span>
+        );
+      }
+    }
+  ];
+
+  const ledgerColumns = [
+    {
+      key: 'dateTime',
+      header: 'Date & Time',
+      render: (val) => (
+        <span style={{ fontSize: '12px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+          {val ? formatDate(val) : '—'}
+        </span>
+      )
+    },
+    {
+      key: 'reference',
+      header: 'Reference',
+      render: (val) => (
+        <code style={{
+          backgroundColor: 'var(--bg-muted)',
+          padding: '2px 6px',
+          borderRadius: '4px',
+          fontSize: '11px',
+          fontWeight: 700,
+          color: 'var(--color-primary)'
+        }}>
+          {val}
+        </code>
+      )
+    },
+    {
+      key: 'ingredientName',
+      header: 'Ingredient',
+      render: (val) => <strong style={{ color: 'var(--text-primary)' }}>{val}</strong>
+    },
+    {
+      key: 'transactionType',
+      header: 'Transaction Type',
+      align: 'center',
+      render: (val) => {
+        const upper = String(val || '').toUpperCase();
+        const isIn = upper.includes('RECEIVED') || upper.includes('STOCK IN') || upper.includes('OPENING');
+        const isWaste = upper.includes('WASTE') || upper.includes('WASTAGE');
+        return (
+          <span style={{
+            padding: '2px 8px',
+            borderRadius: '4px',
+            fontSize: '11px',
+            fontWeight: 600,
+            backgroundColor: isIn ? 'var(--color-success-bg)' : isWaste ? 'var(--color-danger-bg)' : 'var(--color-info-bg)',
+            color: isIn ? 'var(--color-success-text)' : isWaste ? 'var(--color-danger-text)' : 'var(--color-info-text)',
+            border: `1px solid ${isIn ? 'var(--color-success-border)' : isWaste ? 'var(--color-danger-border)' : 'var(--color-info-border)'}`
+          }}>
+            {val}
+          </span>
+        );
+      }
+    },
+    {
+      key: 'quantity',
+      header: 'Quantity',
+      align: 'right',
+      render: (val, entry) => {
+        const isPositive = Number(val) > 0;
+        return (
+          <strong style={{ color: isPositive ? 'var(--color-success)' : 'var(--color-danger)' }}>
+            {isPositive ? `+${val}` : val} {entry.unit}
+          </strong>
+        );
+      }
+    },
+    {
+      key: 'newStock',
+      header: 'Balance Change',
+      align: 'right',
+      render: (val, entry) => (
+        <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+          {entry.previousStock} → <strong style={{ color: 'var(--text-primary)' }}>{val} {entry.unit}</strong>
+        </span>
+      )
+    },
+    {
+      key: 'performedBy',
+      header: 'Operator & Notes',
+      render: (val, entry) => (
+        <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>
+          <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{val}</div>
+          <div style={{ color: 'var(--text-muted)', fontSize: '11px' }}>{entry.description}</div>
+        </div>
+      )
+    }
+  ];
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      {/* Toast Notification Banner */}
-      {toastMessage && (
-        <div style={{
-          position: 'fixed',
-          top: '20px',
-          right: '24px',
-          zIndex: 110,
-          padding: '12px 18px',
-          borderRadius: 'var(--border-radius-md)',
-          backgroundColor: toastMessage.type === 'error' ? '#ef4444' : '#059669',
-          color: '#ffffff',
-          boxShadow: 'var(--shadow-modal)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          fontSize: '13px',
-          fontWeight: 600,
-          animation: 'fadeIn 0.2s ease'
-        }}>
-          {toastMessage.type === 'error' ? <XCircle size={18} /> : <CheckCircle2 size={18} />}
-          <span>{toastMessage.text}</span>
-        </div>
-      )}
-
-      {/* 1. Page Header matching Admin Inventory UI Reference */}
       <PageHeader
         title="Kitchen Inventory & Stock Ledger"
         description="Trace raw ingredient stocks, requisitions to central warehouse, incoming stock transfers, and kitchen ledger movements."
         actions={
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             <Button
               variant="secondary"
               icon={Utensils}
@@ -498,32 +883,26 @@ export const StaffInventoryPage = () => {
         }
       />
 
-      {/* 2. Four Main Tabs Navigation (Exact Admin UI Tab Style) */}
-      <div style={{
-        display: 'flex',
-        borderBottom: '1px solid var(--border-color)',
-        gap: '4px',
-        overflowX: 'auto'
-      }}>
+      {error && (
+        <div className={styles.errorBanner} role="alert">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertCircle size={16} />
+            <span>{error}</span>
+          </div>
+          <Button variant="secondary" size="sm" icon={RefreshCw} onClick={refreshInventory}>
+            Retry
+          </Button>
+        </div>
+      )}
+
+      {/* Underline Tabs matching Admin InventoryPage */}
+      <div className={styles.tabList} role="tablist" aria-label="Inventory Sections">
         <button
           type="button"
+          role="tab"
+          aria-selected={activeTab === 'stock'}
           onClick={() => setActiveTab('stock')}
-          style={{
-            padding: '10px 16px',
-            fontSize: '13px',
-            fontWeight: activeTab === 'stock' ? 600 : 500,
-            color: activeTab === 'stock' ? 'var(--color-primary)' : 'var(--text-secondary)',
-            borderBottom: activeTab === 'stock' ? '2.5px solid var(--color-primary)' : '2.5px solid transparent',
-            background: 'none',
-            borderTop: 'none',
-            borderLeft: 'none',
-            borderRight: 'none',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            whiteSpace: 'nowrap'
-          }}
+          className={styles.tabButton}
         >
           <Package size={15} />
           <span>My Kitchen Stock</span>
@@ -531,30 +910,17 @@ export const StaffInventoryPage = () => {
 
         <button
           type="button"
+          role="tab"
+          aria-selected={activeTab === 'history'}
           onClick={() => setActiveTab('history')}
-          style={{
-            padding: '10px 16px',
-            fontSize: '13px',
-            fontWeight: activeTab === 'history' ? 600 : 500,
-            color: activeTab === 'history' ? 'var(--color-primary)' : 'var(--text-secondary)',
-            borderBottom: activeTab === 'history' ? '2.5px solid var(--color-primary)' : '2.5px solid transparent',
-            background: 'none',
-            borderTop: 'none',
-            borderLeft: 'none',
-            borderRight: 'none',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            whiteSpace: 'nowrap'
-          }}
+          className={styles.tabButton}
         >
           <History size={15} />
           <span>Request History</span>
           {stockRequests.length > 0 && (
             <span style={{
               padding: '1px 7px',
-              borderRadius: '9999px',
+              borderRadius: 'var(--border-radius-full)',
               fontSize: '11px',
               fontWeight: 700,
               backgroundColor: activeTab === 'history' ? 'var(--color-primary)' : 'var(--bg-muted)',
@@ -567,33 +933,20 @@ export const StaffInventoryPage = () => {
 
         <button
           type="button"
+          role="tab"
+          aria-selected={activeTab === 'incoming'}
           onClick={() => setActiveTab('incoming')}
-          style={{
-            padding: '10px 16px',
-            fontSize: '13px',
-            fontWeight: activeTab === 'incoming' ? 600 : 500,
-            color: activeTab === 'incoming' ? 'var(--color-primary)' : 'var(--text-secondary)',
-            borderBottom: activeTab === 'incoming' ? '2.5px solid var(--color-primary)' : '2.5px solid transparent',
-            background: 'none',
-            borderTop: 'none',
-            borderLeft: 'none',
-            borderRight: 'none',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            whiteSpace: 'nowrap'
-          }}
+          className={styles.tabButton}
         >
           <Truck size={15} />
           <span>Incoming Stock</span>
           {pendingIncomingCount > 0 && (
             <span style={{
               padding: '1px 7px',
-              borderRadius: '9999px',
+              borderRadius: 'var(--border-radius-full)',
               fontSize: '11px',
               fontWeight: 700,
-              backgroundColor: activeTab === 'incoming' ? 'var(--color-primary)' : '#d97706',
+              backgroundColor: activeTab === 'incoming' ? 'var(--color-primary)' : 'var(--color-warning)',
               color: '#ffffff'
             }}>
               {pendingIncomingCount}
@@ -603,35 +956,19 @@ export const StaffInventoryPage = () => {
 
         <button
           type="button"
+          role="tab"
+          aria-selected={activeTab === 'ledger'}
           onClick={() => setActiveTab('ledger')}
-          style={{
-            padding: '10px 16px',
-            fontSize: '13px',
-            fontWeight: activeTab === 'ledger' ? 600 : 500,
-            color: activeTab === 'ledger' ? 'var(--color-primary)' : 'var(--text-secondary)',
-            borderBottom: activeTab === 'ledger' ? '2.5px solid var(--color-primary)' : '2.5px solid transparent',
-            background: 'none',
-            borderTop: 'none',
-            borderLeft: 'none',
-            borderRight: 'none',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            whiteSpace: 'nowrap'
-          }}
+          className={styles.tabButton}
         >
           <BookOpen size={15} />
           <span>Stock Ledger</span>
         </button>
       </div>
 
-      {/* ============================================================= */}
-      {/* TAB 1: MY KITCHEN STOCK                                       */}
-      {/* ============================================================= */}
+      {/* TAB 1: MY KITCHEN STOCK */}
       {activeTab === 'stock' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {/* Summary Metric Cards */}
+        <div role="tabpanel" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
@@ -641,872 +978,239 @@ export const StaffInventoryPage = () => {
               title="Total Ingredients"
               value={formatNumber(stockMetrics.total)}
               icon={Package}
-              subtitle={`Active in ${activeOutletName}`}
-              variant="default"
+              description={activeOutletName ? `Active in ${activeOutletName}` : 'Kitchen inventory'}
+              color="var(--color-accent)"
+              bgColor="var(--color-primary-light)"
+              compact
             />
             <StatCard
               title="Healthy Stock"
               value={formatNumber(stockMetrics.inStock)}
               icon={CheckCircle2}
-              subtitle="Above reorder threshold"
-              variant="success"
+              description="Above reorder threshold"
+              color="var(--color-success)"
+              bgColor="var(--color-success-bg)"
+              compact
             />
             <StatCard
               title="Low Stock Warning"
               value={formatNumber(stockMetrics.lowStock)}
               icon={AlertTriangle}
-              subtitle="Requisition recommended"
-              variant="warning"
+              description="Requisition recommended"
+              color="var(--color-warning)"
+              bgColor="var(--color-warning-bg)"
+              compact
             />
             <StatCard
               title="Out of Stock"
               value={formatNumber(stockMetrics.outOfStock)}
               icon={XCircle}
-              subtitle="Needs immediate replenishment"
-              variant="danger"
+              description="Needs immediate replenishment"
+              color="var(--color-danger)"
+              bgColor="var(--color-danger-bg)"
+              compact
             />
           </div>
 
-          {/* Search & Filter Toolbar */}
-          <div style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: 'var(--border-radius-lg)',
-            border: '1px solid var(--border-color)',
-            padding: '12px 16px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '12px'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: '260px' }}>
-              <div style={{ position: 'relative', flex: 1 }}>
-                <Search size={14} style={{
-                  position: 'absolute',
-                  left: '12px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: 'var(--text-muted)'
-                }} />
-                <input
-                  type="text"
-                  value={stockSearch}
-                  onChange={(e) => {
-                    setStockSearch(e.target.value);
-                    setStockPage(1);
-                  }}
-                  placeholder="Search ingredient by name or code..."
-                  style={{
-                    width: '100%',
-                    height: '36px',
-                    padding: '0 12px 0 34px',
-                    fontSize: '13px',
-                    borderRadius: 'var(--border-radius-md)',
-                    border: '1px solid var(--border-color)',
-                    backgroundColor: 'var(--bg-app)',
-                    color: 'var(--text-primary)',
-                    boxSizing: 'border-box'
-                  }}
-                />
-              </div>
-
-              {/* Category Filter */}
-              <select
-                value={stockCategoryFilter}
+          <div className={styles.filterToolbar}>
+            <div style={{ position: 'relative', flex: '1 1 240px' }}>
+              <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+              <input
+                type="text"
+                value={stockSearch}
                 onChange={(e) => {
-                  setStockCategoryFilter(e.target.value);
+                  setStockSearch(e.target.value);
                   setStockPage(1);
                 }}
+                placeholder="Search ingredient by name or code..."
                 style={{
-                  height: '36px',
-                  padding: '0 10px',
+                  width: '100%',
+                  height: '34px',
+                  padding: '0 12px 0 30px',
                   fontSize: '12.5px',
                   borderRadius: 'var(--border-radius-md)',
                   border: '1px solid var(--border-color)',
                   backgroundColor: 'var(--bg-app)',
-                  color: 'var(--text-primary)'
+                  color: 'var(--text-primary)',
+                  outline: 'none'
                 }}
-              >
-                <option value="ALL">All Categories</option>
-                {stockCategories.map((cat) => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
+              />
+            </div>
 
-              {/* Status Filter */}
-              <select
-                value={stockStatusFilter}
-                onChange={(e) => {
-                  setStockStatusFilter(e.target.value);
+            <select
+              value={stockCategoryFilter}
+              onChange={(e) => {
+                setStockCategoryFilter(e.target.value);
+                setStockPage(1);
+              }}
+              className={styles.filterSelect}
+            >
+              <option value="ALL">All Categories</option>
+              {stockCategories.map((cat) => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+
+            <select
+              value={stockStatusFilter}
+              onChange={(e) => {
+                setStockStatusFilter(e.target.value);
+                setStockPage(1);
+              }}
+              className={styles.filterSelect}
+            >
+              <option value="ALL">All Stock Statuses</option>
+              <option value="In Stock">In Stock</option>
+              <option value="Low Stock">Low Stock</option>
+              <option value="Out of Stock">Out of Stock</option>
+            </select>
+
+            {(stockSearch || stockCategoryFilter !== 'ALL' || stockStatusFilter !== 'ALL') && (
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={RotateCcw}
+                onClick={() => {
+                  setStockSearch('');
+                  setStockCategoryFilter('ALL');
+                  setStockStatusFilter('ALL');
                   setStockPage(1);
                 }}
-                style={{
-                  height: '36px',
-                  padding: '0 10px',
-                  fontSize: '12.5px',
-                  borderRadius: 'var(--border-radius-md)',
-                  border: '1px solid var(--border-color)',
-                  backgroundColor: 'var(--bg-app)',
-                  color: 'var(--text-primary)'
-                }}
               >
-                <option value="ALL">All Stock Statuses</option>
-                <option value="In Stock">In Stock</option>
-                <option value="Low Stock">Low Stock</option>
-                <option value="Out of Stock">Out of Stock</option>
-              </select>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {(stockSearch || stockCategoryFilter !== 'ALL' || stockStatusFilter !== 'ALL') && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStockSearch('');
-                    setStockCategoryFilter('ALL');
-                    setStockStatusFilter('ALL');
-                    setStockPage(1);
-                  }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    padding: '6px 10px',
-                    fontSize: '12px',
-                    color: 'var(--text-muted)',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <RotateCcw size={13} />
-                  <span>Reset Filters</span>
-                </button>
-              )}
-              <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                Showing <strong>{filteredStock.length}</strong> ingredients
-              </span>
-            </div>
-          </div>
-
-          {/* Kitchen Stock Table */}
-          <div style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: 'var(--border-radius-lg)',
-            border: '1px solid var(--border-color)',
-            overflow: 'hidden',
-            boxShadow: 'var(--shadow-xs)'
-          }}>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                <thead>
-                  <tr style={{
-                    backgroundColor: 'var(--bg-muted)',
-                    borderBottom: '1px solid var(--border-color)',
-                    color: 'var(--text-muted)',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.04em'
-                  }}>
-                    <th style={{ padding: '12px 16px' }}>Ingredient / Material</th>
-                    <th style={{ padding: '12px 14px' }}>Category</th>
-                    <th style={{ padding: '12px 14px', textAlign: 'right' }}>Available Stock</th>
-                    <th style={{ padding: '12px 14px', textAlign: 'right' }}>Min Stock Level</th>
-                    <th style={{ padding: '12px 14px', textAlign: 'center' }}>Stock Status</th>
-                    <th style={{ padding: '12px 14px' }}>Last Movement</th>
-                    <th style={{ padding: '12px 16px', textAlign: 'center' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedStock.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} style={{ padding: '40px', textAlign: 'center' }}>
-                        <EmptyState
-                          icon={Package}
-                          title="No kitchen stock items match your search"
-                          description="Adjust your search terms or filter options to locate ingredients."
-                        />
-                      </td>
-                    </tr>
-                  ) : (
-                    paginatedStock.map((item) => {
-                      const qty = Number(item.availableQuantity) || 0;
-                      const reorder = Number(item.reorderLevel) || 10;
-                      const isLow = qty <= reorder && qty > 0;
-                      const isOut = qty <= 0;
-
-                      return (
-                        <tr
-                          key={item.id}
-                          style={{
-                            borderBottom: '1px solid var(--border-color)',
-                            backgroundColor: isOut
-                              ? 'rgba(239, 68, 68, 0.03)'
-                              : isLow
-                                ? 'rgba(245, 158, 11, 0.03)'
-                                : 'transparent'
-                          }}
-                        >
-                          <td style={{ padding: '12px 16px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <div>
-                                <strong style={{ fontSize: '13px', color: 'var(--text-primary)', display: 'block' }}>
-                                  {item.ingredientName}
-                                </strong>
-                                <span style={{
-                                  fontSize: '10.5px',
-                                  color: 'var(--color-primary)',
-                                  backgroundColor: 'var(--bg-muted)',
-                                  padding: '1px 5px',
-                                  borderRadius: '3px',
-                                  fontWeight: 600
-                                }}>
-                                  {item.itemCode || `ING-${item.id}`}
-                                </span>
-                              </div>
-                            </div>
-                          </td>
-
-                          <td style={{ padding: '12px 14px', fontSize: '12.5px', color: 'var(--text-secondary)' }}>
-                            {item.category || 'General Supplies'}
-                          </td>
-
-                          <td style={{ padding: '12px 14px', textAlign: 'right' }}>
-                            <strong style={{
-                              fontSize: '13.5px',
-                              color: isOut ? '#dc2626' : isLow ? '#d97706' : 'var(--text-primary)'
-                            }}>
-                              {formatNumber(qty)} {item.unit}
-                            </strong>
-                          </td>
-
-                          <td style={{ padding: '12px 14px', textAlign: 'right', fontSize: '12px', color: 'var(--text-muted)' }}>
-                            {formatNumber(reorder)} {item.unit}
-                          </td>
-
-                          <td style={{ padding: '12px 14px', textAlign: 'center' }}>
-                            {isOut ? (
-                              <span style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                padding: '3px 8px',
-                                borderRadius: '4px',
-                                fontSize: '11px',
-                                fontWeight: 700,
-                                backgroundColor: '#fef2f2',
-                                color: '#dc2626',
-                                border: '1px solid #fecaca'
-                              }}>
-                                <XCircle size={12} />
-                                Out of Stock
-                              </span>
-                            ) : isLow ? (
-                              <span style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                padding: '3px 8px',
-                                borderRadius: '4px',
-                                fontSize: '11px',
-                                fontWeight: 700,
-                                backgroundColor: '#fffbeb',
-                                color: '#d97706',
-                                border: '1px solid #fde68a'
-                              }}>
-                                <AlertTriangle size={12} />
-                                Low Stock
-                              </span>
-                            ) : (
-                              <span style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                padding: '3px 8px',
-                                borderRadius: '4px',
-                                fontSize: '11px',
-                                fontWeight: 700,
-                                backgroundColor: '#ecfdf5',
-                                color: '#059669',
-                                border: '1px solid #a7f3d0'
-                              }}>
-                                <CheckCircle2 size={12} />
-                                In Stock
-                              </span>
-                            )}
-                          </td>
-
-                          <td style={{ padding: '12px 14px', fontSize: '11.5px', color: 'var(--text-secondary)' }}>
-                            {formatDate(item.lastUpdated || new Date())}
-                          </td>
-
-                          <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                              <button
-                                type="button"
-                                onClick={() => handleQuickRequestFromStock(item)}
-                                title="Request restock from Central Warehouse"
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '4px',
-                                  padding: '5px 10px',
-                                  borderRadius: 'var(--border-radius-sm)',
-                                  backgroundColor: isLow || isOut ? 'var(--color-primary)' : 'var(--bg-app)',
-                                  color: isLow || isOut ? '#ffffff' : 'var(--text-primary)',
-                                  border: '1px solid var(--border-color)',
-                                  fontSize: '11.5px',
-                                  fontWeight: 600,
-                                  cursor: 'pointer'
-                                }}
-                              >
-                                <Send size={12} />
-                                <span>Request</span>
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => setUsageModal({ isOpen: true, preselectedItem: item })}
-                                title="Log kitchen usage or wastage deduction"
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '4px',
-                                  padding: '5px 8px',
-                                  borderRadius: 'var(--border-radius-sm)',
-                                  backgroundColor: 'var(--bg-app)',
-                                  color: 'var(--text-secondary)',
-                                  border: '1px solid var(--border-color)',
-                                  fontSize: '11.5px',
-                                  fontWeight: 500,
-                                  cursor: 'pointer'
-                                }}
-                              >
-                                <Utensils size={12} />
-                                <span>Use</span>
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination */}
-            {filteredStock.length > stockPageSize && (
-              <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border-color)' }}>
-                <Pagination
-                  currentPage={stockPage}
-                  totalPages={Math.ceil(filteredStock.length / stockPageSize)}
-                  onPageChange={setStockPage}
-                />
-              </div>
+                Reset
+              </Button>
             )}
+
+            <span style={{ fontSize: '12px', color: 'var(--text-secondary)', marginLeft: 'auto' }}>
+              Showing <strong>{filteredStock.length}</strong> ingredients
+            </span>
           </div>
+
+          <DataTable
+            columns={stockColumns}
+            data={paginatedStock}
+            loading={loading}
+            emptyState={
+              <EmptyState
+                icon={Package}
+                title="No kitchen stock items found"
+                message="Adjust your search terms or request stock from Central Warehouse."
+              />
+            }
+            footer={
+              <Pagination
+                currentPage={stockPage}
+                totalItems={filteredStock.length}
+                pageSize={stockPageSize}
+                onPageChange={setStockPage}
+                onPageSizeChange={(sz) => {
+                  setStockPageSize(sz);
+                  setStockPage(1);
+                }}
+                pageSizeOptions={[5, 8, 15, 20]}
+              />
+            }
+          />
         </div>
       )}
 
-      {/* ============================================================= */}
-      {/* TAB 2: REQUEST HISTORY                                        */}
-      {/* ============================================================= */}
+      {/* TAB 2: REQUEST HISTORY */}
       {activeTab === 'history' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {/* Header Card with Controls */}
-          <div style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: 'var(--border-radius-lg)',
-            border: '1px solid var(--border-color)',
-            overflow: 'hidden',
-            boxShadow: 'var(--shadow-xs)'
-          }}>
-            <div style={{
-              padding: '14px 18px',
-              borderBottom: '1px solid var(--border-color)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '12px',
-              backgroundColor: 'var(--bg-muted)'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <History size={18} style={{ color: 'var(--color-primary)' }} />
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '14.5px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                    Stock Requisitions & History Log
-                  </h3>
-                  <p style={{ margin: '2px 0 0 0', fontSize: '11.5px', color: 'var(--text-muted)' }}>
-                    Track all replenishment requests sent to Central Admin Warehouse ({filteredRequests.length} total)
-                  </p>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                {/* Search */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  backgroundColor: 'var(--bg-app)',
-                  padding: '6px 12px',
+        <div role="tabpanel" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className={styles.filterToolbar}>
+            <div style={{ position: 'relative', flex: '1 1 220px' }}>
+              <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+              <input
+                type="text"
+                placeholder="Search by Request ID or Item..."
+                value={requestSearch}
+                onChange={(e) => {
+                  setRequestSearch(e.target.value);
+                  setRequestPage(1);
+                }}
+                style={{
+                  width: '100%',
+                  height: '34px',
+                  padding: '0 12px 0 30px',
+                  fontSize: '12.5px',
                   borderRadius: 'var(--border-radius-md)',
                   border: '1px solid var(--border-color)',
-                  width: '210px'
-                }}>
-                  <Search size={14} style={{ color: 'var(--text-muted)' }} />
-                  <input
-                    type="text"
-                    placeholder="Search by ID or Item..."
-                    value={requestSearch}
-                    onChange={(e) => {
-                      setRequestSearch(e.target.value);
-                      setRequestPage(1);
-                    }}
-                    style={{
-                      border: 'none',
-                      background: 'transparent',
-                      color: 'var(--text-primary)',
-                      fontSize: '12px',
-                      outline: 'none',
-                      width: '100%'
-                    }}
-                  />
-                </div>
-
-                {/* Status Filter */}
-                <select
-                  value={requestFilterStatus}
-                  onChange={(e) => {
-                    setRequestFilterStatus(e.target.value);
-                    setRequestPage(1);
-                  }}
-                  style={{
-                    height: '34px',
-                    padding: '0 10px',
-                    fontSize: '12px',
-                    borderRadius: 'var(--border-radius-md)',
-                    border: '1px solid var(--border-color)',
-                    backgroundColor: 'var(--bg-app)',
-                    color: 'var(--text-primary)',
-                    outline: 'none',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <option value="ALL">All Statuses</option>
-                  <option value="PENDING">Pending Approval</option>
-                  <option value="APPROVED">Approved</option>
-                  <option value="IN TRANSIT">In Transit / Dispatched</option>
-                  <option value="RECEIVED">Received & Inwarded</option>
-                  <option value="COMPLETED">Completed</option>
-                  <option value="REJECTED">Rejected</option>
-                </select>
-
-                {/* Request Stock Action Button */}
-                <Button
-                  variant="primary"
-                  icon={PlusCircle}
-                  onClick={() => setIsRequestModalOpen(true)}
-                  style={{ padding: '6px 12px', fontSize: '12px' }}
-                >
-                  New Request
-                </Button>
-              </div>
+                  backgroundColor: 'var(--bg-app)',
+                  color: 'var(--text-primary)',
+                  outline: 'none'
+                }}
+              />
             </div>
 
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '920px' }}>
-                <thead>
-                  <tr style={{
-                    backgroundColor: 'var(--bg-muted)',
-                    borderBottom: '1px solid var(--border-color)',
-                    color: 'var(--text-muted)',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.04em'
-                  }}>
-                    <th style={{ padding: '10px 14px', width: '45px', textAlign: 'center' }}>#</th>
-                    <th style={{ padding: '10px 14px', width: '130px' }}>Request ID</th>
-                    <th style={{ padding: '10px 14px' }}>Ingredient Name</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'right', width: '120px' }}>Requested Qty</th>
-                    <th style={{ padding: '10px 14px', width: '150px' }}>Request Date</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'center', width: '90px' }}>Priority</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'center', width: '130px' }}>Admin Approval</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'center', width: '130px' }}>Dispatch Status</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'center', width: '140px' }}>Receipt Status</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'center', width: '90px' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedRequests.length === 0 ? (
-                    <tr>
-                      <td colSpan={10} style={{ padding: '40px 16px', textAlign: 'center' }}>
-                        <EmptyState
-                          icon={History}
-                          title="No stock requisitions found"
-                          description="Click 'New Request' or the top 'Request Stock' button to submit an ingredient request to Central Warehouse."
-                        />
-                      </td>
-                    </tr>
-                  ) : (
-                    paginatedRequests.map((req, idx) => {
-                      const serial = (requestPage - 1) * requestPageSize + idx + 1;
-                      const s = String(req.status || 'Pending').toUpperCase();
+            <select
+              value={requestFilterStatus}
+              onChange={(e) => {
+                setRequestFilterStatus(e.target.value);
+                setRequestPage(1);
+              }}
+              className={styles.filterSelect}
+            >
+              <option value="ALL">All Statuses</option>
+              <option value="PENDING">Pending Approval</option>
+              <option value="APPROVED">Approved</option>
+              <option value="IN TRANSIT">In Transit / Dispatched</option>
+              <option value="RECEIVED">Received &amp; Inwarded</option>
+              <option value="COMPLETED">Completed</option>
+              <option value="REJECTED">Rejected</option>
+            </select>
 
-                      const isRejected = s.includes('REJECT') || s.includes('CANCEL');
-                      const isPending = s.includes('PENDING') || s === 'REQUESTED';
-                      const isApproved = s === 'APPROVED' || s.includes('TRANSIT') || s.includes('DISPATCH') || s.includes('ISSUED') || s.includes('RECEIVED') || s.includes('COMPLETED');
-                      const isDispatched = s.includes('TRANSIT') || s.includes('DISPATCH') || s.includes('ISSUED') || s.includes('RECEIVED') || s.includes('COMPLETED');
-                      const isReceived = s.includes('RECEIVED') || s.includes('COMPLETED');
+            <Button
+              variant="primary"
+              size="sm"
+              icon={PlusCircle}
+              onClick={() => setIsRequestModalOpen(true)}
+            >
+              New Request
+            </Button>
+          </div>
 
-                      return (
-                        <tr
-                          key={req.id || idx}
-                          style={{
-                            borderBottom: '1px solid var(--border-color)',
-                            transition: 'background-color 0.15s ease'
-                          }}
-                        >
-                          {/* 1. Index */}
-                          <td style={{ padding: '11px 14px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '11.5px', fontWeight: 600 }}>
-                            {serial}
-                          </td>
-
-                          {/* 2. Request ID */}
-                          <td style={{ padding: '11px 14px' }}>
-                            <code style={{
-                              backgroundColor: 'var(--bg-muted)',
-                              padding: '2px 6px',
-                              borderRadius: '4px',
-                              fontSize: '11.5px',
-                              fontWeight: 700,
-                              color: 'var(--color-primary)'
-                            }}>
-                              REQ-{req.id || req.requestId}
-                            </code>
-                          </td>
-
-                          {/* 3. Ingredient Name */}
-                          <td style={{ padding: '11px 14px' }}>
-                            <strong style={{ fontSize: '13px', color: 'var(--text-primary)', display: 'block' }}>
-                              {req.itemName || req.ingredientName}
-                            </strong>
-                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '1px' }}>
-                              {req.category || 'Kitchen Supplies'}
-                              {req.notes ? ` • Note: ${req.notes}` : ''}
-                            </div>
-                          </td>
-
-                          {/* 4. Requested Quantity */}
-                          <td style={{ padding: '11px 14px', textAlign: 'right' }}>
-                            <strong style={{ fontSize: '13px', color: 'var(--color-primary)' }}>
-                              {req.requestedQuantity} {req.unit || 'kg'}
-                            </strong>
-                            {req.issuedQuantity && req.issuedQuantity !== req.requestedQuantity && (
-                              <div style={{ fontSize: '10.5px', color: 'var(--text-secondary)' }}>
-                                Approved: {req.issuedQuantity} {req.unit || 'kg'}
-                              </div>
-                            )}
-                          </td>
-
-                          {/* 5. Request Date */}
-                          <td style={{ padding: '11px 14px', fontSize: '11.5px', color: 'var(--text-secondary)' }}>
-                            <div>Sent: {formatDate(req.createdAt || new Date())}</div>
-                            {req.requiredByDate && (
-                              <div style={{ color: 'var(--text-muted)', fontSize: '10.5px', marginTop: '2px' }}>
-                                Needed: {formatDate(req.requiredByDate)}
-                              </div>
-                            )}
-                          </td>
-
-                          {/* 6. Priority */}
-                          <td style={{ padding: '11px 14px', textAlign: 'center' }}>
-                            <span style={{
-                              fontSize: '10.5px',
-                              fontWeight: 700,
-                              padding: '2px 7px',
-                              borderRadius: '4px',
-                              backgroundColor: req.urgency === 'Urgent' ? '#fee2e2' : 'var(--bg-muted)',
-                              color: req.urgency === 'Urgent' ? '#b91c1c' : 'var(--text-secondary)'
-                            }}>
-                              {req.urgency === 'Urgent' ? '🚨 Urgent' : (req.urgency || 'Normal')}
-                            </span>
-                          </td>
-
-                          {/* 7. Admin Approval Status */}
-                          <td style={{ padding: '11px 14px', textAlign: 'center' }}>
-                            {isRejected ? (
-                              <span style={{
-                                fontSize: '11px',
-                                fontWeight: 700,
-                                color: '#dc2626',
-                                backgroundColor: '#fef2f2',
-                                border: '1px solid #fecaca',
-                                padding: '2px 8px',
-                                borderRadius: '4px'
-                              }}>
-                                REJECTED
-                              </span>
-                            ) : isApproved ? (
-                              <span style={{
-                                fontSize: '11px',
-                                fontWeight: 700,
-                                color: '#059669',
-                                backgroundColor: '#ecfdf5',
-                                border: '1px solid #a7f3d0',
-                                padding: '2px 8px',
-                                borderRadius: '4px'
-                              }}>
-                                APPROVED
-                              </span>
-                            ) : (
-                              <span style={{
-                                fontSize: '11px',
-                                fontWeight: 700,
-                                color: '#b45309',
-                                backgroundColor: '#fef3c7',
-                                border: '1px solid #fde68a',
-                                padding: '2px 8px',
-                                borderRadius: '4px'
-                              }}>
-                                PENDING
-                              </span>
-                            )}
-                          </td>
-
-                          {/* 8. Dispatch Status */}
-                          <td style={{ padding: '11px 14px', textAlign: 'center' }}>
-                            {isReceived ? (
-                              <div>
-                                <span style={{
-                                  fontSize: '11px',
-                                  fontWeight: 700,
-                                  color: '#059669',
-                                  backgroundColor: '#ecfdf5',
-                                  border: '1px solid #a7f3d0',
-                                  padding: '2px 8px',
-                                  borderRadius: '4px'
-                                }}>
-                                  DISPATCHED
-                                </span>
-                                {req.transferId && (
-                                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                                    {req.transferId}
-                                  </div>
-                                )}
-                              </div>
-                            ) : isDispatched ? (
-                              <div>
-                                <span style={{
-                                  fontSize: '11px',
-                                  fontWeight: 700,
-                                  color: '#2563eb',
-                                  backgroundColor: '#eff6ff',
-                                  border: '1px solid #bfdbfe',
-                                  padding: '2px 8px',
-                                  borderRadius: '4px'
-                                }}>
-                                  IN TRANSIT
-                                </span>
-                                {req.transferId && (
-                                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                                    {req.transferId}
-                                  </div>
-                                )}
-                              </div>
-                            ) : isRejected ? (
-                              <span style={{ color: 'var(--text-muted)' }}>—</span>
-                            ) : (
-                              <span style={{
-                                fontSize: '11px',
-                                color: 'var(--text-muted)',
-                                backgroundColor: 'var(--bg-muted)',
-                                padding: '2px 8px',
-                                borderRadius: '4px'
-                              }}>
-                                NOT DISPATCHED
-                              </span>
-                            )}
-                          </td>
-
-                          {/* 9. Receipt Status */}
-                          <td style={{ padding: '11px 14px', textAlign: 'center' }}>
-                            {isReceived ? (
-                              <div>
-                                <span style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '3px',
-                                  fontSize: '11px',
-                                  fontWeight: 700,
-                                  color: '#059669',
-                                  backgroundColor: '#ecfdf5',
-                                  border: '1px solid #a7f3d0',
-                                  padding: '2px 8px',
-                                  borderRadius: '4px'
-                                }}>
-                                  <CheckCircle2 size={11} />
-                                  RECEIVED
-                                </span>
-                                {req.actualReceivedQuantity && (
-                                  <div style={{ fontSize: '10px', color: '#059669', fontWeight: 600, marginTop: '2px' }}>
-                                    +{req.actualReceivedQuantity} {req.unit || 'kg'}
-                                  </div>
-                                )}
-                              </div>
-                            ) : isDispatched ? (
-                              <button
-                                type="button"
-                                onClick={() => setActiveTab('incoming')}
-                                title="Click to view in Incoming Stock tab and confirm receipt"
-                                style={{
-                                  fontSize: '11px',
-                                  fontWeight: 600,
-                                  color: '#2563eb',
-                                  backgroundColor: '#eff6ff',
-                                  border: '1px solid #bfdbfe',
-                                  padding: '3px 8px',
-                                  borderRadius: '4px',
-                                  cursor: 'pointer',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '4px'
-                                }}
-                              >
-                                <Truck size={11} />
-                                <span>Awaiting Arrival</span>
-                              </button>
-                            ) : isRejected ? (
-                              <span style={{ color: 'var(--text-muted)' }}>—</span>
-                            ) : (
-                              <span style={{
-                                fontSize: '11px',
-                                color: 'var(--text-muted)',
-                                backgroundColor: 'var(--bg-muted)',
-                                padding: '2px 8px',
-                                borderRadius: '4px'
-                              }}>
-                                PENDING
-                              </span>
-                            )}
-                          </td>
-
-                          {/* 10. Actions */}
-                          <td style={{ padding: '11px 14px', textAlign: 'center' }}>
-                            {isDispatched && !isReceived && (
-                              <button
-                                type="button"
-                                onClick={() => setActiveTab('incoming')}
-                                style={{
-                                  padding: '4px 8px',
-                                  borderRadius: 'var(--border-radius-sm)',
-                                  backgroundColor: 'var(--color-primary-light)',
-                                  color: 'var(--color-primary)',
-                                  border: 'none',
-                                  fontSize: '11px',
-                                  fontWeight: 600,
-                                  cursor: 'pointer',
-                                  whiteSpace: 'nowrap'
-                                }}
-                              >
-                                Inward Stock →
-                              </button>
-                            )}
-                            {isPending && (
-                              <button
-                                type="button"
-                                onClick={() => deleteRequest(req.id)}
-                                style={{
-                                  padding: '4px 8px',
-                                  borderRadius: 'var(--border-radius-sm)',
-                                  backgroundColor: 'var(--bg-app)',
-                                  color: 'var(--text-muted)',
-                                  border: '1px solid var(--border-color)',
-                                  fontSize: '11px',
-                                  cursor: 'pointer'
-                                }}
-                              >
-                                Cancel
-                              </button>
-                            )}
-                            {isReceived && (
-                              <span style={{ fontSize: '11px', color: 'var(--color-success)', fontWeight: 600 }}>
-                                Completed ✓
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination for Request History */}
-            {filteredRequests.length > 0 && (
+          <DataTable
+            columns={requestColumns}
+            data={paginatedRequests}
+            loading={loading}
+            emptyState={
+              <EmptyState
+                icon={History}
+                title="No stock requisitions found"
+                message="Click 'New Request' or 'Request Stock' to submit an ingredient request to Central Warehouse."
+              />
+            }
+            footer={
               <Pagination
                 currentPage={requestPage}
                 totalItems={filteredRequests.length}
                 pageSize={requestPageSize}
                 onPageChange={setRequestPage}
-                onPageSizeChange={(newSize) => {
-                  setRequestPageSize(newSize);
+                onPageSizeChange={(sz) => {
+                  setRequestPageSize(sz);
                   setRequestPage(1);
                 }}
                 pageSizeOptions={[5, 8, 15, 20]}
               />
-            )}
-          </div>
+            }
+          />
         </div>
       )}
 
-      {/* ============================================================= */}
-      {/* TAB 3: INCOMING STOCK                                         */}
-      {/* ============================================================= */}
+      {/* TAB 3: INCOMING STOCK */}
       {activeTab === 'incoming' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {/* Informational Guidance Alert */}
-          <div style={{
-            padding: '12px 16px',
-            backgroundColor: 'var(--color-primary-light)',
-            borderRadius: 'var(--border-radius-md)',
-            border: '1px solid var(--border-color)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px'
-          }}>
+        <div role="tabpanel" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className={styles.infoBanner}>
             <Truck size={20} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />
-            <div style={{ fontSize: '12.5px', color: 'var(--text-primary)' }}>
+            <div>
               <strong>Central Warehouse Deliveries:</strong> When supplies arrive from Admin logistics, click{' '}
-              <strong>"Confirm Received"</strong> to verify actual quantities. Your local kitchen stock increases only upon receipt confirmation.
+              <strong>&ldquo;Confirm Received&rdquo;</strong> to verify actual quantities and inward them into your kitchen stock.
             </div>
           </div>
 
-          {/* Search & Filters */}
-          <div style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: 'var(--border-radius-lg)',
-            border: '1px solid var(--border-color)',
-            padding: '12px 16px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '12px'
-          }}>
-            <div style={{ position: 'relative', flex: 1, minWidth: '240px' }}>
-              <Search size={14} style={{
-                position: 'absolute',
-                left: '12px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                color: 'var(--text-muted)'
-              }} />
+          <div className={styles.filterToolbar}>
+            <div style={{ position: 'relative', flex: '1 1 240px' }}>
+              <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
               <input
                 type="text"
                 value={incomingSearch}
@@ -1517,907 +1221,397 @@ export const StaffInventoryPage = () => {
                 placeholder="Search delivery by transfer ID or item name..."
                 style={{
                   width: '100%',
-                  height: '36px',
-                  padding: '0 12px 0 34px',
-                  fontSize: '13px',
+                  height: '34px',
+                  padding: '0 12px 0 30px',
+                  fontSize: '12.5px',
                   borderRadius: 'var(--border-radius-md)',
                   border: '1px solid var(--border-color)',
                   backgroundColor: 'var(--bg-app)',
                   color: 'var(--text-primary)',
-                  boxSizing: 'border-box'
+                  outline: 'none'
                 }}
               />
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <select
-                value={incomingStatusFilter}
-                onChange={(e) => {
-                  setIncomingStatusFilter(e.target.value);
+            <select
+              value={incomingStatusFilter}
+              onChange={(e) => {
+                setIncomingStatusFilter(e.target.value);
+                setIncomingPage(1);
+              }}
+              className={styles.filterSelect}
+            >
+              <option value="ALL">All Delivery Statuses</option>
+              <option value="Pending">Awaiting Receipt (Dispatched)</option>
+              <option value="Received">Confirmed Received</option>
+            </select>
+
+            <span style={{ fontSize: '12px', color: 'var(--text-secondary)', marginLeft: 'auto' }}>
+              <strong>{filteredIncoming.length}</strong> incoming transfers
+            </span>
+          </div>
+
+          <DataTable
+            columns={incomingColumns}
+            data={paginatedIncoming}
+            loading={loading}
+            emptyState={
+              <EmptyState
+                icon={Truck}
+                title="No incoming deliveries for this kitchen"
+                message="When Central Warehouse approves and dispatches your stock requests, they will appear here."
+              />
+            }
+            footer={
+              <Pagination
+                currentPage={incomingPage}
+                totalItems={filteredIncoming.length}
+                pageSize={incomingPageSize}
+                onPageChange={setIncomingPage}
+                onPageSizeChange={(sz) => {
+                  setIncomingPageSize(sz);
                   setIncomingPage(1);
                 }}
-                style={{
-                  height: '36px',
-                  padding: '0 10px',
-                  fontSize: '12.5px',
-                  borderRadius: 'var(--border-radius-md)',
-                  border: '1px solid var(--border-color)',
-                  backgroundColor: 'var(--bg-app)',
-                  color: 'var(--text-primary)'
-                }}
-              >
-                <option value="ALL">All Delivery Statuses</option>
-                <option value="Pending">Awaiting Receipt (Dispatched)</option>
-                <option value="Received">Confirmed Received</option>
-              </select>
-
-              <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                <strong>{filteredIncoming.length}</strong> incoming transfers
-              </span>
-            </div>
-          </div>
-
-          {/* Incoming Deliveries Table */}
-          <div style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: 'var(--border-radius-lg)',
-            border: '1px solid var(--border-color)',
-            overflow: 'hidden',
-            boxShadow: 'var(--shadow-xs)'
-          }}>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                <thead>
-                  <tr style={{
-                    backgroundColor: 'var(--bg-muted)',
-                    borderBottom: '1px solid var(--border-color)',
-                    color: 'var(--text-muted)',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.04em'
-                  }}>
-                    <th style={{ padding: '12px 16px' }}>Transfer ID</th>
-                    <th style={{ padding: '12px 14px' }}>Ingredient Delivered</th>
-                    <th style={{ padding: '12px 14px', textAlign: 'right' }}>Dispatched Qty</th>
-                    <th style={{ padding: '12px 14px' }}>Dispatch Date & Courier</th>
-                    <th style={{ padding: '12px 14px', textAlign: 'center' }}>Delivery Status</th>
-                    <th style={{ padding: '12px 16px', textAlign: 'center' }}>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedIncoming.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} style={{ padding: '40px', textAlign: 'center' }}>
-                        <EmptyState
-                          icon={Truck}
-                          title="No incoming deliveries for this kitchen"
-                          description="When Central Warehouse approves and dispatches your stock requests, they will appear here for receipt confirmation."
-                        />
-                      </td>
-                    </tr>
-                  ) : (
-                    paginatedIncoming.map((trf) => {
-                      const isReceived = trf.status === 'Received' || trf.status === 'Partially Received';
-
-                      return (
-                        <tr key={trf.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                          <td style={{ padding: '12px 16px' }}>
-                            <code style={{
-                              backgroundColor: 'var(--bg-muted)',
-                              padding: '3px 7px',
-                              borderRadius: '4px',
-                              fontSize: '11.5px',
-                              fontWeight: 700,
-                              color: 'var(--color-primary)'
-                            }}>
-                              {trf.transferId || `TRF-${trf.id}`}
-                            </code>
-                            <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                              Ref: {trf.requestId || 'REQ-CENTRAL'}
-                            </div>
-                          </td>
-
-                          <td style={{ padding: '12px 14px' }}>
-                            <strong style={{ fontSize: '13.5px', color: 'var(--text-primary)', display: 'block' }}>
-                              {trf.ingredientName}
-                            </strong>
-                            <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>
-                              {trf.category || 'General Ingredients'}
-                            </span>
-                          </td>
-
-                          <td style={{ padding: '12px 14px', textAlign: 'right' }}>
-                            <strong style={{ fontSize: '14px', color: 'var(--color-primary)' }}>
-                              {trf.dispatchedQuantity || trf.approvedQuantity} {trf.unit}
-                            </strong>
-                            {trf.receivedQuantity && (
-                              <div style={{ fontSize: '11px', color: '#059669', fontWeight: 600 }}>
-                                Received: {trf.receivedQuantity} {trf.unit}
-                              </div>
-                            )}
-                          </td>
-
-                          <td style={{ padding: '12px 14px', fontSize: '11.5px', color: 'var(--text-secondary)' }}>
-                            <div>{formatDate(trf.dispatchDate || new Date())}</div>
-                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                              {trf.dispatchedBy || 'Admin Warehouse Staff'}
-                            </div>
-                          </td>
-
-                          <td style={{ padding: '12px 14px', textAlign: 'center' }}>
-                            {isReceived ? (
-                              <span style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                padding: '3px 8px',
-                                borderRadius: '4px',
-                                fontSize: '11px',
-                                fontWeight: 700,
-                                backgroundColor: '#ecfdf5',
-                                color: '#059669',
-                                border: '1px solid #a7f3d0'
-                              }}>
-                                <CheckCircle2 size={12} />
-                                {trf.status}
-                              </span>
-                            ) : (
-                              <span style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                padding: '3px 8px',
-                                borderRadius: '4px',
-                                fontSize: '11px',
-                                fontWeight: 700,
-                                backgroundColor: '#eff6ff',
-                                color: '#2563eb',
-                                border: '1px solid #bfdbfe'
-                              }}>
-                                <Truck size={12} />
-                                In Transit
-                              </span>
-                            )}
-                          </td>
-
-                          <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                            {!isReceived ? (
-                              <Button
-                                variant="primary"
-                                icon={CheckCircle2}
-                                onClick={() => handleOpenConfirmReceipt(trf)}
-                              >
-                                Confirm Received
-                              </Button>
-                            ) : (
-                              <span style={{
-                                fontSize: '11.5px',
-                                color: 'var(--text-muted)',
-                                fontWeight: 500
-                              }}>
-                                Inwarded to Kitchen
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {filteredIncoming.length > incomingPageSize && (
-              <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border-color)' }}>
-                <Pagination
-                  currentPage={incomingPage}
-                  totalPages={Math.ceil(filteredIncoming.length / incomingPageSize)}
-                  onPageChange={setIncomingPage}
-                />
-              </div>
-            )}
-          </div>
+                pageSizeOptions={[5, 10, 15, 20]}
+              />
+            }
+          />
         </div>
       )}
 
-      {/* ============================================================= */}
-      {/* TAB 4: STOCK LEDGER                                           */}
-      {/* ============================================================= */}
+      {/* TAB 4: STOCK LEDGER */}
       {activeTab === 'ledger' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {/* Search & Filters Toolbar */}
-          <div style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: 'var(--border-radius-lg)',
-            border: '1px solid var(--border-color)',
-            padding: '12px 16px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '12px'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: '260px' }}>
-              <div style={{ position: 'relative', flex: 1 }}>
-                <Search size={14} style={{
-                  position: 'absolute',
-                  left: '12px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: 'var(--text-muted)'
-                }} />
-                <input
-                  type="text"
-                  value={ledgerSearch}
-                  onChange={(e) => {
-                    setLedgerSearch(e.target.value);
-                    setLedgerPage(1);
-                  }}
-                  placeholder="Search ledger by ingredient or reference ID..."
-                  style={{
-                    width: '100%',
-                    height: '36px',
-                    padding: '0 12px 0 34px',
-                    fontSize: '13px',
-                    borderRadius: 'var(--border-radius-md)',
-                    border: '1px solid var(--border-color)',
-                    backgroundColor: 'var(--bg-app)',
-                    color: 'var(--text-primary)',
-                    boxSizing: 'border-box'
-                  }}
-                />
-              </div>
-
-              {/* Transaction Type Filter */}
-              <select
-                value={ledgerTypeFilter}
+        <div role="tabpanel" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className={styles.filterToolbar}>
+            <div style={{ position: 'relative', flex: '1 1 220px' }}>
+              <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+              <input
+                type="text"
+                value={ledgerSearch}
                 onChange={(e) => {
-                  setLedgerTypeFilter(e.target.value);
+                  setLedgerSearch(e.target.value);
                   setLedgerPage(1);
                 }}
+                placeholder="Search ledger by ingredient or reference ID..."
                 style={{
-                  height: '36px',
-                  padding: '0 10px',
+                  width: '100%',
+                  height: '34px',
+                  padding: '0 12px 0 30px',
                   fontSize: '12.5px',
                   borderRadius: 'var(--border-radius-md)',
                   border: '1px solid var(--border-color)',
                   backgroundColor: 'var(--bg-app)',
-                  color: 'var(--text-primary)'
+                  color: 'var(--text-primary)',
+                  outline: 'none'
                 }}
-              >
-                <option value="ALL">All Transaction Types</option>
-                <option value="OPENING STOCK">Opening Stock</option>
-                <option value="RECEIVED FROM ADMIN">Received from Admin</option>
-                <option value="KITCHEN CONSUMPTION">Kitchen Consumption</option>
-                <option value="WASTAGE">Wastage / Spoilage</option>
-                <option value="STOCK ADJUSTMENT">Stock Adjustment</option>
-              </select>
+              />
+            </div>
 
-              {/* Date Filter */}
-              <select
-                value={ledgerDateFilter}
-                onChange={(e) => {
-                  setLedgerDateFilter(e.target.value);
+            <select
+              value={ledgerTypeFilter}
+              onChange={(e) => {
+                setLedgerTypeFilter(e.target.value);
+                setLedgerPage(1);
+              }}
+              className={styles.filterSelect}
+            >
+              <option value="ALL">All Transaction Types</option>
+              <option value="STOCK IN">Stock In</option>
+              <option value="STOCK OUT">Stock Out</option>
+              <option value="WASTAGE">Wastage / Spoilage</option>
+              <option value="ADJUSTMENT">Stock Adjustment</option>
+            </select>
+
+            <select
+              value={ledgerDateFilter}
+              onChange={(e) => {
+                setLedgerDateFilter(e.target.value);
+                setLedgerPage(1);
+              }}
+              className={styles.filterSelect}
+            >
+              <option value="ALL">All Dates</option>
+              <option value="TODAY">Today</option>
+              <option value="WEEK">Last 7 Days</option>
+              <option value="MONTH">Last 30 Days</option>
+            </select>
+
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={Utensils}
+              onClick={() => setUsageModal({ isOpen: true, preselectedItem: null })}
+            >
+              Log Kitchen Usage
+            </Button>
+          </div>
+
+          <DataTable
+            columns={ledgerColumns}
+            data={paginatedLedger}
+            loading={loading}
+            emptyState={
+              <EmptyState
+                icon={BookOpen}
+                title="No ledger transactions found"
+                message="Stock receipts, consumption usages, and kitchen adjustments will appear here."
+              />
+            }
+            footer={
+              <Pagination
+                currentPage={ledgerPage}
+                totalItems={filteredLedger.length}
+                pageSize={ledgerPageSize}
+                onPageChange={setLedgerPage}
+                onPageSizeChange={(sz) => {
+                  setLedgerPageSize(sz);
                   setLedgerPage(1);
                 }}
-                style={{
-                  height: '36px',
-                  padding: '0 10px',
-                  fontSize: '12.5px',
-                  borderRadius: 'var(--border-radius-md)',
-                  border: '1px solid var(--border-color)',
-                  backgroundColor: 'var(--bg-app)',
-                  color: 'var(--text-primary)'
-                }}
-              >
-                <option value="ALL">All Dates</option>
-                <option value="TODAY">Today</option>
-                <option value="WEEK">Last 7 Days</option>
-                <option value="MONTH">Last 30 Days</option>
-              </select>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Button
-                variant="secondary"
-                icon={Utensils}
-                onClick={() => setUsageModal({ isOpen: true, preselectedItem: null })}
-              >
-                Log Kitchen Usage
-              </Button>
-            </div>
-          </div>
-
-          {/* Kitchen Stock Ledger Table */}
-          <div style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: 'var(--border-radius-lg)',
-            border: '1px solid var(--border-color)',
-            overflow: 'hidden',
-            boxShadow: 'var(--shadow-xs)'
-          }}>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                <thead>
-                  <tr style={{
-                    backgroundColor: 'var(--bg-muted)',
-                    borderBottom: '1px solid var(--border-color)',
-                    color: 'var(--text-muted)',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.04em'
-                  }}>
-                    <th style={{ padding: '12px 16px' }}>Date & Time</th>
-                    <th style={{ padding: '12px 14px' }}>Reference</th>
-                    <th style={{ padding: '12px 14px' }}>Ingredient</th>
-                    <th style={{ padding: '12px 14px', textAlign: 'center' }}>Transaction Type</th>
-                    <th style={{ padding: '12px 14px', textAlign: 'right' }}>Quantity</th>
-                    <th style={{ padding: '12px 14px', textAlign: 'right' }}>Balance Change</th>
-                    <th style={{ padding: '12px 16px' }}>Operator & Notes</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedLedger.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} style={{ padding: '40px', textAlign: 'center' }}>
-                        <EmptyState
-                          icon={BookOpen}
-                          title="No ledger transactions found"
-                          description="Stock receipts, consumption usages, and kitchen adjustments will appear here."
-                        />
-                      </td>
-                    </tr>
-                  ) : (
-                    paginatedLedger.map((entry) => {
-                      const isPositive = Number(entry.quantity) > 0;
-                      const isConsumption = entry.transactionType === 'KITCHEN CONSUMPTION';
-                      const isWaste = entry.transactionType === 'WASTAGE';
-                      const isReceived = entry.transactionType === 'RECEIVED FROM ADMIN';
-
-                      return (
-                        <tr key={entry.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                          <td style={{ padding: '12px 16px', fontSize: '12px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                            {formatDate(entry.dateTime || new Date())}
-                          </td>
-
-                          <td style={{ padding: '12px 14px' }}>
-                            <code style={{
-                              backgroundColor: 'var(--bg-muted)',
-                              padding: '2px 6px',
-                              borderRadius: '4px',
-                              fontSize: '11px',
-                              fontWeight: 700,
-                              color: 'var(--color-primary)'
-                            }}>
-                              {entry.reference}
-                            </code>
-                          </td>
-
-                          <td style={{ padding: '12px 14px' }}>
-                            <strong style={{ fontSize: '13px', color: 'var(--text-primary)' }}>
-                              {entry.ingredientName}
-                            </strong>
-                          </td>
-
-                          <td style={{ padding: '12px 14px', textAlign: 'center' }}>
-                            <span style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              padding: '3px 8px',
-                              borderRadius: '4px',
-                              fontSize: '10.5px',
-                              fontWeight: 700,
-                              backgroundColor: isReceived
-                                ? '#ecfdf5'
-                                : isConsumption
-                                  ? '#eff6ff'
-                                  : isWaste
-                                    ? '#fef2f2'
-                                    : 'var(--bg-muted)',
-                              color: isReceived
-                                ? '#059669'
-                                : isConsumption
-                                  ? '#2563eb'
-                                  : isWaste
-                                    ? '#dc2626'
-                                    : 'var(--text-primary)',
-                              border: isReceived
-                                ? '1px solid #a7f3d0'
-                                : isConsumption
-                                  ? '1px solid #bfdbfe'
-                                  : isWaste
-                                    ? '1px solid #fecaca'
-                                    : '1px solid var(--border-color)'
-                            }}>
-                              {entry.transactionType}
-                            </span>
-                          </td>
-
-                          <td style={{ padding: '12px 14px', textAlign: 'right' }}>
-                            <strong style={{
-                              fontSize: '13px',
-                              color: isPositive ? '#059669' : '#dc2626'
-                            }}>
-                              {isPositive ? `+${entry.quantity}` : entry.quantity} {entry.unit}
-                            </strong>
-                          </td>
-
-                          <td style={{ padding: '12px 14px', textAlign: 'right', fontSize: '12px', color: 'var(--text-muted)' }}>
-                            <span>{entry.previousStock}</span>
-                            <span style={{ margin: '0 4px' }}>→</span>
-                            <strong style={{ color: 'var(--text-primary)' }}>{entry.newStock} {entry.unit}</strong>
-                          </td>
-
-                          <td style={{ padding: '12px 16px', fontSize: '11.5px', color: 'var(--text-secondary)' }}>
-                            <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                              {entry.performedBy}
-                            </div>
-                            <div style={{ color: 'var(--text-muted)', fontSize: '11px', marginTop: '1px' }}>
-                              {entry.description}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {filteredLedger.length > ledgerPageSize && (
-              <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border-color)' }}>
-                <Pagination
-                  currentPage={ledgerPage}
-                  totalPages={Math.ceil(filteredLedger.length / ledgerPageSize)}
-                  onPageChange={setLedgerPage}
-                />
-              </div>
-            )}
-          </div>
+                pageSizeOptions={[5, 8, 15, 20]}
+              />
+            }
+          />
         </div>
       )}
 
-      {/* Requisition Modal (Triggered by Top Request Stock Button & Quick Request) */}
-      {isRequestModalOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.72)',
-            zIndex: 1050,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '16px',
-            backdropFilter: 'blur(3px)'
-          }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setIsRequestModalOpen(false);
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: 'var(--bg-surface)',
-              border: '1px solid var(--border-color)',
-              borderRadius: '12px',
-              width: '100%',
-              maxWidth: '560px',
-              maxHeight: '90vh',
+      {/* Requisition Modal */}
+      <Modal
+        isOpen={isRequestModalOpen}
+        onClose={() => !isSubmittingRequest && setIsRequestModalOpen(false)}
+        title="Request Stock from Central Admin"
+        subtitle={activeOutletName ? `${activeOutletName} • Requisition will be reviewed and dispatched by Admin` : undefined}
+        maxWidth="560px"
+      >
+        <form onSubmit={handleSubmitStockRequest} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+              <label style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                Ingredient Name <span style={{ color: 'var(--color-danger)' }}>*</span>
+              </label>
+              {requestIsCustom && (
+                <span style={{
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  color: 'var(--color-primary)',
+                  backgroundColor: 'var(--color-primary-light)',
+                  padding: '2px 7px',
+                  borderRadius: '4px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}>
+                  <Sparkles size={11} /> New Custom Ingredient
+                </span>
+              )}
+            </div>
+            <SearchableIngredientSelect
+              value={requestItemName}
+              onSelect={handleSelectIngredient}
+              kitchenStock={kitchenStock}
+              disabled={isSubmittingRequest}
+              placeholder="Search kitchen ingredient (e.g. Rice, Sugar, Oil)..."
+            />
+          </div>
+
+          {requestIsCustom ? (
+            <div style={{
+              padding: '12px 14px',
+              borderRadius: 'var(--border-radius-md)',
+              backgroundColor: 'var(--color-primary-light)',
+              border: '1px solid var(--color-primary-border)',
               display: 'flex',
               flexDirection: 'column',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)',
-              overflow: 'hidden'
-            }}
-          >
-            {/* Modal Header */}
-            <div
-              style={{
-                padding: '16px 20px',
-                borderBottom: '1px solid var(--border-color)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                backgroundColor: 'var(--bg-app)'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div
-                  style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '8px',
-                    backgroundColor: 'rgba(14, 165, 233, 0.12)',
-                    color: 'var(--color-primary)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
-                >
-                  <Send size={18} />
-                </div>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                    Request Stock from Central Admin
-                  </h3>
-                  <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-muted)' }}>
-                    {activeOutletName} • Requisition will be reviewed and dispatched by Admin
-                  </p>
+              gap: '10px'
+            }}>
+              <div style={{ fontSize: '12.5px', color: 'var(--text-primary)' }}>
+                <strong>Special Requisition: &ldquo;{requestItemName}&rdquo;</strong>
+                <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                  Central Admin will review, source, and dispatch this item to your kitchen.
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => setIsRequestModalOpen(false)}
-                title="Close dialog"
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--text-muted)',
-                  cursor: 'pointer',
-                  padding: '6px',
-                  borderRadius: '6px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-              >
-                <X size={18} />
-              </button>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '5px' }}>
+                  Ingredient Category <span style={{ color: 'var(--color-danger)' }}>*</span>
+                </label>
+                <select
+                  value={requestCategory}
+                  onChange={(e) => setRequestCategory(e.target.value)}
+                  className={styles.formInput}
+                >
+                  {INGREDIENT_CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          ) : selectedStockItemObj ? (
+            <div style={{
+              padding: '12px 14px',
+              borderRadius: 'var(--border-radius-md)',
+              backgroundColor: 'var(--bg-muted)',
+              border: '1px solid var(--border-color)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              fontSize: '12px'
+            }}>
+              <div>
+                <div style={{ color: 'var(--text-muted)', fontSize: '11px', textTransform: 'uppercase' }}>
+                  Current Kitchen Balance
+                </div>
+                <div style={{ fontSize: '14.5px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
+                  {selectedStockItemObj.availableQuantity} {selectedStockItemObj.unit}
+                  <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-muted)', marginLeft: '6px' }}>
+                    (Min: {selectedStockItemObj.reorderLevel} {selectedStockItemObj.unit})
+                  </span>
+                </div>
+              </div>
+              <StatusBadge
+                status={Number(selectedStockItemObj.availableQuantity) <= Number(selectedStockItemObj.reorderLevel) ? 'Low Stock' : 'In Stock'}
+                size="sm"
+              />
+            </div>
+          ) : null}
+
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '6px' }}>
+                Requested Quantity <span style={{ color: 'var(--color-danger)' }}>*</span>
+              </label>
+              <input
+                type="number"
+                step="any"
+                min="0.1"
+                required
+                placeholder="e.g. 25"
+                value={requestQuantity}
+                onChange={(e) => setRequestQuantity(e.target.value)}
+                className={styles.formInput}
+              />
             </div>
 
-            {/* Modal Body Form */}
-            <form onSubmit={handleSubmitStockRequest} style={{ display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
-              <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {/* Field 1: Searchable Kitchen Ingredient Selector */}
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                    <label style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      Ingredient Name <span style={{ color: '#ef4444' }}>*</span>
-                    </label>
-                    {requestIsCustom && (
-                      <span style={{
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        color: '#ea580c',
-                        backgroundColor: 'rgba(234, 88, 12, 0.1)',
-                        padding: '2px 7px',
-                        borderRadius: '4px',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px'
-                      }}>
-                        <Sparkles size={11} /> New Custom Ingredient
-                      </span>
-                    )}
-                  </div>
-                  <SearchableIngredientSelect
-                    value={requestItemName}
-                    onSelect={handleSelectIngredient}
-                    kitchenStock={kitchenStock}
-                    disabled={isSubmittingRequest}
-                    placeholder="Search kitchen ingredient (e.g. Rice, Sugar, Green Chillies)..."
-                  />
-                </div>
-
-                {/* Field 1b: If Custom Ingredient, Show Informative Card & Category Dropdown */}
-                {requestIsCustom ? (
-                  <div style={{
-                    padding: '12px 14px',
-                    borderRadius: '8px',
-                    backgroundColor: 'rgba(234, 88, 12, 0.06)',
-                    border: '1px solid rgba(234, 88, 12, 0.25)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '10px'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                      <Sparkles size={16} style={{ color: '#ea580c', marginTop: '2px', flexShrink: 0 }} />
-                      <div>
-                        <div style={{ fontSize: '13px', fontWeight: 700, color: '#ea580c' }}>
-                          Special Requisition: "{requestItemName}"
-                        </div>
-                        <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                          This ingredient does not exist in your kitchen inventory. Central Admin will review, source, and dispatch it. Once received, it will automatically initialize in your kitchen inventory.
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '5px' }}>
-                        Ingredient Category <span style={{ color: '#ef4444' }}>*</span>
-                      </label>
-                      <select
-                        value={requestCategory}
-                        onChange={(e) => setRequestCategory(e.target.value)}
-                        style={{
-                          width: '100%',
-                          padding: '7px 10px',
-                          borderRadius: '6px',
-                          border: '1px solid var(--border-color)',
-                          backgroundColor: 'var(--bg-app)',
-                          color: 'var(--text-primary)',
-                          fontSize: '12.5px',
-                          outline: 'none'
-                        }}
-                      >
-                        {INGREDIENT_CATEGORIES.map((cat) => (
-                          <option key={cat} value={cat}>{cat}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                ) : selectedStockItemObj ? (
-                  /* Field 2: Current Kitchen Stock Balance Indicator */
-                  <div
-                    style={{
-                      padding: '12px 14px',
-                      borderRadius: '8px',
-                      backgroundColor: 'var(--bg-muted)',
-                      border: '1px solid var(--border-color)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      fontSize: '12px'
-                    }}
-                  >
-                    <div>
-                      <div style={{ color: 'var(--text-muted)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                        Current Kitchen Balance
-                      </div>
-                      <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
-                        {selectedStockItemObj.availableQuantity} {selectedStockItemObj.unit}
-                        <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-muted)', marginLeft: '6px' }}>
-                          (Min Level: {selectedStockItemObj.reorderLevel} {selectedStockItemObj.unit})
-                        </span>
-                      </div>
-                    </div>
-                    <div>
-                      {Number(selectedStockItemObj.availableQuantity) <= Number(selectedStockItemObj.reorderLevel) ? (
-                        <span style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          padding: '3px 8px',
-                          borderRadius: '9999px',
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          backgroundColor: '#fef2f2',
-                          color: '#dc2626',
-                          border: '1px solid #fecaca'
-                        }}>
-                          <AlertTriangle size={12} /> Low Stock Alert
-                        </span>
-                      ) : (
-                        <span style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          padding: '3px 8px',
-                          borderRadius: '9999px',
-                          fontSize: '11px',
-                          fontWeight: 600,
-                          backgroundColor: '#ecfdf5',
-                          color: '#059669',
-                          border: '1px solid #a7f3d0'
-                        }}>
-                          <CheckCircle2 size={12} /> Stock Adequate
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ) : null}
-
-                {/* Fields 3 & 4: Requested Quantity & Unit */}
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '6px' }}>
-                      Requested Quantity <span style={{ color: '#ef4444' }}>*</span>
-                    </label>
-                    <input
-                      type="number"
-                      step="any"
-                      min="0.1"
-                      required
-                      placeholder="e.g. 25"
-                      value={requestQuantity}
-                      onChange={(e) => setRequestQuantity(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '9px 12px',
-                        borderRadius: '8px',
-                        border: '1px solid var(--border-color)',
-                        backgroundColor: 'var(--bg-app)',
-                        color: 'var(--text-primary)',
-                        fontSize: '13px',
-                        outline: 'none'
-                      }}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '6px' }}>
-                      Unit <span style={{ color: '#ef4444' }}>*</span>
-                    </label>
-                    <select
-                      value={requestUnit}
-                      onChange={(e) => setRequestUnit(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '9px 12px',
-                        borderRadius: '8px',
-                        border: '1px solid var(--border-color)',
-                        backgroundColor: 'var(--bg-app)',
-                        color: 'var(--text-primary)',
-                        fontSize: '13px',
-                        outline: 'none'
-                      }}
-                    >
-                      <option value="kg">kg (Kilograms)</option>
-                      <option value="g">g (Grams)</option>
-                      <option value="litre">litre (Litres)</option>
-                      <option value="ml">ml (Millilitres)</option>
-                      <option value="pieces">pieces (Pcs)</option>
-                      <option value="packets">packets (Packets)</option>
-                      <option value="boxes">boxes (Boxes)</option>
-                      <option value="bags">bags (Bags)</option>
-                      <option value="cans">cans (Cans)</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Fields 5 & 6: Priority & Required By Date */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '6px' }}>
-                      Priority Level
-                    </label>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button
-                        type="button"
-                        onClick={() => setRequestPriority('Normal')}
-                        style={{
-                          flex: 1,
-                          padding: '8px 10px',
-                          borderRadius: '6px',
-                          fontSize: '12px',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          border: requestPriority === 'Normal' ? '2px solid var(--color-primary)' : '1px solid var(--border-color)',
-                          backgroundColor: requestPriority === 'Normal' ? 'rgba(14, 165, 233, 0.12)' : 'var(--bg-app)',
-                          color: requestPriority === 'Normal' ? 'var(--color-primary)' : 'var(--text-secondary)'
-                        }}
-                      >
-                        Normal
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setRequestPriority('Urgent')}
-                        style={{
-                          flex: 1,
-                          padding: '8px 10px',
-                          borderRadius: '6px',
-                          fontSize: '12px',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          border: requestPriority === 'Urgent' ? '2px solid #ef4444' : '1px solid var(--border-color)',
-                          backgroundColor: requestPriority === 'Urgent' ? 'rgba(239, 68, 68, 0.12)' : 'var(--bg-app)',
-                          color: requestPriority === 'Urgent' ? '#ef4444' : 'var(--text-secondary)'
-                        }}
-                      >
-                        🚨 Urgent
-                      </button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '6px' }}>
-                      Required Date
-                    </label>
-                    <input
-                      type="date"
-                      value={requestNeededBy}
-                      onChange={(e) => setRequestNeededBy(e.target.value)}
-                      min={new Date().toISOString().split('T')[0]}
-                      style={{
-                        width: '100%',
-                        padding: '8px 12px',
-                        borderRadius: '8px',
-                        border: '1px solid var(--border-color)',
-                        backgroundColor: 'var(--bg-app)',
-                        color: 'var(--text-primary)',
-                        fontSize: '13px',
-                        outline: 'none'
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* Field 7: Reason / Notes */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '6px' }}>
-                    Requisition Reason / Operational Notes
-                  </label>
-                  <textarea
-                    rows={3}
-                    placeholder="Provide details about expected usage or reason for request..."
-                    value={requestReason}
-                    onChange={(e) => setRequestReason(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '9px 12px',
-                      borderRadius: '8px',
-                      border: '1px solid var(--border-color)',
-                      backgroundColor: 'var(--bg-app)',
-                      color: 'var(--text-primary)',
-                      fontSize: '13px',
-                      outline: 'none',
-                      resize: 'vertical'
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* Modal Footer Actions */}
-              <div
-                style={{
-                  padding: '14px 20px',
-                  borderTop: '1px solid var(--border-color)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'flex-end',
-                  gap: '10px',
-                  backgroundColor: 'var(--bg-app)'
-                }}
+            <div>
+              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '6px' }}>
+                Unit <span style={{ color: 'var(--color-danger)' }}>*</span>
+              </label>
+              <select
+                value={requestUnit}
+                onChange={(e) => setRequestUnit(e.target.value)}
+                className={styles.formInput}
               >
+                <option value="kg">kg (Kilograms)</option>
+                <option value="g">g (Grams)</option>
+                <option value="litre">litre (Litres)</option>
+                <option value="ml">ml (Millilitres)</option>
+                <option value="pieces">pieces (Pcs)</option>
+                <option value="packets">packets</option>
+                <option value="boxes">boxes</option>
+                <option value="bags">bags</option>
+                <option value="cans">cans</option>
+              </select>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '6px' }}>
+                Priority Level
+              </label>
+              <div style={{ display: 'flex', gap: '8px' }}>
                 <button
                   type="button"
-                  onClick={() => setIsRequestModalOpen(false)}
-                  disabled={isSubmittingRequest}
+                  onClick={() => setRequestPriority('Normal')}
                   style={{
-                    padding: '8px 16px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border-color)',
-                    backgroundColor: 'var(--bg-surface)',
-                    color: 'var(--text-secondary)',
-                    fontSize: '13px',
+                    flex: 1,
+                    padding: '8px 10px',
+                    borderRadius: 'var(--border-radius-md)',
+                    fontSize: '12px',
                     fontWeight: 600,
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    border: requestPriority === 'Normal' ? '1.5px solid var(--color-primary)' : '1px solid var(--border-color)',
+                    backgroundColor: requestPriority === 'Normal' ? 'var(--color-primary-light)' : 'var(--bg-app)',
+                    color: requestPriority === 'Normal' ? 'var(--color-primary)' : 'var(--text-secondary)'
                   }}
                 >
-                  Cancel
+                  Normal
                 </button>
                 <button
-                  type="submit"
-                  disabled={isSubmittingRequest || !requestItemName}
+                  type="button"
+                  onClick={() => setRequestPriority('Urgent')}
                   style={{
-                    padding: '8px 18px',
-                    borderRadius: '8px',
-                    border: 'none',
-                    backgroundColor: 'var(--color-primary)',
-                    color: '#ffffff',
-                    fontSize: '13px',
-                    fontWeight: 700,
-                    cursor: (isSubmittingRequest || !requestItemName) ? 'not-allowed' : 'pointer',
-                    opacity: (isSubmittingRequest || !requestItemName) ? 0.6 : 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px'
+                    flex: 1,
+                    padding: '8px 10px',
+                    borderRadius: 'var(--border-radius-md)',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    border: requestPriority === 'Urgent' ? '1.5px solid var(--color-danger)' : '1px solid var(--border-color)',
+                    backgroundColor: requestPriority === 'Urgent' ? 'var(--color-danger-bg)' : 'var(--bg-app)',
+                    color: requestPriority === 'Urgent' ? 'var(--color-danger-text)' : 'var(--text-secondary)'
                   }}
                 >
-                  <Send size={14} />
-                  <span>{isSubmittingRequest ? 'Submitting Requisition...' : 'Submit Request to Admin'}</span>
+                  Urgent
                 </button>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
+            </div>
 
-      {/* Confirm Receipt Modal (Tab 3) */}
+            <div>
+              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '6px' }}>
+                Required Date
+              </label>
+              <input
+                type="date"
+                value={requestNeededBy}
+                onChange={(e) => setRequestNeededBy(e.target.value)}
+                min={new Date().toISOString().split('T')[0]}
+                className={styles.formInput}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '6px' }}>
+              Requisition Reason / Operational Notes
+            </label>
+            <textarea
+              rows={3}
+              placeholder="Provide details about expected usage or reason for request..."
+              value={requestReason}
+              onChange={(e) => setRequestReason(e.target.value)}
+              className={styles.formTextarea}
+            />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', paddingTop: '8px', borderTop: '1px solid var(--border-color)' }}>
+            <Button variant="secondary" onClick={() => setIsRequestModalOpen(false)} disabled={isSubmittingRequest}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              icon={Send}
+              loading={isSubmittingRequest}
+              disabled={!requestItemName}
+            >
+              Submit Request to Admin
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Confirm Delete / Cancel Requisition Modal */}
+      <ConfirmationModal
+        isOpen={Boolean(requestToDelete)}
+        onClose={() => !actionLoading && setRequestToDelete(null)}
+        onConfirm={handleConfirmDeleteRequest}
+        title="Cancel Stock Requisition"
+        message={`Are you sure you want to cancel requisition REQ-${requestToDelete?.id} for "${requestToDelete?.itemName}"?`}
+        confirmText="Cancel Requisition"
+        variant="danger"
+        loading={actionLoading}
+      />
+
+      {/* Confirm Receipt Modal */}
       <ConfirmReceiptModal
         isOpen={receiptModal.isOpen}
         transfer={receiptModal.transfer}
@@ -2426,7 +1620,7 @@ export const StaffInventoryPage = () => {
         loading={actionLoading}
       />
 
-      {/* Log Kitchen Usage Modal (Tabs 1 & 4) */}
+      {/* Log Kitchen Usage Modal */}
       <LogKitchenUsageModal
         isOpen={usageModal.isOpen}
         preselectedItem={usageModal.preselectedItem}
