@@ -3,30 +3,26 @@ import { Search, X, ChevronDown, PlusCircle, Check, Package, AlertCircle } from 
 
 /**
  * Searchable Ingredient Dropdown
- * Displays ONLY existing Canteen Staff Kitchen Inventory items.
- * Allows searching existing kitchen stock (even when quantity is zero).
- * Allows typing and requesting a completely new ingredient not present in kitchen inventory.
+ * Displays existing Canteen Staff Kitchen Inventory items and allows requesting new items.
  */
 export const SearchableIngredientSelect = ({
   value = '',
   onSelect,
   kitchenStock = [],
   disabled = false,
-  placeholder = 'Search kitchen ingredient (e.g. Rice, Sugar, Green Chillies)...'
+  placeholder = 'Search kitchen ingredient...'
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const wrapperRef = useRef(null);
   const inputRef = useRef(null);
 
-  // Sync internal search input when external value changes
   useEffect(() => {
     if (!isOpen) {
       setSearchTerm(value || '');
     }
   }, [value, isOpen]);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
@@ -38,7 +34,6 @@ export const SearchableIngredientSelect = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [value]);
 
-  // Items strictly from the Canteen Staff Kitchen Inventory (deduplicated by name)
   const kitchenItems = useMemo(() => {
     const map = new Map();
 
@@ -63,12 +58,9 @@ export const SearchableIngredientSelect = ({
     return Array.from(map.values());
   }, [kitchenStock]);
 
-  // Filter kitchen ingredients based on search query
   const filteredList = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
-    if (!q) {
-      return kitchenItems;
-    }
+    if (!q) return kitchenItems;
     return kitchenItems.filter((item) => {
       const name = item.itemName.toLowerCase();
       const cat = item.category.toLowerCase();
@@ -77,13 +69,10 @@ export const SearchableIngredientSelect = ({
     });
   }, [kitchenItems, searchTerm]);
 
-  // Check if search query exactly matches an existing kitchen ingredient
   const hasExactMatch = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
     if (!q) return false;
-    return kitchenItems.some(
-      (item) => item.itemName.trim().toLowerCase() === q
-    );
+    return kitchenItems.some((item) => item.itemName.trim().toLowerCase() === q);
   }, [kitchenItems, searchTerm]);
 
   const handleSelectExisting = (item) => {
@@ -138,7 +127,6 @@ export const SearchableIngredientSelect = ({
 
   return (
     <div ref={wrapperRef} style={{ position: 'relative', width: '100%' }}>
-      {/* Search Input Box */}
       <div
         onClick={() => {
           if (!disabled) {
@@ -151,16 +139,16 @@ export const SearchableIngredientSelect = ({
           alignItems: 'center',
           gap: '8px',
           width: '100%',
-          padding: '8px 12px',
-          borderRadius: '8px',
-          border: isOpen ? '1px solid var(--color-primary)' : '1px solid var(--border-color)',
+          height: '38px',
+          padding: '0 12px',
+          borderRadius: 'var(--border-radius-md)',
+          border: isOpen ? '1px solid var(--color-accent)' : '1px solid var(--border-color)',
           backgroundColor: 'var(--bg-app)',
-          boxShadow: isOpen ? '0 0 0 2px rgba(14, 165, 233, 0.2)' : 'none',
           cursor: disabled ? 'not-allowed' : 'text',
-          transition: 'all 0.15s ease'
+          transition: 'border-color var(--transition-fast)'
         }}
       >
-        <Search size={15} style={{ color: isOpen ? 'var(--color-primary)' : 'var(--text-muted)', flexShrink: 0 }} />
+        <Search size={15} style={{ color: isOpen ? 'var(--color-accent)' : 'var(--text-muted)', flexShrink: 0 }} />
 
         <input
           ref={inputRef}
@@ -209,8 +197,7 @@ export const SearchableIngredientSelect = ({
               color: 'var(--text-muted)',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: '4px'
+              justifyContent: 'center'
             }}
           >
             <X size={14} />
@@ -228,7 +215,6 @@ export const SearchableIngredientSelect = ({
         />
       </div>
 
-      {/* Dropdown Options Popover */}
       {isOpen && !disabled && (
         <div
           style={{
@@ -236,17 +222,15 @@ export const SearchableIngredientSelect = ({
             top: 'calc(100% + 4px)',
             left: 0,
             right: 0,
-            backgroundColor: 'var(--bg-surface)',
+            backgroundColor: 'var(--modal-bg)',
             border: '1px solid var(--border-color)',
-            borderRadius: '8px',
-            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.3)',
+            borderRadius: 'var(--border-radius-md)',
+            boxShadow: 'var(--shadow-modal)',
             maxHeight: '260px',
             overflowY: 'auto',
-            zIndex: 1100,
-            animation: 'fadeIn 0.12s ease'
+            zIndex: 1100
           }}
         >
-          {/* Header indicator */}
           <div
             style={{
               padding: '6px 12px',
@@ -266,8 +250,7 @@ export const SearchableIngredientSelect = ({
             {searchTerm && <span>Search: "{searchTerm}"</span>}
           </div>
 
-          {/* List of Matching Kitchen Inventory Ingredients */}
-          {filteredList.length > 0 ? (
+          {filteredList.length > 0 && (
             <div>
               {filteredList.map((item) => {
                 const isSelected = value && item.itemName.toLowerCase() === value.toLowerCase();
@@ -283,12 +266,11 @@ export const SearchableIngredientSelect = ({
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       cursor: 'pointer',
-                      borderBottom: '1px solid var(--border-color)',
-                      backgroundColor: isSelected ? 'rgba(14, 165, 233, 0.1)' : 'transparent',
-                      transition: 'background-color 0.1s ease'
+                      borderBottom: '1px solid var(--border-color-subtle)',
+                      backgroundColor: isSelected ? 'var(--color-primary-light)' : 'transparent'
                     }}
                     onMouseEnter={(e) => {
-                      if (!isSelected) e.currentTarget.style.backgroundColor = 'var(--bg-app)';
+                      if (!isSelected) e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)';
                     }}
                     onMouseLeave={(e) => {
                       if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent';
@@ -296,24 +278,20 @@ export const SearchableIngredientSelect = ({
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
                       <Package size={14} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />
-                      <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                            {item.itemName}
-                          </span>
-                          <span
-                            style={{
-                              fontSize: '10.5px',
-                              padding: '1px 6px',
-                              borderRadius: '4px',
-                              backgroundColor: 'var(--bg-muted)',
-                              color: 'var(--text-muted)',
-                              border: '1px solid var(--border-color)'
-                            }}
-                          >
-                            {item.category}
-                          </span>
-                        </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                          {item.itemName}
+                        </span>
+                        <span style={{
+                          fontSize: '10.5px',
+                          padding: '1px 6px',
+                          borderRadius: '4px',
+                          backgroundColor: 'var(--bg-muted)',
+                          color: 'var(--text-muted)',
+                          border: '1px solid var(--border-color)'
+                        }}>
+                          {item.category}
+                        </span>
                       </div>
                     </div>
 
@@ -323,22 +301,24 @@ export const SearchableIngredientSelect = ({
                           fontSize: '11px',
                           fontWeight: 600,
                           padding: '2px 7px',
-                          borderRadius: '9999px',
+                          borderRadius: 'var(--border-radius-full)',
                           backgroundColor: item.availableQuantity === 0
-                            ? 'rgba(100, 116, 139, 0.12)'
+                            ? 'var(--bg-muted)'
                             : isLow
-                            ? '#fef2f2'
-                            : '#ecfdf5',
+                              ? 'var(--color-danger-bg)'
+                              : 'var(--color-success-bg)',
                           color: item.availableQuantity === 0
                             ? 'var(--text-muted)'
                             : isLow
-                            ? '#dc2626'
-                            : '#059669',
-                          border: item.availableQuantity === 0
-                            ? '1px solid var(--border-color)'
-                            : isLow
-                            ? '1px solid #fecaca'
-                            : '1px solid #a7f3d0'
+                              ? 'var(--color-danger-text)'
+                              : 'var(--color-success-text)',
+                          border: `1px solid ${
+                            item.availableQuantity === 0
+                              ? 'var(--border-color)'
+                              : isLow
+                                ? 'var(--color-danger-border)'
+                                : 'var(--color-success-border)'
+                          }`
                         }}
                       >
                         In Stock: {item.availableQuantity} {item.unit}
@@ -349,9 +329,8 @@ export const SearchableIngredientSelect = ({
                 );
               })}
             </div>
-          ) : null}
+          )}
 
-          {/* Option: Request New Item when not found in Kitchen Inventory or typing new name */}
           {searchTerm.trim() && !hasExactMatch && (
             <div
               onClick={() => handleSelectCustom(searchTerm)}
@@ -361,39 +340,26 @@ export const SearchableIngredientSelect = ({
                 alignItems: 'center',
                 gap: '10px',
                 cursor: 'pointer',
-                backgroundColor: filteredList.length === 0 ? 'rgba(234, 88, 12, 0.08)' : 'rgba(14, 165, 233, 0.06)',
-                borderTop: filteredList.length > 0 ? '1px dashed var(--border-color)' : 'none',
-                transition: 'background-color 0.15s ease'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(234, 88, 12, 0.15)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = filteredList.length === 0 ? 'rgba(234, 88, 12, 0.08)' : 'rgba(14, 165, 233, 0.06)';
+                backgroundColor: 'var(--color-primary-light)',
+                borderTop: filteredList.length > 0 ? '1px dashed var(--border-color)' : 'none'
               }}
             >
-              <PlusCircle size={18} style={{ color: '#ea580c', flexShrink: 0 }} />
+              <PlusCircle size={18} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />
               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontSize: '13px', fontWeight: 700, color: '#ea580c' }}>
-                  {filteredList.length === 0
-                    ? `"${searchTerm.trim()}" not found in your kitchen inventory.`
-                    : `Request New Item: ${searchTerm.trim()}`}
-                </span>
-                <span style={{ fontSize: '12px', fontWeight: 600, color: '#ea580c', marginTop: '1px' }}>
-                  {filteredList.length === 0 ? `Request New Item: ${searchTerm.trim()}` : 'Click to submit a new ingredient request to Admin.'}
+                <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-primary)' }}>
+                  Request New Item: {searchTerm.trim()}
                 </span>
                 <span style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                  Item does not exist in your kitchen inventory. Central Admin will review, source, and dispatch it.
+                  Not in your kitchen inventory yet. Central Admin will review, source, and dispatch it.
                 </span>
               </div>
             </div>
           )}
 
-          {/* Empty state when kitchen inventory has 0 items and search input is blank */}
           {filteredList.length === 0 && !searchTerm.trim() && (
             <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12.5px' }}>
               <AlertCircle size={18} style={{ margin: '0 auto 6px', display: 'block', opacity: 0.7 }} />
-              No items in this kitchen inventory yet. Type an ingredient name to request a new item from Admin.
+              No items in kitchen inventory. Type an ingredient name to request a new item from Admin.
             </div>
           )}
         </div>

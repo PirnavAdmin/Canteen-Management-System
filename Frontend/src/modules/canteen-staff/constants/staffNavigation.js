@@ -4,7 +4,7 @@
 
 export const STAFF_NAV_CONFIG = [
   {
-    group: 'OVERVIEW',
+    group: 'Overview',
     items: [
       {
         id: 'staff-dashboard',
@@ -17,7 +17,7 @@ export const STAFF_NAV_CONFIG = [
     ]
   },
   {
-    group: 'OPERATIONS',
+    group: 'Operations',
     items: [
       {
         id: 'order-board',
@@ -25,7 +25,7 @@ export const STAFF_NAV_CONFIG = [
         path: '/staff/board',
         icon: 'ClipboardList',
         badge: 'Live',
-        description: 'Visual Kanban order workflow, acceptance & stage transitions'
+        description: 'Visual order workflow, acceptance & stage transitions'
       },
       {
         id: 'kitchen-display',
@@ -38,7 +38,7 @@ export const STAFF_NAV_CONFIG = [
     ]
   },
   {
-    group: 'INVENTORY & STOCK',
+    group: 'Inventory & Stock',
     items: [
       {
         id: 'inventory-overview',
@@ -61,12 +61,8 @@ export const STAFF_NAV_CONFIG = [
 ];
 
 export const STAFF_APP_CONFIG = {
-  portalName: 'Canteen Staff Portal',
-  campusName: 'Apex Institute of Technology & Sciences',
-  canteenOutlet: 'Central Dining Hall',
-  outletId: 1,
-  counterName: 'Counter 02 (Express Pickup)',
-  activeStation: 'Hot Meals & Express Counter'
+  institutionName: 'Apex Institute of Technology & Sciences',
+  portalName: 'Canteen Staff Portal'
 };
 
 export default STAFF_NAV_CONFIG;

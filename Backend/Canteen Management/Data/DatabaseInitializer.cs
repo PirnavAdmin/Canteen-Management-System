@@ -242,8 +242,21 @@ namespace CanteenManagement.API.Data
                     using var spConn = new MySqlConnection(activeCs);
                     await spConn.OpenAsync();
                     var dbDir = ResolveDatabaseDirectory();
-                    logger.LogInformation("Verifying and deploying latest Stored Procedures from {Path}...", dbDir);
-                    await DeployStoredProceduresFromFilesAsync(spConn, dbDir, logger);
+                    var forceDeploySp = string.Equals(Environment.GetEnvironmentVariable("DEPLOY_SP"), "true", StringComparison.OrdinalIgnoreCase);
+                    
+                    var existingSpCount = await spConn.ExecuteScalarAsync<int>(@"
+                        SELECT COUNT(1) FROM information_schema.ROUTINES 
+                        WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE';");
+
+                    if (forceDeploySp || existingSpCount < 10)
+                    {
+                        logger.LogInformation("Deploying latest Stored Procedures from {Path}...", dbDir);
+                        await DeployStoredProceduresFromFilesAsync(spConn, dbDir, logger);
+                    }
+                    else
+                    {
+                        logger.LogInformation("Verified {Count} existing Stored Procedures in database. Redundant deployment skipped.", existingSpCount);
+                    }
                 }
                 catch (Exception ex)
                 {

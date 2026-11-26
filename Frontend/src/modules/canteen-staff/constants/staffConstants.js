@@ -1,10 +1,8 @@
 /**
  * Canteen Staff Module Constants
- * Pure live constants and configurations.
- * No mock data, no dummy records.
+ * Pure live constants and operational status definitions.
+ * No mock data, no dummy records, no hardcoded station fallbacks.
  */
-
-import { ORDER_STATUS } from '../../../constants/appConstants';
 
 export const STAFF_SECTIONS = {
   ALL: 'ALL',
@@ -12,13 +10,6 @@ export const STAFF_SECTIONS = {
   SNACKS_COUNTER: 'SNACKS_COUNTER',
   BEVERAGE_BAR: 'BEVERAGE_BAR'
 };
-
-export const KITCHEN_STATIONS = [
-  { id: 'all', name: 'All Kitchen Stations' },
-  { id: 'station-1', name: 'Station 1: Hot Meals Line (Wok & Curries)' },
-  { id: 'station-2', name: 'Station 2: Snacks & Quick Bites Counter' },
-  { id: 'station-3', name: 'Station 3: Fresh Beverages & Shakes' }
-];
 
 export const ORDER_URGENCY_MINUTES = {
   NORMAL: 10,

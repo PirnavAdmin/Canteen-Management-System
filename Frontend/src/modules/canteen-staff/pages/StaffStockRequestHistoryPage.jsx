@@ -2,63 +2,178 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Send,
-  RefreshCw
+  RefreshCw,
+  AlertCircle,
+  History,
+  PackageCheck
 } from 'lucide-react';
 import { useStaffInventory } from '../hooks/useStaffInventory';
+import { useToast } from '../../../app/providers/ToastProvider';
 import { PageHeader } from '../../../components/common/PageHeader';
 import { Button } from '../../../components/common/Button';
+import { DataTable } from '../../../components/tables/DataTable';
+import { StatusBadge } from '../../../components/common/StatusBadge';
+import { EmptyState } from '../../../components/common/EmptyState';
+import { formatDate } from '../../../utils/formatters';
+import styles from '../styles/staff.module.css';
 
 export const StaffStockRequestHistoryPage = () => {
-  const { stockRequests, refreshInventory, markStockReceived } = useStaffInventory();
+  const { success, error: toastError } = useToast();
+  const { stockRequests, loading, error, refreshInventory, markStockReceived } = useStaffInventory();
   const [statusFilter, setStatusFilter] = useState('ALL');
-  const [successToast, setSuccessToast] = useState('');
+  const [actionLoadingId, setActionLoadingId] = useState(null);
 
   const filtered = stockRequests.filter((req) => {
+    const s = String(req.status || '').toLowerCase();
     if (statusFilter === 'ALL') return true;
-    if (statusFilter === 'PENDING') return req.status === 'Pending Review';
-    if (statusFilter === 'APPROVED') return req.status === 'Approved' || req.status === 'Dispatched';
-    if (statusFilter === 'FULFILLED') return req.status === 'Fulfilled' || req.status === 'Received';
-    if (statusFilter === 'REJECTED') return req.status === 'Rejected';
+    if (statusFilter === 'PENDING') return s.includes('pending') || s === 'requested';
+    if (statusFilter === 'APPROVED') return s === 'approved' || s.includes('dispatch') || s.includes('transit');
+    if (statusFilter === 'FULFILLED') return s.includes('fulfilled') || s.includes('received') || s.includes('completed');
+    if (statusFilter === 'REJECTED') return s.includes('reject');
     return true;
   });
 
   const handleMarkReceived = async (reqId) => {
     try {
+      setActionLoadingId(reqId);
       await markStockReceived(reqId);
-      setSuccessToast(`Stock for requisition #${reqId} marked received and added to inventory!`);
-      setTimeout(() => setSuccessToast(''), 4000);
+      success('Stock Received', `Requisition #${reqId} marked received and added to inventory.`);
     } catch (err) {
-      alert(err.message || 'Error marking stock received');
+      toastError('Update Failed', err.message || 'Error marking stock received.');
+    } finally {
+      setActionLoadingId(null);
     }
   };
 
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case 'Fulfilled':
-      case 'Received':
-        return { bg: 'var(--color-success-bg)', color: 'var(--color-success)', border: 'var(--color-success-border)', label: '✓ Delivered & Received' };
-      case 'Dispatched':
-      case 'Stock Issued':
-        return { bg: 'var(--color-primary-light)', color: 'var(--color-primary)', border: 'var(--color-primary-border)', label: '🚚 In Transit / Dispatched' };
-      case 'Approved':
-        return { bg: 'var(--color-info-bg)', color: 'var(--color-info)', border: 'var(--color-info-border)', label: '✓ Approved by Admin' };
-      case 'Rejected':
-        return { bg: 'var(--color-danger-bg)', color: 'var(--color-danger)', border: 'var(--color-danger-border)', label: '✕ Rejected' };
-      default:
-        return { bg: 'var(--color-warning-bg)', color: 'var(--color-warning)', border: 'var(--color-warning-border)', label: '⏳ Pending Admin Review' };
+  const columns = [
+    {
+      key: 'id',
+      header: 'Req ID',
+      render: (val, req) => (
+        <div>
+          <code style={{
+            backgroundColor: 'var(--bg-muted)',
+            padding: '2px 6px',
+            borderRadius: '4px',
+            fontSize: '11.5px',
+            fontWeight: 700,
+            color: 'var(--color-primary)'
+          }}>
+            REQ-{val}
+          </code>
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+            {req.createdAt ? formatDate(req.createdAt) : '—'}
+          </div>
+        </div>
+      )
+    },
+    {
+      key: 'itemName',
+      header: 'Requested Item',
+      render: (val, req) => (
+        <div>
+          <strong style={{ color: 'var(--text-primary)', display: 'block' }}>{val}</strong>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+            {req.itemCode} • {req.category}
+          </span>
+        </div>
+      )
+    },
+    {
+      key: 'requestedQuantity',
+      header: 'Qty & Unit',
+      align: 'right',
+      render: (val, req) => (
+        <strong>{val} {req.unit}</strong>
+      )
+    },
+    {
+      key: 'urgency',
+      header: 'Urgency',
+      align: 'center',
+      render: (val) => {
+        const isEmergency = String(val).toLowerCase() === 'emergency';
+        const isHigh = String(val).toLowerCase() === 'high' || String(val).toLowerCase() === 'urgent';
+        return (
+          <span style={{
+            fontSize: '11px',
+            fontWeight: 600,
+            padding: '2px 8px',
+            borderRadius: 'var(--border-radius-full)',
+            backgroundColor: isEmergency ? 'var(--color-danger-bg)' : isHigh ? 'var(--color-warning-bg)' : 'var(--bg-muted)',
+            color: isEmergency ? 'var(--color-danger-text)' : isHigh ? 'var(--color-warning-text)' : 'var(--text-secondary)',
+            border: `1px solid ${isEmergency ? 'var(--color-danger-border)' : isHigh ? 'var(--color-warning-border)' : 'var(--border-color)'}`
+          }}>
+            {val || 'Normal'}
+          </span>
+        );
+      }
+    },
+    {
+      key: 'status',
+      header: 'Admin Status',
+      align: 'center',
+      render: (val) => <StatusBadge status={val} size="sm" />
+    },
+    {
+      key: 'adminNotes',
+      header: 'Notes',
+      render: (val, req) => (
+        <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+          {val || req.notes || '—'}
+        </span>
+      )
+    },
+    {
+      key: 'actions',
+      header: 'Action',
+      align: 'right',
+      render: (_, req) => {
+        const s = String(req.status || '').toLowerCase();
+        const canReceive = s === 'approved' || s.includes('dispatch') || s.includes('transit');
+        const isDone = s.includes('fulfilled') || s.includes('received') || s.includes('completed');
+
+        if (canReceive) {
+          return (
+            <Button
+              variant="primary"
+              size="sm"
+              icon={PackageCheck}
+              loading={actionLoadingId === req.id}
+              onClick={() => handleMarkReceived(req.id)}
+              style={{ backgroundColor: 'var(--color-success)', borderColor: 'var(--color-success)' }}
+            >
+              Mark Received
+            </Button>
+          );
+        }
+        return (
+          <span style={{ fontSize: '12px', color: isDone ? 'var(--color-success-text)' : 'var(--text-muted)', fontWeight: 500 }}>
+            {isDone ? 'Received ✓' : 'Awaiting Admin'}
+          </span>
+        );
+      }
     }
-  };
+  ];
+
+  const filterTabs = [
+    { id: 'ALL', label: `All Requests (${stockRequests.length})` },
+    { id: 'PENDING', label: `Pending (${stockRequests.filter((r) => String(r.status).toLowerCase().includes('pending')).length})` },
+    { id: 'APPROVED', label: `Approved / Transit (${stockRequests.filter((r) => ['approved', 'dispatched', 'in transit'].some((k) => String(r.status).toLowerCase().includes(k))).length})` },
+    { id: 'FULFILLED', label: `Fulfilled (${stockRequests.filter((r) => ['fulfilled', 'received', 'completed'].some((k) => String(r.status).toLowerCase().includes(k))).length})` }
+  ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <PageHeader
         title="Admin Stock Requisitions Ledger"
-        description="Historical record of all raw material requests submitted to Central Canteen Admin"
+        description="Historical record of all raw material requests submitted to Central Canteen Admin."
         actions={
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <Button
               variant="secondary"
               icon={RefreshCw}
+              loading={loading}
               onClick={() => refreshInventory()}
             >
               Refresh
@@ -69,13 +184,12 @@ export const StaffStockRequestHistoryPage = () => {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '6px',
-                padding: '0 16px',
-                height: '36px',
+                padding: '8px 16px',
                 borderRadius: 'var(--border-radius-md)',
-                backgroundColor: 'var(--color-accent)',
+                backgroundColor: 'var(--color-primary)',
                 color: '#ffffff',
-                fontSize: '13px',
-                fontWeight: 600,
+                fontSize: '13.5px',
+                fontWeight: 500,
                 textDecoration: 'none'
               }}
             >
@@ -86,159 +200,56 @@ export const StaffStockRequestHistoryPage = () => {
         }
       />
 
-      {successToast && (
-        <div style={{ padding: '12px 16px', borderRadius: 'var(--border-radius-md)', backgroundColor: 'var(--color-success-bg)', color: 'var(--color-success)', fontSize: '13px', fontWeight: 700, border: '1px solid var(--color-success-border)' }}>
-          {successToast}
+      {error && (
+        <div className={styles.errorBanner} role="alert">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertCircle size={16} />
+            <span>{error}</span>
+          </div>
+          <Button variant="secondary" size="sm" icon={RefreshCw} onClick={refreshInventory}>
+            Retry
+          </Button>
         </div>
       )}
 
-      {/* Filter Tabs */}
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-        {[
-          { id: 'ALL', label: `All Requests (${stockRequests.length})` },
-          { id: 'PENDING', label: `Pending (${stockRequests.filter(r => r.status === 'Pending Review').length})` },
-          { id: 'APPROVED', label: `Approved / Transit (${stockRequests.filter(r => r.status === 'Approved' || r.status === 'Dispatched').length})` },
-          { id: 'FULFILLED', label: `Fulfilled (${stockRequests.filter(r => r.status === 'Fulfilled').length})` }
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setStatusFilter(tab.id)}
-            style={{
-              padding: '6px 14px',
-              borderRadius: 'var(--border-radius-sm)',
-              border: '1px solid',
-              borderColor: statusFilter === tab.id ? 'var(--color-accent)' : 'var(--border-color)',
-              backgroundColor: statusFilter === tab.id ? 'var(--color-primary-light)' : 'var(--bg-surface)',
-              color: statusFilter === tab.id ? 'var(--color-primary)' : 'var(--text-secondary)',
-              fontSize: '12.5px',
-              fontWeight: 600,
-              cursor: 'pointer'
-            }}
-          >
-            {tab.label}
-          </button>
-        ))}
+        {filterTabs.map((tab) => {
+          const isActive = statusFilter === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setStatusFilter(tab.id)}
+              style={{
+                padding: '6px 14px',
+                borderRadius: 'var(--border-radius-md)',
+                border: '1px solid',
+                borderColor: isActive ? 'var(--color-primary)' : 'var(--border-color)',
+                backgroundColor: isActive ? 'var(--color-primary)' : 'var(--bg-surface)',
+                color: isActive ? '#ffffff' : 'var(--text-secondary)',
+                fontSize: '12.5px',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
       </div>
 
-      {/* Requisitions Table */}
-      <div style={{
-        backgroundColor: 'var(--bg-surface)',
-        borderRadius: 'var(--border-radius-lg)',
-        border: '1px solid var(--border-color)',
-        overflow: 'hidden',
-        boxShadow: 'var(--shadow-xs)'
-      }}>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
-            <thead>
-              <tr style={{ backgroundColor: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontWeight: 700 }}>
-                <th style={{ padding: '12px 16px' }}>Req ID</th>
-                <th style={{ padding: '12px 16px' }}>Requested Item</th>
-                <th style={{ padding: '12px 16px' }}>Qty & Unit</th>
-                <th style={{ padding: '12px 16px' }}>Urgency</th>
-                <th style={{ padding: '12px 16px' }}>Admin Status</th>
-                <th style={{ padding: '12px 16px' }}>Admin Notes</th>
-                <th style={{ padding: '12px 16px', textAlign: 'right' }}>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                    No stock requisitions found matching this status filter.
-                  </td>
-                </tr>
-              ) : (
-                filtered.map((req) => {
-                  const badge = getStatusBadge(req.status);
-                  const isEmergency = req.urgency === 'Emergency';
-                  const isHigh = req.urgency === 'High';
-
-                  return (
-                    <tr key={req.id} style={{ borderBottom: '1px solid var(--border-color-subtle)' }}>
-                      <td style={{ padding: '12px 16px', fontWeight: 800, color: 'var(--text-primary)' }}>
-                        {req.id}
-                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 400 }}>
-                          {new Date(req.createdAt).toLocaleDateString()}
-                        </div>
-                      </td>
-
-                      <td style={{ padding: '12px 16px' }}>
-                        <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
-                          {req.itemName}
-                        </div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                          {req.itemCode} • {req.category}
-                        </div>
-                      </td>
-
-                      <td style={{ padding: '12px 16px', fontWeight: 800, color: 'var(--text-primary)' }}>
-                        {req.requestedQuantity} {req.unit}
-                      </td>
-
-                      <td style={{ padding: '12px 16px' }}>
-                        <span style={{
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          padding: '2px 8px',
-                          borderRadius: '9999px',
-                          backgroundColor: isEmergency ? 'var(--color-danger-bg)' : isHigh ? 'var(--color-warning-bg)' : 'var(--bg-app)',
-                          color: isEmergency ? 'var(--color-danger)' : isHigh ? 'var(--color-warning)' : 'var(--text-secondary)',
-                          border: '1px solid var(--border-color)'
-                        }}>
-                          {req.urgency}
-                        </span>
-                      </td>
-
-                      <td style={{ padding: '12px 16px' }}>
-                        <span style={{
-                          fontSize: '11.5px',
-                          fontWeight: 700,
-                          padding: '3px 8px',
-                          borderRadius: '6px',
-                          backgroundColor: badge.bg,
-                          color: badge.color,
-                          border: `1px solid ${badge.border}`
-                        }}>
-                          {badge.label}
-                        </span>
-                      </td>
-
-                      <td style={{ padding: '12px 16px', color: 'var(--text-secondary)', maxWidth: '240px' }}>
-                        {req.adminNotes || req.notes || '—'}
-                      </td>
-
-                      <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                        {req.status === 'Approved' || req.status === 'Dispatched' ? (
-                          <button
-                            onClick={() => handleMarkReceived(req.id)}
-                            style={{
-                              padding: '5px 10px',
-                              borderRadius: 'var(--border-radius-sm)',
-                              backgroundColor: 'var(--color-success)',
-                              color: '#ffffff',
-                              border: 'none',
-                              fontSize: '11.5px',
-                              fontWeight: 700,
-                              cursor: 'pointer'
-                            }}
-                          >
-                            Mark Received
-                          </button>
-                        ) : (
-                          <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
-                            {req.status === 'Fulfilled' ? 'Received ✓' : 'Awaiting Admin'}
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <DataTable
+        columns={columns}
+        data={filtered}
+        loading={loading}
+        emptyState={
+          <EmptyState
+            icon={History}
+            title="No Stock Requisitions Found"
+            message="No stock requisitions match this status filter."
+          />
+        }
+      />
     </div>
   );
 };

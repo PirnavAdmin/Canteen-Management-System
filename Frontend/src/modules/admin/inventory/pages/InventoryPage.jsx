@@ -58,6 +58,12 @@ export const InventoryPage = () => {
     }
   }, [selectedOutlet]);
 
+  const centralWarehouseInfo = useMemo(() => ({
+    id: 'CENTRAL',
+    name: 'Central Procurement Warehouse',
+    code: 'WH-CENTRAL'
+  }), []);
+
   const isWarehouseView = inventoryScope === 'CENTRAL' || inventoryScope === '4' || inventoryScope === 'ALL';
 
   const currentScopeOutlet = useMemo(() => {
@@ -843,7 +849,7 @@ export const InventoryPage = () => {
         isOpen={isRequestModalOpen}
         onClose={() => setIsRequestModalOpen(false)}
         currentOutlet={currentScopeOutlet}
-        warehouseOutlet={warehouseOutlet}
+        warehouseOutlet={centralWarehouseInfo}
         centralItems={centralItems}
         loading={modalLoading}
         onSubmitRequest={async (itemsList, commonData) => {
@@ -938,7 +944,7 @@ export const InventoryPage = () => {
         onSave={handleSaveItem}
         initialData={editingItem}
         outlets={outlets}
-        defaultOutletId={Number(inventoryScope) || (warehouseOutletId || 4)}
+        defaultOutletId={isWarehouseView ? null : (Number(inventoryScope) || 1)}
         loading={modalLoading}
       />
 
