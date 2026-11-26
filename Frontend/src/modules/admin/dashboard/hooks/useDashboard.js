@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { dashboardService } from '../services/dashboardService';
 import { orderService } from '../../orders/services/orderService';
+import { inventoryService } from '../../inventory/services/inventoryService';
+import { canteenService } from '../../outlets/services/canteenService';
+import { feedbackService } from '../../feedback/services/feedbackService';
 import { useToast } from '../../../../app/providers/ToastProvider';
 import { useAuth } from '../../../../app/providers/AuthProvider';
 
@@ -17,6 +20,7 @@ export const useDashboard = (selectedOutlet = 'ALL') => {
   const [liveOrders, setLiveOrders] = useState([]);
   const [topSelling, setTopSelling] = useState([]);
   const [stockAlerts, setStockAlerts] = useState([]);
+  const [kitchenRequests, setKitchenRequests] = useState([]);
   const [outletSales, setOutletSales] = useState([]);
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const { error: toastError } = useToast();
@@ -31,15 +35,31 @@ export const useDashboard = (selectedOutlet = 'ALL') => {
     try {
       setLoading(true);
       setError(null);
-      const outletParams = selectedOutlet && selectedOutlet !== 'ALL' ? { outletId: Number(selectedOutlet) } : {};
+      const isAllOutlets = !selectedOutlet || selectedOutlet === 'ALL';
+      const outletParams = !isAllOutlets ? { outletId: Number(selectedOutlet) } : {};
       
-      const [sum, live, top, alerts, outlets, allOrdersRaw] = await Promise.all([
+      // When 'ALL' is selected in navbar, query the Central Warehouse inventory using storeType=CentralWarehouse.
+      // When a specific outlet is selected, query that specific outlet's inventory with outletId.
+      const inventoryParams = isAllOutlets
+        ? { storeType: 'CentralWarehouse' }
+        : { outletId: Number(selectedOutlet) };
+
+      // For stock requests:
+      // When all outlets selected, query all stock requests; when a specific outlet selected, query for that outlet.
+      const requestParams = isAllOutlets ? {} : { outletId: Number(selectedOutlet) };
+
+      const feedbackParams = (selectedOutlet && selectedOutlet !== 'ALL') ? { outletId: Number(selectedOutlet) } : {};
+
+      const [sum, live, top, outlets, allOrdersRaw, allInventoryRaw, allCanteensRaw, allStockRequestsRaw, allFeedbacksRaw] = await Promise.all([
         dashboardService.getSummary(selectedOutlet).catch(() => ({})),
         dashboardService.getLiveOrders(selectedOutlet).catch(() => []),
         dashboardService.getTopSelling(selectedOutlet).catch(() => []),
-        dashboardService.getStockAlerts().catch(() => []),
         dashboardService.getOutletSales().catch(() => []),
-        orderService.getAll(outletParams).catch(() => [])
+        orderService.getAll(outletParams).catch(() => []),
+        inventoryService.getItems(inventoryParams).catch(() => []),
+        canteenService.getAll().catch(() => []),
+        inventoryService.getStockRequests(requestParams).catch(() => []),
+        feedbackService.getAll(feedbackParams).catch(() => [])
       ]);
 
       const rawOrders = Array.isArray(allOrdersRaw)
@@ -135,6 +155,31 @@ export const useDashboard = (selectedOutlet = 'ALL') => {
         }
       }
 
+      // Process recent kitchen stock request for the KPI card
+      const rawStockRequests = Array.isArray(allStockRequestsRaw)
+        ? allStockRequestsRaw
+        : (Array.isArray(allStockRequestsRaw?.data)
+            ? allStockRequestsRaw.data
+            : (Array.isArray(allStockRequestsRaw?.requests)
+                ? allStockRequestsRaw.requests
+                : []));
+
+      const outletStockRequests = isAllOutlets
+        ? rawStockRequests
+        : rawStockRequests.filter(r => {
+            const oid = r.outletId ?? r.OutletId;
+            return oid ? Number(oid) === Number(selectedOutlet) : true;
+          });
+
+      const sortedStockRequests = [...outletStockRequests].sort((a, b) => {
+        const dateA = new Date(a.createdAt || a.requestDate || a.date || 0).getTime();
+        const dateB = new Date(b.createdAt || b.requestDate || b.date || 0).getTime();
+        return dateB - dateA;
+      });
+
+      const recentKitchenRequest = sortedStockRequests[0] || null;
+      setKitchenRequests(sortedStockRequests);
+
       const enrichedSummary = {
         ...(sum || {}),
         todayOrders: todayOrdersCount,
@@ -145,7 +190,8 @@ export const useDashboard = (selectedOutlet = 'ALL') => {
         todayCompleted,
         todayCancelled,
         todayRevenue,
-        monthlyRevenue
+        monthlyRevenue,
+        recentKitchenRequest
       };
 
       // 1. THIS WEEK'S SALES (Monday through Sunday of current week)
@@ -366,15 +412,151 @@ export const useDashboard = (selectedOutlet = 'ALL') => {
 
       setLiveOrders(todayOrdersList);
       
+      const feedbacksList = Array.isArray(allFeedbacksRaw)
+        ? allFeedbacksRaw
+        : (Array.isArray(allFeedbacksRaw?.data) ? allFeedbacksRaw.data : []);
+
       const sortedTop = (Array.isArray(top) ? top : (Array.isArray(top?.data) ? top.data : []))
         .slice()
         .sort((a, b) => {
           const countA = Number(a.count ?? a.qtySold ?? a.orders ?? 0);
           const countB = Number(b.count ?? b.qtySold ?? b.orders ?? 0);
           return countB - countA;
+        })
+        .map((item, idx) => {
+          const nameLower = (item.name || '').trim().toLowerCase();
+          const itemNorm = (item.name || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+          const itemIdStr = String(item.id || item.menuItemId || item.code || '').trim();
+
+          // Find genuine feedback reviews matching this dish
+          const dishFeedbacks = feedbacksList.filter(f => {
+            if (!f) return false;
+            const ratingVal = Number(f.rating);
+            if (isNaN(ratingVal) || ratingVal <= 0) return false;
+
+            const fCat = String(f.complaintCategory || '').trim().toLowerCase();
+            const fCatNorm = fCat.replace(/[^a-z0-9]/g, '');
+            const fComments = String(f.comments || '').trim().toLowerCase();
+            const fItemId = String(f.itemId || f.menuItemId || '').trim();
+
+            // 1. Direct item ID match
+            if (itemIdStr && fItemId && fItemId === itemIdStr) return true;
+
+            // 2. Exact match on complaintCategory (e.g. "khaidi chicken dum biryani", "dosa", "chicken 65")
+            if (fCat && (fCat === nameLower || fCatNorm === itemNorm)) return true;
+
+            // 3. Comments contains exact dish name or "dish: <name>"
+            if (nameLower && (
+              fComments.includes(`dish: ${nameLower}`) ||
+              fComments.includes(`dish: [${nameLower}]`) ||
+              fComments.includes(`(${nameLower})`)
+            )) {
+              return true;
+            }
+
+            // 4. Normalized containment if string is reasonably specific (>= 5 chars)
+            if (itemNorm.length >= 5 && fCatNorm.length >= 5 && (fCatNorm.includes(itemNorm) || itemNorm.includes(fCatNorm))) {
+              return true;
+            }
+
+            return false;
+          });
+
+          const liveReviewsCount = dishFeedbacks.length;
+          const liveRatingSum = dishFeedbacks.reduce((acc, f) => acc + Number(f.rating || 0), 0);
+
+          // Pure genuine rating: average rating = sum of all ratings / total number of all ratings
+          // If the dish has no ratings, show 0 rating
+          const averageRating = liveReviewsCount > 0
+            ? (liveRatingSum / liveReviewsCount).toFixed(1)
+            : '0';
+
+          return {
+            ...item,
+            averageRating,
+            rating: averageRating,
+            reviewCount: liveReviewsCount
+          };
         });
       setTopSelling(sortedTop);
-      setStockAlerts(alerts);
+      // Build an outlet map to ensure accurate outlet naming across campus
+      const outletMap = new Map();
+      const canteensList = Array.isArray(allCanteensRaw) ? allCanteensRaw : (allCanteensRaw?.data || []);
+      canteensList.forEach(c => {
+        const cid = Number(c.id || c.outletId);
+        if (cid) outletMap.set(cid, c.name || c.outletName || `Outlet #${cid}`);
+      });
+      const outletsList = Array.isArray(outlets) ? outlets : (outlets?.data || []);
+      outletsList.forEach(o => {
+        const oid = Number(o.id || o.outletId);
+        if (oid && !outletMap.has(oid)) outletMap.set(oid, o.name || o.outletName || `Outlet #${oid}`);
+      });
+
+      // Identify Central Warehouse outlet
+      const warehouseOutlet = canteensList.find(c => c.code === 'WH-01' || (c.name || '').toLowerCase().includes('warehouse') || Number(c.outletId || c.id) === 4);
+      const warehouseOutletId = warehouseOutlet ? Number(warehouseOutlet.outletId || warehouseOutlet.id) : 4;
+
+      const targetOid = isAllOutlets ? warehouseOutletId : Number(selectedOutlet);
+
+      // Process low stock items strictly from live inventory of the targeted outlet
+      const rawInventory = Array.isArray(allInventoryRaw) ? allInventoryRaw : (allInventoryRaw?.data || []);
+      const finalAlerts = rawInventory
+        .filter(item => {
+          // Strict outlet matching
+          if (!isAllOutlets) {
+            const itemOid = item.outletId ?? item.OutletId;
+            if (itemOid && Number(itemOid) !== targetOid) return false;
+          }
+          const qty = Number(item.availableQuantity ?? item.quantity ?? 0);
+          const reorder = Number(item.reorderLevel ?? 0);
+          const status = (item.status || '').toLowerCase();
+          const isExp = item.expiryDate && new Date(item.expiryDate) < new Date();
+          return qty <= reorder || status === 'low stock' || status === 'out of stock' || status === 'expired' || isExp;
+        })
+        .map(item => {
+          const displayOutletName = isAllOutlets
+            ? 'Central Warehouse (Admin Master Store)'
+            : (outletMap.get(targetOid) || item.outletName || item.outlet || 'Campus Canteen');
+
+          const qty = Number(item.availableQuantity ?? item.quantity ?? 0);
+          const reorder = Number(item.reorderLevel ?? 0);
+          let status = item.status || 'Low Stock';
+          if (item.expiryDate && new Date(item.expiryDate) < new Date()) {
+            status = 'Expired';
+          } else if (qty <= 0 || (item.status || '').toLowerCase() === 'out of stock') {
+            status = 'Out of Stock';
+          } else if (qty <= reorder || (item.status || '').toLowerCase() === 'low stock') {
+            status = 'Low Stock';
+          }
+          return {
+            id: item.id || item.itemId || item.ItemId,
+            itemId: item.itemId || item.ItemId || item.id,
+            ingredient: item.ingredientName || item.name || 'Item',
+            ingredientName: item.ingredientName || item.name || 'Item',
+            outletId: targetOid,
+            outlet: displayOutletName,
+            outletName: displayOutletName,
+            availableQuantity: qty,
+            available: `${qty} ${item.unit || 'kg'}`,
+            unit: item.unit || 'kg',
+            reorderLevel: reorder,
+            status
+          };
+        })
+        .sort((a, b) => {
+          const getPriority = (st) => {
+            const s = (st || '').toLowerCase();
+            if (s === 'expired') return 1;
+            if (s === 'out of stock') return 2;
+            if (s === 'low stock') return 3;
+            return 4;
+          };
+          const pDiff = getPriority(a.status) - getPriority(b.status);
+          if (pDiff !== 0) return pDiff;
+          return Number(a.availableQuantity || 0) - Number(b.availableQuantity || 0);
+        });
+
+      setStockAlerts(finalAlerts);
       const filteredOutletSales = (Array.isArray(outlets) ? outlets : []).filter(o => {
         const oid = Number(o.outletId || o.id);
         const name = (o.name || o.outletName || '').toLowerCase();
@@ -401,7 +583,16 @@ export const useDashboard = (selectedOutlet = 'ALL') => {
     const timer = setInterval(() => {
       fetchDashboardData();
     }, 60000);
-    return () => clearInterval(timer);
+
+    const handleFeedbackUpdate = () => {
+      fetchDashboardData();
+    };
+    window.addEventListener('cms:feedback_created', handleFeedbackUpdate);
+
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('cms:feedback_created', handleFeedbackUpdate);
+    };
   }, [fetchDashboardData]);
 
   return {
@@ -412,8 +603,10 @@ export const useDashboard = (selectedOutlet = 'ALL') => {
     liveOrders,
     topSelling,
     stockAlerts,
+    kitchenRequests,
     outletSales,
     lastUpdated,
+    recentKitchenRequest: summary?.recentKitchenRequest || null,
     refreshDashboard: fetchDashboardData
   };
 };

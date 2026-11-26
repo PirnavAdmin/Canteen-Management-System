@@ -71,10 +71,15 @@ namespace CanteenManagement.API.Controllers.V1
         }
 
         [HttpGet("stock-alerts")]
-        public async Task<IActionResult> GetStockAlerts()
+        public async Task<IActionResult> GetStockAlerts([FromQuery] int? outletId)
         {
             var campusId = User.ResolveCampusId();
-            var alerts = await _dashboardService.GetStockAlertsAsync(campusId);
+            var assignedOutletId = User.ResolveOutletId();
+            if (string.Equals(User.ResolveUserRole(), "Cashier", StringComparison.OrdinalIgnoreCase) && assignedOutletId.HasValue)
+            {
+                outletId = assignedOutletId.Value;
+            }
+            var alerts = await _dashboardService.GetStockAlertsAsync(campusId, outletId);
             return Ok(ApiResponse<IEnumerable<StockAlertDto>>.SuccessResponse(alerts));
         }
 

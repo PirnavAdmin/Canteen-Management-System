@@ -36,12 +36,19 @@ export const useInventory = (selectedOutlet = 'ALL') => {
         inventoryService.getStockRequests(requestParams),
         inventoryService.getItems({ storeType: 'CentralWarehouse' }).catch(() => [])
       ]);
+      const rawReqs = Array.isArray(reqs) ? reqs : (reqs?.data || reqs?.requests || []);
+      const filteredReqs = isWarehouse
+        ? rawReqs
+        : rawReqs.filter(r => {
+            const oid = r.outletId ?? r.OutletId;
+            return oid ? Number(oid) === Number(selectedOutlet) : true;
+          });
       setItems(itms);
       setCentralItems(Array.isArray(cItems) && cItems.length > 0 ? cItems : itms);
       setLedger(ledg);
       setPurchaseOrders(pos);
       setSuppliers(sups);
-      setKitchenRequests(Array.isArray(reqs) ? reqs : []);
+      setKitchenRequests(filteredReqs);
     } catch (err) {
       console.error('Failed to load inventory data:', err);
       setError(err.message || 'Error loading inventory');

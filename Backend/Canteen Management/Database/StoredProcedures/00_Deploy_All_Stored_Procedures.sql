@@ -153,25 +153,35 @@ DELIMITER ;
 DROP PROCEDURE IF EXISTS sp_GetStockAlerts;
 DELIMITER $$
 CREATE PROCEDURE sp_GetStockAlerts(
-    IN p_CampusId INT
+    IN p_CampusId INT,
+    IN p_OutletId INT
 )
 BEGIN
     SELECT 
-        ItemId AS Id,
-        ItemId,
-        IngredientName AS Ingredient,
-        IngredientName,
-        'Main Canteen' AS Outlet,
-        AvailableQuantity,
-        CONCAT(AvailableQuantity, ' ', Unit) AS Available,
-        Unit,
-        ReorderLevel,
-        Status
-    FROM InventoryItems
-    WHERE CampusId = p_CampusId 
-      AND AvailableQuantity <= ReorderLevel
-    ORDER BY AvailableQuantity ASC
-    LIMIT 10;
+        i.ItemId AS Id,
+        i.ItemId,
+        i.OutletId,
+        COALESCE(co.Name, 'Main Canteen') AS Outlet,
+        COALESCE(co.Name, 'Main Canteen') AS OutletName,
+        i.IngredientName AS Ingredient,
+        i.IngredientName,
+        i.AvailableQuantity,
+        CONCAT(i.AvailableQuantity, ' ', i.Unit) AS Available,
+        i.Unit,
+        i.ReorderLevel,
+        CASE 
+            WHEN i.ExpiryDate IS NOT NULL AND i.ExpiryDate < CURDATE() THEN 'Expired'
+            WHEN i.AvailableQuantity <= 0 THEN 'Out of Stock'
+            WHEN i.AvailableQuantity <= i.ReorderLevel THEN 'Low Stock'
+            ELSE COALESCE(i.Status, 'Low Stock')
+        END AS Status
+    FROM InventoryItems i
+    LEFT JOIN CanteenOutlets co ON i.OutletId = co.OutletId
+    WHERE i.CampusId = p_CampusId 
+      AND (p_OutletId IS NULL OR p_OutletId <= 0 OR i.OutletId = p_OutletId)
+      AND (i.AvailableQuantity <= i.ReorderLevel OR i.Status IN ('Low Stock', 'Out of Stock', 'Expired') OR (i.ExpiryDate IS NOT NULL AND i.ExpiryDate <= CURDATE()))
+    ORDER BY i.AvailableQuantity ASC
+    LIMIT 20;
 END $$
 DELIMITER ;
 

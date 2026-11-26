@@ -31,8 +31,9 @@ export const dashboardService = {
     return response?.data ?? response;
   },
 
-  getStockAlerts: async () => {
-    const response = await apiClient.get(API_ENDPOINTS.DASHBOARD.STOCK_ALERTS);
+  getStockAlerts: async (outletId = 'ALL') => {
+    const params = outletId && outletId !== 'ALL' ? { outletId: Number(outletId) } : {};
+    const response = await apiClient.get(API_ENDPOINTS.DASHBOARD.STOCK_ALERTS, params);
     return response?.data ?? response;
   },
 

@@ -33,9 +33,9 @@ namespace CanteenManagement.API.Services.Implementations.Dashboard
             return await _repository.GetTopSellingItemsAsync(campusId, outletId);
         }
 
-        public async Task<IEnumerable<StockAlertDto>> GetStockAlertsAsync(int campusId)
+        public async Task<IEnumerable<StockAlertDto>> GetStockAlertsAsync(int campusId, int? outletId = null)
         {
-            return await _repository.GetStockAlertsAsync(campusId);
+            return await _repository.GetStockAlertsAsync(campusId, outletId);
         }
 
         public async Task<IEnumerable<OutletSalesDto>> GetOutletSalesAsync(int campusId)

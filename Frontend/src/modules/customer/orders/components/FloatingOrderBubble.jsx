@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UtensilsCrossed, Clock } from 'lucide-react';
 import { useAuth } from '../../../../app/providers/AuthProvider';
@@ -29,55 +29,74 @@ export const FloatingOrderBubble = () => {
   const [activeItemIndex, setActiveItemIndex] = useState(0);
   const [menuImages, setMenuImages] = useState({});
 
-  // Poll live orders every 3 seconds & synchronously listen to live status updates
+  const activeOrderRef = useRef(null);
+  activeOrderRef.current = activeOrder;
+  const isFetchingRef = useRef(false);
+
+  // Synchronously listen to live status updates & trigger upon order placement
   useEffect(() => {
     let isMounted = true;
     const fetchOrders = async () => {
+      if (isFetchingRef.current) return;
       try {
+        isFetchingRef.current = true;
         const list = await customerOrderService.getCustomerOrders(user);
         if (!isMounted) return;
         const orders = Array.isArray(list) ? list : [];
-        // Only active in-progress orders (not Completed, Collected, Cancelled, or Refunded)
-        const active = orders.find(o => o && !['Completed', 'Collected', 'Cancelled', 'Refunded'].includes(o.status));
+        // Sort descending so the most recent order is checked first
+        const sorted = [...orders].sort((a, b) => {
+          const timeA = new Date(a.orderDate || a.createdAt || 0).getTime();
+          const timeB = new Date(b.orderDate || b.createdAt || 0).getTime();
+          return timeB - timeA;
+        });
+        // Active in-progress orders (disappears once Completed, Collected, Cancelled, or Refunded)
+        const active = sorted.find(o => o && !['completed', 'collected', 'cancelled', 'refunded'].includes(String(o.status || '').toLowerCase()));
         setActiveOrder(active || null);
       } catch (err) {
         console.warn('Could not fetch active order for bubble:', err);
+      } finally {
+        isFetchingRef.current = false;
       }
     };
 
     fetchOrders();
 
     const handleOrderEvent = (updatedOrder) => {
-      if (updatedOrder && (updatedOrder.id || updatedOrder.orderId)) {
+      const ord = updatedOrder?.updatedOrder || updatedOrder;
+      if (!ord) return;
+      const statusStr = String(ord.status || ord.newStatus || '').toLowerCase();
+      const isTerminal = ['completed', 'collected', 'cancelled', 'refunded'].includes(statusStr);
+      if (isTerminal) {
         setActiveOrder(prev => {
-          if (!prev) return prev;
-          const isMatch = String(prev.id) === String(updatedOrder.id) ||
-                          String(prev.orderId) === String(updatedOrder.orderId) ||
-                          String(prev.token) === String(updatedOrder.token);
-          if (isMatch) {
-            if (['Completed', 'Collected', 'Cancelled', 'Refunded'].includes(updatedOrder.status)) {
-              return null;
-            }
-            return { ...prev, ...updatedOrder };
-          }
-          return prev;
+          if (!prev) return null;
+          const isMatch = !ord.id || String(prev.id) === String(ord.id || ord.orderId) || String(prev.token) === String(ord.token);
+          return isMatch ? null : prev;
         });
+      } else if (ord.id || ord.orderId) {
+        setActiveOrder(ord);
       }
       fetchOrders();
     };
 
     const unsubscribe = subscribeToOrderSync(handleOrderEvent, fetchOrders);
-    const pollInterval = setInterval(fetchOrders, 3000);
-    window.addEventListener('focus', fetchOrders);
-    const handleVisibility = () => { if (!document.hidden) fetchOrders(); };
-    document.addEventListener('visibilitychange', handleVisibility);
+    
+    // Heartbeat check when an active order is present
+    const gentleInterval = setInterval(() => {
+      if (activeOrderRef.current) {
+        fetchOrders();
+      }
+    }, 20000);
+
+    const handleFocus = () => {
+      if (activeOrderRef.current) fetchOrders();
+    };
+    window.addEventListener('focus', handleFocus);
 
     return () => {
       isMounted = false;
       unsubscribe();
-      clearInterval(pollInterval);
-      window.removeEventListener('focus', fetchOrders);
-      document.removeEventListener('visibilitychange', handleVisibility);
+      clearInterval(gentleInterval);
+      window.removeEventListener('focus', handleFocus);
     };
   }, [user]);
 
@@ -97,7 +116,9 @@ export const FloatingOrderBubble = () => {
     return () => { isMounted = false; };
   }, []);
 
-  const items = Array.isArray(activeOrder?.items) ? activeOrder.items : [];
+  const items = Array.isArray(activeOrder?.items) && activeOrder.items.length > 0
+    ? activeOrder.items
+    : [{ name: activeOrder?.outletName || 'Campus Meal' }];
 
   // Cycle through ordered items every 3 seconds if there are multiple items
   useEffect(() => {
@@ -111,10 +132,20 @@ export const FloatingOrderBubble = () => {
     return () => clearInterval(timer);
   }, [items.length]);
 
-  // If no active order, or once order is completed, bubble completely disappears
-  if (!activeOrder || items.length === 0) {
+  // If no active order, or once order is completed / collected / cancelled, bubble completely disappears
+  if (!activeOrder) {
     return null;
   }
+
+  const handleBubbleClick = (e) => {
+    e?.stopPropagation?.();
+    if (!activeOrder) return;
+    if (window.location.pathname === '/customer/orders') {
+      window.dispatchEvent(new CustomEvent('cms:open-order-tracker', { detail: { order: activeOrder } }));
+    } else {
+      navigate('/customer/orders', { state: { trackOrder: activeOrder, trackOrderId: activeOrder.id } });
+    }
+  };
 
   const currentItem = items[activeItemIndex] || items[0] || {};
   const itemImage =
@@ -127,7 +158,7 @@ export const FloatingOrderBubble = () => {
 
   return (
     <div
-      onClick={() => navigate('/customer/orders')}
+      onClick={handleBubbleClick}
       style={{
         position: 'fixed',
         bottom: '28px',

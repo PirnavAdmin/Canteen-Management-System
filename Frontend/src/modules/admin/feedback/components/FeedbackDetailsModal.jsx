@@ -4,6 +4,30 @@ import { Button } from '../../../../components/common/Button';
 import { StatusBadge } from '../../../../components/common/StatusBadge';
 import { FEEDBACK_STATUS } from '../../../../constants/appConstants';
 
+const parseComments = (comments = '') => {
+  if (!comments) return { reviewText: '', tags: [] };
+  const raw = String(comments).trim();
+
+  let reviewText = '';
+  let tags = [];
+
+  const tagsMatch = raw.match(/\(Tags:\s*([^)]+)\)/i) || raw.match(/Tags:\s*([^\]"\n]+)/i);
+  if (tagsMatch) {
+    tags = tagsMatch[1].split(',').map(t => t.trim()).filter(Boolean);
+  }
+
+  let cleaned = raw
+    .replace(/\[Dish:\s*[^\]]+\]/gi, '')
+    .replace(/\(Tags:\s*[^)]+\)/gi, '')
+    .replace(/^Dish:\s*[^.]+\.\s*/i, '')
+    .replace(/Customer rated\s*\d+\/\d+\s*stars\.?\s*/i, '')
+    .replace(/Tags:\s*[^\]"\n]+/gi, '')
+    .trim();
+
+  reviewText = cleaned;
+  return { reviewText, tags };
+};
+
 export const FeedbackDetailsModal = ({ isOpen, onClose, ticket, onResolve }) => {
   const [status, setStatus] = useState(FEEDBACK_STATUS.RESOLVED);
   const [notes, setNotes] = useState('');
@@ -75,7 +99,7 @@ export const FeedbackDetailsModal = ({ isOpen, onClose, ticket, onResolve }) => 
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
-                Grievance Ticket #{ticket.id}
+                Customer Feedback Ticket #{ticket.id}
               </h3>
               <StatusBadge status={ticket.status} size="sm" />
             </div>
@@ -124,22 +148,58 @@ export const FeedbackDetailsModal = ({ isOpen, onClose, ticket, onResolve }) => 
           </div>
 
           {/* Feedback Comments */}
-          <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>
-              Customer Experience Comments
-            </label>
-            <div style={{
-              padding: '12px 14px',
-              backgroundColor: 'var(--color-warning-bg)',
-              border: '1px solid var(--color-warning-border)',
-              borderRadius: 'var(--border-radius-md)',
-              fontSize: '13px',
-              color: 'var(--color-warning-text)',
-              lineHeight: 1.5
-            }}>
-              "{ticket.comments}"
-            </div>
-          </div>
+          {(() => {
+            const { reviewText, tags } = parseComments(ticket.comments);
+            return (
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>
+                  Customer Experience Comments
+                </label>
+                <div style={{
+                  padding: '12px 14px',
+                  backgroundColor: 'var(--color-warning-bg)',
+                  border: '1px solid var(--color-warning-border)',
+                  borderRadius: 'var(--border-radius-md)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px'
+                }}>
+                  {reviewText ? (
+                    <div style={{ fontSize: '13.5px', color: 'var(--text-primary)', lineHeight: 1.5, fontWeight: 500 }}>
+                      "{reviewText}"
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: '12.5px', color: 'var(--color-warning-text)', fontWeight: 600 }}>
+                      Customer rated {ticket.rating}/5 stars for this dish.
+                    </div>
+                  )}
+
+                  {tags.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '2px' }}>
+                      {tags.map((tag, idx) => (
+                        <span
+                          key={idx}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            padding: '3px 8px',
+                            borderRadius: 'var(--border-radius-full)',
+                            backgroundColor: '#fef3c7',
+                            color: '#b45309',
+                            border: '1px solid #fde68a'
+                          }}
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Resolution History */}
           <div>
@@ -165,7 +225,7 @@ export const FeedbackDetailsModal = ({ isOpen, onClose, ticket, onResolve }) => 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
-                  Update Grievance Status *
+                  Update Review & Resolution Status *
                 </label>
                 <select
                   value={status}

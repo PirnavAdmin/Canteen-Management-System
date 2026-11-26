@@ -68,6 +68,8 @@ namespace CanteenManagement.API.DTOs.Dashboard
     {
         public int Id { get; set; }
         public int ItemId { get; set; }
+        public int OutletId { get; set; }
+        public string OutletName { get; set; } = string.Empty;
         public string Ingredient { get; set; } = string.Empty;
         public string IngredientName { get; set; } = string.Empty;
         public string Outlet { get; set; } = "Main Canteen";

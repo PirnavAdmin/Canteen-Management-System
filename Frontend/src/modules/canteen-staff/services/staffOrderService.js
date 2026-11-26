@@ -140,6 +140,7 @@ export const normalizeOrder = (raw) => {
   const items = (Array.isArray(rawItems) ? rawItems : []).map((item) => ({
     id: item.id ?? item.Id ?? item.itemId ?? item.menuItemId,
     name: item.name ?? item.Name ?? item.itemName ?? item.ItemName ?? 'Food Item',
+    imageUrl: item.imageUrl ?? item.ImageUrl ?? item.image ?? item.Image ?? item.photoUrl ?? item.photo ?? null,
     quantity: Number(item.quantity ?? item.Quantity ?? item.qty ?? item.Qty ?? 1),
     price: Number(item.price ?? item.Price ?? item.unitPrice ?? item.UnitPrice ?? 0),
     variant: item.variant ?? item.Variant ?? item.variantName ?? item.notes ?? '',

@@ -16,7 +16,7 @@ export const FeedbackPage = () => {
     loading,
     resolveTicket,
     refreshFeedback
-  } = useFeedback();
+  } = useFeedback(selectedOutlet);
 
   // Filters state
   const [searchTerm, setSearchTerm] = useState('');
@@ -31,28 +31,35 @@ export const FeedbackPage = () => {
   // Modal state
   const [activeTicket, setActiveTicket] = useState(null);
 
-  // Filtered feedback
+  // Filtered feedback - depends strictly on navbar selectedOutlet and sorted with most recent on top
   const filteredFeedback = useMemo(() => {
-    return feedbackList.filter(item => {
-      if (searchTerm) {
-        const q = searchTerm.toLowerCase();
-        const matchesId = item.id?.toLowerCase().includes(q);
-        const matchesName = item.customerName?.toLowerCase().includes(q);
-        const matchesComments = item.comments?.toLowerCase().includes(q);
-        const matchesOrder = item.orderToken?.toLowerCase().includes(q);
-        if (!matchesId && !matchesName && !matchesComments && !matchesOrder) return false;
-      }
-      if (selectedCategory !== 'ALL' && item.complaintCategory !== selectedCategory) return false;
-      if (selectedStatus !== 'ALL' && item.status !== selectedStatus) return false;
-      if (selectedRating !== 'ALL' && String(item.rating) !== selectedRating) return false;
-      if (selectedOutlet !== 'ALL') {
-        const matchesId = String(item.outletId ?? item.canteenId ?? '') === String(selectedOutlet);
-        const matchesName = selectedOutletObj && item.outletName &&
-          item.outletName.toLowerCase().includes(selectedOutletObj.name.toLowerCase());
-        if (!matchesId && !matchesName) return false;
-      }
-      return true;
-    });
+    return feedbackList
+      .filter(item => {
+        if (searchTerm) {
+          const q = searchTerm.toLowerCase();
+          const matchesId = item.id?.toLowerCase().includes(q);
+          const matchesName = item.customerName?.toLowerCase().includes(q);
+          const matchesComments = item.comments?.toLowerCase().includes(q);
+          const matchesCategory = item.complaintCategory?.toLowerCase().includes(q);
+          const matchesOrder = item.orderToken?.toLowerCase().includes(q) || item.orderId?.toLowerCase().includes(q);
+          if (!matchesId && !matchesName && !matchesComments && !matchesCategory && !matchesOrder) return false;
+        }
+        if (selectedCategory !== 'ALL' && item.complaintCategory !== selectedCategory) return false;
+        if (selectedStatus !== 'ALL' && item.status !== selectedStatus) return false;
+        if (selectedRating !== 'ALL' && String(item.rating) !== selectedRating) return false;
+        if (selectedOutlet !== 'ALL') {
+          const matchesId = String(item.outletId ?? item.canteenId ?? '') === String(selectedOutlet);
+          const matchesName = selectedOutletObj && item.outletName &&
+            item.outletName.toLowerCase().includes(selectedOutletObj.name.toLowerCase());
+          if (!matchesId && !matchesName) return false;
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        const timeA = new Date(a.createdAt || a.date || 0).getTime();
+        const timeB = new Date(b.createdAt || b.date || 0).getTime();
+        return timeB - timeA;
+      });
   }, [feedbackList, searchTerm, selectedCategory, selectedStatus, selectedRating, selectedOutlet, selectedOutletObj]);
 
   // Paginated records
@@ -72,11 +79,11 @@ export const FeedbackPage = () => {
   return (
     <div>
       <PageHeader
-        title="Feedback & Grievances Management"
-        description="Review student and faculty dining satisfaction ratings, investigate food quality or delay complaints, and log institutional corrective actions."
+        title="Customer Feedback & Reviews Management"
+        description="Review student and faculty dining satisfaction ratings, investigate food quality or delay feedback, and log institutional corrective actions."
         breadcrumbItems={[
           { label: 'Admin' },
-          { label: 'Feedback & Grievances' }
+          { label: 'Feedback & Reviews' }
         ]}
         actions={
           <Button

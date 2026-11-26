@@ -18,6 +18,7 @@ import { useTheme } from '../../../../hooks/useTheme';
 import { useCustomerMenu } from '../../menu/hooks/useCustomerMenu';
 import { useCart } from '../../cart/hooks/useCart';
 import { customerOrderService } from '../../orders/services/customerOrderService';
+import { feedbackService } from '../../../admin/feedback/services/feedbackService';
 import { SafeImage } from '../../../../components/common/SafeImage';
 import { FoodRatingModal, inMemoryRatedOrderIds } from '../../feedback/components/FoodRatingModal';
 import { subscribeToOrderSync } from '../../../../utils/orderSync';
@@ -53,6 +54,30 @@ export const CustomerDashboardPage = () => {
   // Rating modal state
   const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
   const [orderToRate, setOrderToRate] = useState(null);
+  const [ratedOrderIds, setRatedOrderIds] = useState(new Set());
+
+  // Load existing feedback records from backend to know which orders are already rated
+  useEffect(() => {
+    let isMounted = true;
+    feedbackService.getAll().then((list) => {
+      if (!isMounted) return;
+      const ids = new Set((Array.isArray(list) ? list : []).map(f => String(f.orderId || '').trim()).filter(Boolean));
+      setRatedOrderIds(ids);
+    }).catch(() => {});
+    return () => { isMounted = false; };
+  }, []);
+
+  // Listen to new feedback submissions in real-time
+  useEffect(() => {
+    const handleFeedbackCreated = (e) => {
+      const ordId = String(e.detail?.orderId || '').trim();
+      if (ordId) {
+        setRatedOrderIds(prev => new Set([...prev, ordId]));
+      }
+    };
+    window.addEventListener('cms:feedback_created', handleFeedbackCreated);
+    return () => window.removeEventListener('cms:feedback_created', handleFeedbackCreated);
+  }, []);
 
   // Fetch orders on mount and update on order events (no continuous background hitting)
   useEffect(() => {
@@ -77,28 +102,41 @@ export const CustomerDashboardPage = () => {
     };
   }, [user]);
 
-  // When an order is completed, automatically trigger the feedback modal like Flipkart/Zomato
+  // When a recent order is collected or completed, automatically prompt the feedback modal if not yet rated/skipped
   useEffect(() => {
-    const completed = orders.find(o => o && o.status === 'Completed');
-    if (completed) {
-      const orderId = String(completed.id || completed.orderId);
-      if (!inMemoryRatedOrderIds.has(orderId)) {
-        setOrderToRate(completed);
-        setIsRatingModalOpen(true);
+    if (!Array.isArray(orders) || orders.length === 0) return;
+
+    // Sort descending by time so the most recent order is checked first
+    const sorted = [...orders].sort((a, b) => {
+      const timeA = new Date(a.orderDate || a.createdAt || 0).getTime();
+      const timeB = new Date(b.orderDate || b.createdAt || 0).getTime();
+      return timeB - timeA;
+    });
+
+    const recentCollected = sorted.find(o => o && (o.status === 'Collected' || o.status === 'Completed'));
+    if (recentCollected) {
+      const orderId = String(recentCollected.id || recentCollected.orderId || '').trim();
+      const isAlreadyRated = ratedOrderIds.has(orderId) ||
+        inMemoryRatedOrderIds.has(orderId) ||
+        (recentCollected.id && (ratedOrderIds.has(`ORD-${recentCollected.id}`) || inMemoryRatedOrderIds.has(`ORD-${recentCollected.id}`))) ||
+        (recentCollected.orderId && (ratedOrderIds.has(String(recentCollected.orderId)) || inMemoryRatedOrderIds.has(String(recentCollected.orderId))));
+
+      if (!isAlreadyRated) {
+        const timer = setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('cms:open-dish-feedback', { detail: { order: recentCollected } }));
+        }, 600);
+        return () => clearTimeout(timer);
       }
     }
-  }, [orders]);
+  }, [orders, ratedOrderIds]);
 
   // Listen to external manual review open triggers
   useEffect(() => {
     const handleOpenRating = (e) => {
-      if (e.detail?.order) {
-        setOrderToRate(e.detail.order);
-      } else if (orders.length > 0) {
-        const target = orders.find(o => o.status === 'Completed') || orders[0];
-        setOrderToRate(target);
+      const target = e.detail?.order || orders.find(o => o.status === 'Collected' || o.status === 'Completed') || orders[0];
+      if (target) {
+        window.dispatchEvent(new CustomEvent('cms:open-dish-feedback', { detail: { order: target } }));
       }
-      setIsRatingModalOpen(true);
     };
     window.addEventListener('cms:open-rating-modal', handleOpenRating);
     return () => window.removeEventListener('cms:open-rating-modal', handleOpenRating);
@@ -244,8 +282,24 @@ export const CustomerDashboardPage = () => {
     return 'Good Evening!';
   }, []);
 
-  // Check if any order is completed to optionally surface rate dish shortcut
-  const completedOrder = useMemo(() => orders.find(o => o.status === 'Completed'), [orders]);
+  // Check if any recent order is collected or completed and not yet rated
+  const completedOrder = useMemo(() => {
+    if (!Array.isArray(orders)) return null;
+    const sorted = [...orders].sort((a, b) => {
+      const timeA = new Date(a.orderDate || a.createdAt || 0).getTime();
+      const timeB = new Date(b.orderDate || b.createdAt || 0).getTime();
+      return timeB - timeA;
+    });
+    return sorted.find(o => {
+      if (!o || (o.status !== 'Collected' && o.status !== 'Completed')) return false;
+      const key = String(o.id || o.orderId || '').trim();
+      const isRated = ratedOrderIds.has(key) ||
+        inMemoryRatedOrderIds.has(key) ||
+        (o.id && (ratedOrderIds.has(`ORD-${o.id}`) || inMemoryRatedOrderIds.has(`ORD-${o.id}`))) ||
+        (o.orderId && (ratedOrderIds.has(String(o.orderId)) || inMemoryRatedOrderIds.has(String(o.orderId))));
+      return !isRated;
+    }) || null;
+  }, [orders, ratedOrderIds]);
 
   return (
     <div style={{ color: 'var(--text-primary)', display: 'flex', flexDirection: 'column', gap: '18px' }}>
@@ -471,7 +525,7 @@ export const CustomerDashboardPage = () => {
             <span style={{ fontSize: '16px' }}>⭐</span>
             <div>
               <div style={{ fontSize: '12.5px', fontWeight: 700, color: isDark ? '#93c5fa' : '#1e3a8a' }}>
-                Your order #{completedOrder.id || completedOrder.orderId} was completed!
+                Your order #{completedOrder.id || completedOrder.orderId} was {completedOrder.status === 'Collected' ? 'collected' : 'completed'}!
               </div>
               <div style={{ fontSize: '11px', color: isDark ? '#60a5fa' : '#3b82f6' }}>
                 How was the taste and quality? Leave a quick review for the kitchen.
@@ -481,8 +535,7 @@ export const CustomerDashboardPage = () => {
           <button
             type="button"
             onClick={() => {
-              setOrderToRate(completedOrder);
-              setIsRatingModalOpen(true);
+              window.dispatchEvent(new CustomEvent('cms:open-dish-feedback', { detail: { order: completedOrder } }));
             }}
             style={{
               padding: '5px 12px',
@@ -897,13 +950,6 @@ export const CustomerDashboardPage = () => {
           </button>
         </div>
       )}
-
-      {/* 5. Food Rating & Review Modal (Flipkart / E-commerce Style) */}
-      <FoodRatingModal
-        isOpen={isRatingModalOpen}
-        onClose={() => setIsRatingModalOpen(false)}
-        order={orderToRate}
-      />
     </div>
   );
 };

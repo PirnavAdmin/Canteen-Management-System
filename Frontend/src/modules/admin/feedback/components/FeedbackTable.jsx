@@ -61,19 +61,39 @@ export const FeedbackTable = ({
     },
     {
       key: 'complaintCategory',
-      header: 'Category',
-      render: (val) => {
+      header: 'Category / Dish',
+      render: (val, row) => {
         const catStr = typeof val === 'object' ? (val?.name || val?.id || '—') : (val || '—');
         return (
-          <span style={{
-            backgroundColor: 'var(--bg-muted)',
-            padding: '2px 8px',
-            borderRadius: '4px',
-            fontSize: '11.5px',
-            color: 'var(--text-secondary)'
-          }}>
-            {catStr}
-          </span>
+          <div style={{ maxWidth: '280px' }}>
+            <span style={{
+              backgroundColor: 'var(--bg-muted)',
+              padding: '2px 8px',
+              borderRadius: '4px',
+              fontSize: '11.5px',
+              fontWeight: 600,
+              color: 'var(--text-secondary)',
+              display: 'inline-block'
+            }}>
+              {catStr}
+            </span>
+            {row.comments && (
+              <div
+                style={{
+                  fontSize: '11.5px',
+                  color: 'var(--text-muted)',
+                  marginTop: '3px',
+                  lineHeight: 1.35,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap'
+                }}
+                title={row.comments}
+              >
+                {row.comments}
+              </div>
+            )}
+          </div>
         );
       }
     },
@@ -110,8 +130,11 @@ export const FeedbackTable = ({
     },
     {
       key: 'status',
-      header: 'Grievance Status',
-      render: (val) => <StatusBadge status={val} size="sm" />
+      header: 'Status',
+      align: 'center',
+      render: (val) => (
+        <StatusBadge status={val || 'New'} size="sm" />
+      )
     },
     {
       key: 'actions',

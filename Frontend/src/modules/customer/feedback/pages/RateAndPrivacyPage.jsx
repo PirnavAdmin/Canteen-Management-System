@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../../../app/providers/AuthProvider';
 import { orderService } from '../../../admin/orders/services/orderService';
-import { storageService } from '../../../../services/storageService';
+import { feedbackService } from '../../../admin/feedback/services/feedbackService';
 import { ORDER_STATUS } from '../../../../constants/appConstants';
 import { PageHeader } from '../../../../components/common/PageHeader';
 import { Card } from '../../../../components/common/Card';
@@ -17,8 +17,6 @@ import {
   Lock,
   Heart
 } from 'lucide-react';
-
-const FEEDBACK_STORAGE_KEY = 'cms_canteen_feedback_tickets';
 
 export const RateAndPrivacyPage = () => {
   const [searchParams] = useSearchParams();
@@ -39,77 +37,73 @@ export const RateAndPrivacyPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
+  const loadOrdersAndReviews = async () => {
+    try {
+      const allOrders = await orderService.getAll();
+      const userCompleted = (allOrders || []).filter(o => {
+        const isUser = (o.customer?.email && user?.email && o.customer.email.toLowerCase() === user.email.toLowerCase()) ||
+          (o.customer?.name && user?.fullName && o.customer.name.toLowerCase() === user.fullName.toLowerCase());
+        return isUser && o.status === ORDER_STATUS.COMPLETED;
+      });
+
+      setEligibleOrders(userCompleted);
+      setSelectedOrderId(prev => {
+        if (preselectedOrderId && userCompleted.some(o => o.id === preselectedOrderId)) {
+          return preselectedOrderId;
+        }
+        if (userCompleted.length > 0 && !prev) {
+          return userCompleted[0].id;
+        }
+        return prev;
+      });
+
+      // Load existing reviews from live API (no local storage)
+      const liveFeedback = await feedbackService.getAll();
+      const feedbackArray = Array.isArray(liveFeedback) ? liveFeedback : (liveFeedback?.data || []);
+      const userFeedback = feedbackArray.filter(f =>
+        (f.customerEmail && user?.email && f.customerEmail.toLowerCase() === user.email.toLowerCase()) ||
+        (f.customerName && user?.fullName && f.customerName.toLowerCase() === user.fullName.toLowerCase())
+      );
+      setSubmittedReviews(userFeedback);
+    } catch (err) {
+      console.error('Failed to load feedback data:', err);
+    }
+  };
+
   useEffect(() => {
-    const loadOrdersAndReviews = async () => {
-      try {
-        const allOrders = await orderService.getAll();
-        const userCompleted = (allOrders || []).filter(o => {
-          const isUser = (o.customer?.email && user?.email && o.customer.email.toLowerCase() === user.email.toLowerCase()) ||
-            (o.customer?.name && user?.fullName && o.customer.name.toLowerCase() === user.fullName.toLowerCase());
-          return isUser && o.status === ORDER_STATUS.COMPLETED;
-        });
-
-        setEligibleOrders(userCompleted);
-        setSelectedOrderId(prev => {
-          if (preselectedOrderId && userCompleted.some(o => o.id === preselectedOrderId)) {
-            return preselectedOrderId;
-          }
-          if (userCompleted.length > 0 && !prev) {
-            return userCompleted[0].id;
-          }
-          return prev;
-        });
-
-        // Load existing reviews
-        const savedFeedback = storageService.getItem(FEEDBACK_STORAGE_KEY, []);
-        const userFeedback = (savedFeedback || []).filter(f =>
-          (f.customerEmail && user?.email && f.customerEmail.toLowerCase() === user.email.toLowerCase()) ||
-          (f.customerName && user?.fullName && f.customerName.toLowerCase() === user.fullName.toLowerCase())
-        );
-        setSubmittedReviews(userFeedback);
-      } catch (err) {
-        console.error('Failed to load feedback data:', err);
-      }
-    };
-
     loadOrdersAndReviews();
   }, [user, preselectedOrderId]);
 
-  const handleSubmitReview = (e) => {
+  const handleSubmitReview = async (e) => {
     e.preventDefault();
     const orderObj = eligibleOrders.find(o => o.id === selectedOrderId);
+    const numOutlet = Number(orderObj?.outletId || 1);
 
     const newTicket = {
-      id: `FB-2026-${Math.floor(100 + Math.random() * 900)}`,
-      orderId: selectedOrderId || 'General Feedback',
+      outletId: !isNaN(numOutlet) && numOutlet > 0 ? numOutlet : 1,
       customerName: user?.fullName || 'Campus Diner',
       customerRole: `${user?.role || 'Student'} (${user?.department || 'Main Campus'})`,
       customerEmail: user?.email || 'user@campus.edu',
-      outletId: orderObj?.outletId || 'canteen-001',
-      outletName: orderObj?.outletName || 'Central Dining Hall',
-      category: feedbackCategory,
-      overallRating,
-      tasteRating,
-      hygieneRating,
-      comment: comment.trim(),
-      status: 'Open',
-      createdAt: new Date().toISOString()
+      orderId: selectedOrderId || 'General Feedback',
+      orderToken: orderObj?.token || '',
+      rating: overallRating,
+      complaintCategory: feedbackCategory,
+      comments: comment.trim() ? `${comment.trim()} [Taste: ${tasteRating}★, Hygiene: ${hygieneRating}★]` : `Overall ${overallRating}★ [Taste: ${tasteRating}★, Hygiene: ${hygieneRating}★]`
     };
 
-    setSubmitting(true);
-    setTimeout(() => {
-      // Save directly to shared canteen feedback tickets (interoperable with Admin Feedback Module)
-      const existing = storageService.getItem(FEEDBACK_STORAGE_KEY, []);
-      const updated = [newTicket, ...(existing || [])];
-      storageService.setItem(FEEDBACK_STORAGE_KEY, updated);
-
-      setSubmittedReviews([newTicket, ...submittedReviews]);
+    try {
+      setSubmitting(true);
+      await feedbackService.create(newTicket);
+      window.dispatchEvent(new CustomEvent('cms:feedback_created', { detail: newTicket }));
+      await loadOrdersAndReviews();
       setSuccessMessage('Thank you! Your dining feedback has been recorded and submitted to Canteen Administration.');
       setComment('');
-      setSubmitting(false);
-
       setTimeout(() => setSuccessMessage(''), 4000);
-    }, 600);
+    } catch (err) {
+      console.error('Failed to submit feedback:', err);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const renderStarSelector = (ratingValue, setRatingFn) => {

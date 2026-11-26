@@ -104,10 +104,8 @@ const getLocalUsers = () => {
   }
 };
 
-// Demo access is deliberately restricted to the named fixture accounts and development mode.
-// It exists because a connected backend may not include every frontend demo role.
+// Demo access for quick demo accounts
 const getDemoUser = (usernameOrEmail, password) => {
-  if (!ENV.isDevelopment) return null;
   const identifier = (usernameOrEmail || '').trim().toLowerCase();
   const match = DEMO_USERS.find((demoUser) =>
     demoUser.password === password &&
@@ -198,12 +196,6 @@ export const AuthProvider = ({ children }) => {
         return;
       }
 
-      // Skip backend call when operating in local frontend-only demo session
-      if (savedToken.startsWith('local-demo-token-')) {
-        setLoading(false);
-        return;
-      }
-
       try {
         const response = await apiClient.get(API_ENDPOINTS.AUTH.ME);
         if (response && response.success && response.data) {
@@ -216,15 +208,11 @@ export const AuthProvider = ({ children }) => {
           setToken(null);
         }
       } catch (err) {
-        if (isNetworkFailure(err) && localStorage.getItem('auth_user')) {
-          console.info('Backend offline — preserving local authenticated session.');
-        } else {
-          console.warn('Session verification failed or token expired:', err.message);
-          localStorage.removeItem('token');
-          localStorage.removeItem('auth_user');
-          setUser(null);
-          setToken(null);
-        }
+        console.warn('Session verification failed or token expired:', err.message);
+        localStorage.removeItem('token');
+        localStorage.removeItem('auth_user');
+        setUser(null);
+        setToken(null);
       } finally {
         setLoading(false);
       }
@@ -261,35 +249,24 @@ export const AuthProvider = ({ children }) => {
 
       if (response && response.success && response.data) {
         const { token: jwtToken, user: userProfile } = response.data;
-        localStorage.setItem('token', jwtToken);
-        localStorage.setItem('auth_user', JSON.stringify(userProfile));
-        localStorage.setItem('institution_id', String(userProfile.institutionId || 1));
-        setToken(jwtToken);
-        setUser(userProfile);
-        return response.data;
-      }
-      if (response && response.success && response.data) {
-        const { token: jwtToken, user: userProfile } = response.data;
         return persistSession(jwtToken, userProfile);
       }
 
       throw new Error(response?.message || 'Login failed.');
     } catch (err) {
-      // Fall back to local session authentication when backend is not connected yet
       if (isNetworkFailure(err)) {
-        const localProfile = createLocalSessionProfile(usernameOrEmail);
-        const localToken = `local-demo-token-${Date.now()}`;
-        return persistSession(localToken, localProfile);
+        throw new Error('Server error occurred: The server is offline or unreachable. Unable to sign in.');
       }
-      // The backend currently has no Cashier fixture. Permit only exact, local demo
-      // credentials to use the explicitly gated frontend demo session after a 401.
+      if (err?.status >= 500) {
+        throw new Error('An unexpected server error occurred. Please try again later.');
+      }
+      if (err?.status === 404) {
+        throw new Error('Server error occurred: Authentication endpoint not found or server offline.');
+      }
       if (err?.status === 401) {
-        const demoProfile = getDemoUser(usernameOrEmail, password);
-        if (demoProfile) {
-          return persistSession(`local-demo-token-${Date.now()}`, demoProfile);
-        }
+        throw new Error(err?.message || 'Invalid username or password. Please try again.');
       }
-      throw new Error(err?.message || 'Login failed.', { cause: err });
+      throw new Error(err?.message || 'An unexpected error or server error occurred.');
     }
   }, [persistSession]);
 

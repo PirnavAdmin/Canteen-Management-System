@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { feedbackService } from '../services/feedbackService';
 import { useToast } from '../../../../app/providers/ToastProvider';
 
-export const useFeedback = () => {
+export const useFeedback = (selectedOutlet = 'ALL') => {
   const [feedbackList, setFeedbackList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -12,8 +12,18 @@ export const useFeedback = () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await feedbackService.getAll();
-      setFeedbackList(data);
+      const params = (selectedOutlet && selectedOutlet !== 'ALL')
+        ? { outletId: Number(selectedOutlet) }
+        : {};
+      const response = await feedbackService.getAll(params);
+      const data = Array.isArray(response) ? response : (response?.data || []);
+      // Sort recently given feedback to the top (descending by createdAt timestamp)
+      const sorted = [...data].sort((a, b) => {
+        const timeA = new Date(a.createdAt || a.date || 0).getTime();
+        const timeB = new Date(b.createdAt || b.date || 0).getTime();
+        return timeB - timeA;
+      });
+      setFeedbackList(sorted);
     } catch (err) {
       console.error('Failed to load feedback:', err);
       setError(err.message || 'Error loading feedback');
@@ -21,10 +31,19 @@ export const useFeedback = () => {
     } finally {
       setLoading(false);
     }
-  }, [toastError]);
+  }, [selectedOutlet, toastError]);
 
   useEffect(() => {
     loadFeedback();
+  }, [loadFeedback]);
+
+  // Real-time listener for newly submitted customer feedback
+  useEffect(() => {
+    const handleFeedbackCreated = () => {
+      loadFeedback();
+    };
+    window.addEventListener('cms:feedback_created', handleFeedbackCreated);
+    return () => window.removeEventListener('cms:feedback_created', handleFeedbackCreated);
   }, [loadFeedback]);
 
   const resolveTicket = useCallback(async (id, resolutionData) => {

@@ -22,6 +22,9 @@ export const CartDrawer = () => {
   } = useCart();
 
   const safeCartItems = Array.isArray(cartItems) ? cartItems : [];
+  const displayOutletName = safeCartItems.find(i => i && i.outletName && i.outletName !== 'All Outlets' && i.outletName !== 'All Campus Dining Halls')?.outletName
+    || (selectedOutlet && selectedOutlet.id !== 'ALL' && selectedOutlet.name && selectedOutlet.name !== 'All Outlets' && selectedOutlet.name !== 'All Campus Dining Halls' ? selectedOutlet.name : '')
+    || 'Main Canteen';
 
   if (!isDrawerOpen) return null;
 
@@ -39,7 +42,7 @@ export const CartDrawer = () => {
             <ShoppingBag size={20} className={styles.bagIcon} />
             <div>
               <h3>My Cart</h3>
-              <p className={styles.outletSubtitle}>{selectedOutlet?.name || 'Selected Outlet'}</p>
+              <p className={styles.outletSubtitle}>{safeCartItems.length > 0 ? displayOutletName : (selectedOutlet?.name || 'Main Canteen')}</p>
             </div>
           </div>
           <button

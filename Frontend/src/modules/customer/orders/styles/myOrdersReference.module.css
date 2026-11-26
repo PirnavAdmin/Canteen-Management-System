@@ -76,9 +76,8 @@
 }
 
 .grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.65fr) minmax(320px, 0.9fr);
-  gap: 18px;
+  display: block;
+  width: 100%;
 }
 
 .card {
@@ -111,22 +110,24 @@
 .order {
   border: 1px solid var(--border-color, #d0dfeb);
   border-radius: 12px;
-  padding: 12px 14px;
-  margin-top: 10px;
+  padding: 10px 14px;
+  margin-top: 8px;
   background: var(--bg-app, #f8fbff);
+  transition: all 0.15s ease;
 }
 
 .orderTop {
   display: flex;
-  align-items: start;
+  align-items: center;
   gap: 12px;
 }
 
 .thumbnail {
-  width: 90px;
-  height: 64px;
+  width: 72px;
+  height: 52px;
   border-radius: 8px;
   object-fit: cover;
+  flex-shrink: 0;
 }
 
 .orderInfo {
@@ -136,40 +137,58 @@
 
 .orderInfo h3 {
   margin: 0;
-  font-size: 15px;
+  font-size: 14.5px;
   color: var(--text-primary);
 }
 
 .items {
-  font-size: 12.5px;
-  margin: 3px 0;
+  font-size: 12px;
+  margin: 2px 0 3px;
   color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .meta {
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--text-muted, #273a54);
   display: flex;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .amount {
   font-weight: 800;
-  margin-left: auto;
   color: var(--text-primary);
-  font-size: 15px;
+  font-size: 14.5px;
+}
+
+.orderRight {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  align-items: flex-end;
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .status {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   border-radius: 99px;
-  padding: 3px 9px;
-  font-size: 11px;
-  font-Weight: 800;
+  padding: 2px 8px;
+  font-size: 10.5px;
+  font-weight: 700;
   background: #d6fad9;
   color: #087439;
-  margin-top: 8px;
+  margin-top: 0;
+  white-space: nowrap;
+}
+
+.completedBadge {
+  background: #d6fad9;
+  color: #087439;
 }
 
 .accepted {
@@ -182,19 +201,36 @@
   color: #dc2626;
 }
 
+.preparing {
+  background: #fef3c7;
+  color: #b45309;
+}
+
 .track {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  border: 1.5px solid var(--color-accent, #2563eb);
+  justify-content: center;
+  gap: 5px;
+  border: 1px solid var(--color-accent, #2563eb);
   color: var(--color-accent, #1d4ed8);
   background: var(--bg-surface, #fff);
-  border-radius: 8px;
-  padding: 6px 12px;
-  font-weight: 700;
-  font-size: 12px;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-weight: 600;
+  font-size: 11.5px;
+  line-height: 1.2;
   cursor: pointer;
   white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.track:hover {
+  background: var(--bg-muted, #eff6ff);
+  border-color: var(--color-accent, #1d4ed8);
+}
+
+.track:active {
+  transform: scale(0.97);
 }
 
 .timeline {
@@ -450,15 +486,26 @@
 
   .orderTop {
     flex-wrap: wrap;
+    gap: 10px;
   }
 
   .thumbnail {
-    width: 75px;
-    height: 55px;
+    width: 60px;
+    height: 44px;
+  }
+
+  .orderRight {
+    width: 100%;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px dashed var(--border-color, #e2e8f0);
   }
 
   .track {
-    width: 100%;
+    width: auto;
     justify-content: center;
   }
 }

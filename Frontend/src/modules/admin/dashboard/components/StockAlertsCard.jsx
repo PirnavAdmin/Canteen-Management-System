@@ -17,27 +17,50 @@ export const StockAlertsCard = ({ alerts = [], loading = false }) => {
         display: 'flex',
         flexDirection: 'column'
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+        {/* Skeleton Header */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '10px',
+          flexShrink: 0
+        }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div className="skeleton-box" style={{ width: '16px', height: '16px', borderRadius: '4px' }} />
             <div className="skeleton-box" style={{ width: '160px', height: '14px' }} />
           </div>
-          <div className="skeleton-box" style={{ width: '100px', height: '14px' }} />
+          <div className="skeleton-box" style={{ width: '90px', height: '14px' }} />
         </div>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {[1, 2, 3].map((n) => (
-            <div key={n} style={{ padding: '8px 10px', borderRadius: '4px', border: '1px solid var(--border-color-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <div className="skeleton-box" style={{ width: '130px', height: '12px' }} />
-                <div className="skeleton-box" style={{ width: '160px', height: '9px' }} />
+
+        {/* Skeleton Body: Shimmering Item Rows */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px', overflow: 'hidden' }}>
+          {[1, 2, 3, 4].map((n) => (
+            <div
+              key={n}
+              style={{
+                padding: '7px 10px',
+                borderRadius: 'var(--border-radius-sm)',
+                border: '1px solid var(--border-color-subtle)',
+                backgroundColor: 'var(--bg-app)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '8px'
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', flex: 1, minWidth: 0 }}>
+                <div className="skeleton-box" style={{ width: '140px', height: '12px' }} />
+                <div className="skeleton-box" style={{ width: '180px', height: '10px' }} />
               </div>
-              <div className="skeleton-box" style={{ width: '65px', height: '18px', borderRadius: '4px' }} />
+              <div className="skeleton-box" style={{ width: '60px', height: '20px', borderRadius: '4px', flexShrink: 0 }} />
             </div>
           ))}
         </div>
       </div>
     );
   }
+
+  const itemsList = Array.isArray(alerts) ? alerts : [];
 
   return (
     <div style={{
@@ -76,7 +99,8 @@ export const StockAlertsCard = ({ alerts = [], loading = false }) => {
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
-            gap: '4px'
+            gap: '4px',
+            whiteSpace: 'nowrap'
           }}
         >
           <span>Manage Inventory</span>
@@ -96,12 +120,12 @@ export const StockAlertsCard = ({ alerts = [], loading = false }) => {
           paddingRight: '4px'
         }}
       >
-        {!Array.isArray(alerts) || alerts.length === 0 ? (
+        {itemsList.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '30px 20px', color: 'var(--text-muted)', fontSize: '12.5px' }}>
             All ingredient stock levels are optimal.
           </div>
         ) : (
-          alerts.map((alert, idx) => {
+          itemsList.map((alert, idx) => {
             const isExpiring = alert.status === 'Expiring Soon';
             return (
               <div
@@ -136,7 +160,7 @@ export const StockAlertsCard = ({ alerts = [], loading = false }) => {
                     overflow: 'hidden',
                     textOverflow: 'ellipsis'
                   }}>
-                    {typeof alert.outlet === 'object' ? (alert.outlet?.name || alert.outlet?.id || 'Main Canteen') : (alert.outlet || 'Main Canteen')} • Stock: <strong>{alert.available || `${alert.availableQuantity ?? 0} ${alert.unit || 'units'}`}</strong> (Reorder: {alert.reorderLevel ?? 0})
+                    {alert.outletName || (typeof alert.outlet === 'object' ? (alert.outlet?.name || alert.outlet?.id) : alert.outlet) || 'Central Warehouse (Admin Master Store)'} • Stock: <strong>{alert.available || `${alert.availableQuantity ?? 0} ${alert.unit || 'units'}`}</strong> (Reorder: {alert.reorderLevel ?? 0})
                   </div>
                 </div>
 

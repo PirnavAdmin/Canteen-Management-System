@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { AlertCircle, ArrowRight, CookingPot, CupSoda, Hamburger, Lock, Soup, UserRound, Utensils } from 'lucide-react';
+import { AlertCircle, ArrowRight, CookingPot, CupSoda, Hamburger, Lock, Soup, UserRound } from 'lucide-react';
 import { useAuth } from '../../../app/providers/AuthProvider';
 import heroImage from '../../../assets/images/campus-canteen-login-hero.png';
 import styles from '../styles/LoginPage.module.css';
@@ -22,6 +22,12 @@ export const LoginPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const from = location.state?.from?.pathname || '/admin/dashboard';
+
+  // Ensure fields are clean and never prefilled on page load
+  useEffect(() => {
+    setUsernameOrEmail('');
+    setPassword('');
+  }, []);
 
   const getDestination = (loggedUser, inputUser = '') => {
     let userRole = loggedUser?.role || loggedUser?.Role || loggedUser?.roleCode || loggedUser?.roleName || loggedUser?.userType || (Array.isArray(loggedUser?.roles) ? loggedUser.roles[0] : null);
@@ -60,6 +66,12 @@ export const LoginPage = () => {
     }
   };
 
+  const handleDemoSignIn = (username, userPassword) => {
+    setUsernameOrEmail('');
+    setPassword('');
+    signIn(username, userPassword);
+  };
+
   const handleSubmit = (event) => {
     event.preventDefault();
     if (!usernameOrEmail.trim() || !password) {
@@ -69,22 +81,65 @@ export const LoginPage = () => {
     signIn(usernameOrEmail, password);
   };
 
-  return <main className={styles.page}><section className={styles.shell} aria-label="Canteen Management sign in">
+  return <main className={styles.page}><section className={styles.shell} aria-label="Welcome to Campus Dining sign in">
     <aside className={styles.illustrationPanel}>
       <img className={styles.heroImage} src={heroImage} alt="Campus canteen staff serving a student" /><div className={styles.imageShade} />
-      <div className={styles.welcomeCopy}><h2>Welcome to <span>Campus Canteen</span></h2><p>“Fresh food, warm service,<br />and joyful campus dining.”</p></div>
       <div className={styles.orangeWave}><div className={styles.foodIcons} aria-hidden="true"><CookingPot /><i /><CupSoda /><i /><Soup /><i /><Hamburger /></div></div>
     </aside>
     <section className={styles.formPanel}>
-      <header className={styles.branding}><div className={styles.logo}><Utensils size={35} strokeWidth={2.2} /></div><h1>Canteen Management</h1><p>Sign in to access SMS &amp; CMS portal controls</p></header>
-      <div className={styles.demoBox}><p>⚡ <strong>Quick Demo Accounts (Click to Sign In):</strong></p><div className={styles.demoButtons}>{demoAccounts.map(([username, userPassword, label]) => <button key={username} type="button" disabled={loading} onClick={() => signIn(username, userPassword)}>{label}</button>)}</div></div>
+      <header className={styles.branding}>
+        <h1 className={styles.compactHeading}>Welcome to Campus Dining</h1>
+        <p className={styles.taglineSubtitle}>Fresh food, warm service, and joyful campus dining.</p>
+      </header>
+      <div className={styles.demoBox}><p>⚡ <strong>Quick Demo Accounts (Click to Sign In):</strong></p><div className={styles.demoButtons}>{demoAccounts.map(([username, userPassword, label]) => <button key={username} type="button" disabled={loading} onClick={() => handleDemoSignIn(username, userPassword)}>{label}</button>)}</div></div>
       {error && <div className={styles.error}><AlertCircle size={17} /><span>{error}</span></div>}
-      <form className={styles.form} onSubmit={handleSubmit}>
-        <label><span>Username or Email</span><div className={styles.inputWrap}><UserRound size={25} /><input type="text" value={usernameOrEmail} onChange={(event) => setUsernameOrEmail(event.target.value)} placeholder="Enter username or email" autoComplete="username" required /></div></label>
-        <label><span>Password</span><div className={styles.inputWrap}><Lock size={25} /><input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter password" autoComplete="current-password" required /></div></label>
+      <form className={styles.form} onSubmit={handleSubmit} autoComplete="off">
+        {/* Hidden decoy fields to neutralize aggressive browser credential autofill */}
+        <input type="text" style={{ display: 'none' }} tabIndex={-1} aria-hidden="true" autoComplete="off" />
+        <input type="password" style={{ display: 'none' }} tabIndex={-1} aria-hidden="true" autoComplete="off" />
+
+        <label>
+          <span>Username or Email</span>
+          <div className={styles.inputWrap}>
+            <UserRound size={25} />
+            <input
+              type="text"
+              name="cms_auth_username"
+              value={usernameOrEmail}
+              onChange={(event) => setUsernameOrEmail(event.target.value)}
+              placeholder="Enter username or email"
+              autoComplete="off"
+              autoCapitalize="none"
+              spellCheck="false"
+              required
+            />
+          </div>
+        </label>
+        <label>
+          <span>Password</span>
+          <div className={styles.inputWrap}>
+            <Lock size={25} />
+            <input
+              type="password"
+              name="cms_auth_password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="Enter password"
+              autoComplete="new-password"
+              required
+            />
+          </div>
+        </label>
         <button className={styles.submit} type="submit" disabled={loading}>{loading ? 'Authenticating…' : <>Sign In <ArrowRight size={27} /></>}</button>
       </form>
       <p className={styles.register}>Don't have an account? <Link to="/register">Create Account</Link></p>
+
+      {/* Campus Dining Highlights to fill space and add warm dining value */}
+      <div className={styles.diningFeatures}>
+        <div className={styles.featurePill}>🥗 Fresh &amp; Hygienic Meals</div>
+        <div className={styles.featurePill}>⚡ Live Kitchen Tokens</div>
+        <div className={styles.featurePill}>🛡️ Verified Campus Sign-In</div>
+      </div>
     </section>
   </section></main>;
 };

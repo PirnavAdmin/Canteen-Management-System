@@ -32,9 +32,9 @@ export const StaffProtectedRoute = ({ children }) => {
     );
   }
 
-  // If user not authenticated, redirect to staff login
+  // If user not authenticated, redirect to login
   if (!user) {
-    return <Navigate to="/staff/login" state={{ from: location }} replace />;
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   if (user.role !== 'Staff' && user.roleCode !== 'CANTEEN_STAFF') {

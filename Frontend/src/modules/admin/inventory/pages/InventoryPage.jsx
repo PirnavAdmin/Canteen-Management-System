@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Package, BookOpen, ShoppingCart, Users, PlusCircle, ArrowDownUp, Store, ChefHat, Search, X } from 'lucide-react';
 import { PageHeader } from '../../../../components/common/PageHeader';
 import { Button } from '../../../../components/common/Button';
@@ -23,15 +24,39 @@ import { canteenService } from '../../outlets/services/canteenService';
 import { useCanteens } from '../../outlets/hooks/useCanteens';
 
 export const InventoryPage = () => {
-  const { canteens: outlets = [] } = useCanteens();
+  const location = useLocation();
+  const { canteens: outlets = [], selectedOutlet, setSelectedOutlet } = useCanteens();
 
   // Pure dining canteen kitchen outlets (WH-01 is decoupled into dedicated CanteenWarehouses)
   const kitchenOutlets = useMemo(() => {
     return outlets.filter(o => o.code !== 'WH-01' && !(o.name || '').toLowerCase().includes('warehouse'));
   }, [outlets]);
 
+  const warehouseOutlet = useMemo(() => {
+    return outlets.find(o => o.code === 'WH-01' || (o.name || '').toLowerCase().includes('warehouse') || Number(o.outletId || o.id) === 4) || {
+      id: 4,
+      outletId: 4,
+      code: 'WH-01',
+      name: 'Central Warehouse (Admin Master Store)'
+    };
+  }, [outlets]);
+
+  const warehouseOutletId = warehouseOutlet?.outletId || warehouseOutlet?.id || 4;
+
   // Inventory Scope: Defaults to 'CENTRAL' for Central Warehouse (Admin Master Store)
-  const [inventoryScope, setInventoryScope] = useState('CENTRAL');
+  const [inventoryScope, setInventoryScope] = useState(() => {
+    if (selectedOutlet && selectedOutlet !== 'ALL') return String(selectedOutlet);
+    return 'CENTRAL';
+  });
+
+  // Sync inventoryScope when navbar selectedOutlet changes
+  useEffect(() => {
+    if (!selectedOutlet || selectedOutlet === 'ALL') {
+      setInventoryScope('CENTRAL');
+    } else {
+      setInventoryScope(String(selectedOutlet));
+    }
+  }, [selectedOutlet]);
 
   const isWarehouseView = inventoryScope === 'CENTRAL' || inventoryScope === '4' || inventoryScope === 'ALL';
 
@@ -72,7 +97,16 @@ export const InventoryPage = () => {
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
 
   // Tab state: 'items' | 'ledger' | 'pos' | 'suppliers' | 'kitchen-requests'
-  const [activeTab, setActiveTab] = useState('items');
+  const [activeTab, setActiveTab] = useState(() => {
+    return location.state?.tab || 'items';
+  });
+
+  // Listen to incoming tab state from dashboard navigation (e.g. from Kitchen Requisition KPI card)
+  useEffect(() => {
+    if (location.state?.tab) {
+      setActiveTab(location.state.tab);
+    }
+  }, [location.state]);
 
   // When switching to kitchen-requests tab, trigger fresh API load
   useEffect(() => {
@@ -470,7 +504,11 @@ export const InventoryPage = () => {
           <select
             value={inventoryScope}
             onChange={(e) => {
-              setInventoryScope(e.target.value);
+              const val = e.target.value;
+              setInventoryScope(val);
+              if (setSelectedOutlet) {
+                setSelectedOutlet(val === 'CENTRAL' ? 'ALL' : val);
+              }
               setCurrentPage(1);
               setLedgerPage(1);
               setPosPage(1);
