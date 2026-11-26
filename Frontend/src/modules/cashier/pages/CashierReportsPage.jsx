@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { FileSpreadsheet, Printer } from 'lucide-react';
 import { Button } from '../../../components/common/Button';
+import { useAuth } from '../../../app/providers/AuthProvider';
 import { DataTable } from '../../../components/tables/DataTable';
 import { useCanteens } from '../../admin/outlets/hooks/useCanteens';
 import CashierReportFilters from '../components/CashierReportFilters';
@@ -15,28 +16,29 @@ import { exportToExcel } from '../../admin/reports/utils/exportUtils';
  * Server-side outlet/campus authorization remains the source of truth.
  */
 export default function CashierReportsPage() {
+  const { user } = useAuth();
   const { selectedCampus, canteens, selectedOutlet: globalOutlet } = useCanteens();
   const [selectedReport, setSelectedReport] = useState('sales_summary');
-  const [selectedOutlet, setSelectedOutlet] = useState(globalOutlet || 'ALL');
   const [selectedDateRange, setSelectedDateRange] = useState('today');
   const [selectedPayment, setSelectedPayment] = useState('ALL');
   const [printOpen, setPrintOpen] = useState(false);
 
-  useEffect(() => setSelectedOutlet(globalOutlet || 'ALL'), [globalOutlet]);
-
   const assignedOutlet = useMemo(() => {
-    if (selectedOutlet !== 'ALL') return selectedOutlet;
+    if (user?.outletId) return String(user.outletId);
     const current = canteens?.[0];
-    return current ? String(current.outletId || current.id) : 'ALL';
-  }, [selectedOutlet, canteens]);
+    return current ? String(current.outletId || current.id) : '1';
+  }, [user?.outletId, canteens]);
+
+  const [selectedOutlet, setSelectedOutlet] = useState(assignedOutlet);
+  useEffect(() => setSelectedOutlet(assignedOutlet), [assignedOutlet]);
 
   const { reportData, loading, error, refreshReport } = useCashierReportData(selectedReport, {
     outlet: assignedOutlet, dateRange: selectedDateRange, payment: selectedPayment, campus: selectedCampus
   });
   const config = REPORT_OPTIONS.find(item => item.id === selectedReport) || REPORT_OPTIONS[0];
   const outletName = useMemo(() => {
-    return canteens?.find(item => String(item.outletId || item.id) === String(assignedOutlet))?.name || 'Main Canteen';
-  }, [assignedOutlet, canteens]);
+    return user?.outletName || canteens?.find(item => String(item.outletId || item.id) === String(assignedOutlet))?.name || 'Main Canteen';
+  }, [user?.outletName, assignedOutlet, canteens]);
   const exportReport = () => reportData && exportToExcel(`Cashier_Report_${selectedReport}`, reportData.columns, reportData.rows);
 
   return <div>

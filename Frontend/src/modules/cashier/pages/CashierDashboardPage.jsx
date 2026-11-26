@@ -3,9 +3,12 @@ import { Banknote, CheckCircle2, Clock3, CreditCard, ShoppingCart, RefreshCw, Al
 import { dashboardService } from '../../admin/dashboard/services/dashboardService';
 import { orderService } from '../../admin/orders/services/orderService';
 import { formatCurrency } from '../../../utils/formatters';
+import { useAuth } from '../../../app/providers/AuthProvider';
 import '../styles/cashier.css';
 
 export default function CashierDashboardPage() {
+  const { user } = useAuth();
+  const assignedOutlet = user?.outletId || 1;
   const [summary, setSummary] = useState(null);
   const [liveOrders, setLiveOrders] = useState([]);
   const [todayOrders, setTodayOrders] = useState([]);
@@ -20,9 +23,9 @@ export default function CashierDashboardPage() {
 
     try {
       const [summaryRes, liveOrdersRes, ordersRes] = await Promise.allSettled([
-        dashboardService.getSummary('ALL'),
-        dashboardService.getLiveOrders('ALL'),
-        orderService.getAll({ dateFilter: 'today' })
+        dashboardService.getSummary(assignedOutlet),
+        dashboardService.getLiveOrders(assignedOutlet),
+        orderService.getAll({ dateFilter: 'today', outletId: assignedOutlet })
       ]);
 
       if ([summaryRes, liveOrdersRes, ordersRes].some(result => result.status === 'rejected')) {
@@ -46,7 +49,7 @@ export default function CashierDashboardPage() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [assignedOutlet]);
 
   useEffect(() => {
     fetchDashboardData();

@@ -1,5 +1,6 @@
 using CanteenManagement.API.Data;
 using CanteenManagement.API.Models.Auth;
+using CanteenManagement.API.Models.Outlets;
 using CanteenManagement.API.Repositories.Interfaces.Auth;
 using Microsoft.EntityFrameworkCore;
 
@@ -53,6 +54,13 @@ namespace CanteenManagement.API.Repositories.Implementations.Auth
             _context.Users.Update(user);
             var affected = await _context.SaveChangesAsync();
             return affected > 0;
+        }
+
+        public async Task<CanteenStaffAssignment?> GetStaffAssignmentAsync(int userId)
+        {
+            return await _context.CanteenStaffAssignments
+                .Include(a => a.Outlet)
+                .FirstOrDefaultAsync(a => a.UserId == userId && a.IsActive);
         }
     }
 }

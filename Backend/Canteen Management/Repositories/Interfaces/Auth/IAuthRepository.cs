@@ -1,4 +1,5 @@
 using CanteenManagement.API.Models.Auth;
+using CanteenManagement.API.Models.Outlets;
 
 namespace CanteenManagement.API.Repositories.Interfaces.Auth
 {
@@ -10,6 +11,7 @@ namespace CanteenManagement.API.Repositories.Interfaces.Auth
         Task<bool> ExistsByEmailAsync(string email, int campusId);
         Task<User> CreateAsync(User user);
         Task<bool> UpdateAsync(User user);
+        Task<CanteenStaffAssignment?> GetStaffAssignmentAsync(int userId);
     }
 }
 

@@ -14,8 +14,12 @@ namespace CanteenManagement.API.Models.Inventory
         [Required]
         public int CampusId { get; set; } = 1;
 
-        [Required]
-        public int OutletId { get; set; }
+        public int? OutletId { get; set; }
+
+        public int? WarehouseId { get; set; }
+
+        [MaxLength(30)]
+        public string StoreType { get; set; } = "KitchenOutlet"; // CentralWarehouse, KitchenOutlet
 
         [Required]
         [MaxLength(100)]
@@ -53,6 +57,9 @@ namespace CanteenManagement.API.Models.Inventory
 
         [ForeignKey("OutletId")]
         public virtual CanteenOutlet? Outlet { get; set; }
+
+        [ForeignKey("WarehouseId")]
+        public virtual CanteenWarehouse? Warehouse { get; set; }
 
         public virtual ICollection<StockMovement> Movements { get; set; } = new List<StockMovement>();
     }
@@ -149,8 +156,12 @@ namespace CanteenManagement.API.Models.Inventory
         [Required]
         public int CampusId { get; set; } = 1;
 
-        [Required]
-        public int OutletId { get; set; }
+        public int? OutletId { get; set; }
+
+        public int? WarehouseId { get; set; }
+
+        [ForeignKey("WarehouseId")]
+        public virtual CanteenWarehouse? Warehouse { get; set; }
 
         [Required]
         [MaxLength(50)]

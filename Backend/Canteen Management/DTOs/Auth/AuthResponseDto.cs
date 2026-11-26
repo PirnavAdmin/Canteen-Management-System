@@ -10,6 +10,8 @@ namespace CanteenManagement.API.DTOs.Auth
         public string Role { get; set; } = string.Empty;
         public string? PhoneNumber { get; set; }
         public bool IsActive { get; set; }
+        public int? OutletId { get; set; }
+        public string? OutletName { get; set; }
         public DateTime CreatedAt { get; set; }
     }
 

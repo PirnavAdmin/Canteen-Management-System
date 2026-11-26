@@ -4,6 +4,7 @@ import { menuService } from '../../menu/services/menuService';
 import { categoryService } from '../../categories/services/categoryService';
 import { canteenService } from '../../outlets/services/canteenService';
 import { useCanteens } from '../../outlets/hooks/useCanteens';
+import { useAuth } from '../../../../app/providers/AuthProvider';
 import { ProductCard } from './ProductCard';
 import { CartDrawer } from './CartDrawer';
 import { formatCurrency } from '../../../../utils/formatters';
@@ -11,6 +12,7 @@ import { useToast } from '../../../../app/providers/ToastProvider';
 
 export const PlaceOrderCatalog = ({ onOrderPlaced, cashierMode = false }) => {
   const { error: toastError } = useToast();
+  const { user } = useAuth();
   const { selectedOutlet: globalOutlet, setSelectedOutlet: setGlobalOutlet } = useCanteens();
 
   const [menuItems, setMenuItems] = useState([]);
@@ -21,12 +23,16 @@ export const PlaceOrderCatalog = ({ onOrderPlaced, cashierMode = false }) => {
   // Filters & Sorting
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
-  const [selectedOutlet, setSelectedOutlet] = useState(globalOutlet || 'ALL');
+  const [selectedOutlet, setSelectedOutlet] = useState(cashierMode && user?.outletId ? String(user.outletId) : (globalOutlet || 'ALL'));
   const [sortBy, setSortBy] = useState('popular');
 
   useEffect(() => {
-    setSelectedOutlet(globalOutlet || 'ALL');
-  }, [globalOutlet]);
+    if (cashierMode && user?.outletId) {
+      setSelectedOutlet(String(user.outletId));
+    } else {
+      setSelectedOutlet(globalOutlet || 'ALL');
+    }
+  }, [globalOutlet, cashierMode, user?.outletId]);
 
   // Cart state: { [itemId]: { item, quantity } }
   const [cart, setCart] = useState({});
@@ -274,11 +280,13 @@ export const PlaceOrderCatalog = ({ onOrderPlaced, cashierMode = false }) => {
               }}
             >
               <option value="ALL">All Outlets</option>
-              {outlets.map(o => (
-                <option key={o.outletId || o.id} value={o.outletId || o.id}>
-                  {o.name}
-                </option>
-              ))}
+              {outlets
+                .filter(o => o.code !== 'WH-01' && !(o.name || '').toLowerCase().includes('warehouse'))
+                .map(o => (
+                  <option key={o.outletId || o.id} value={o.outletId || o.id}>
+                    {o.name}
+                  </option>
+                ))}
             </select>
           </div>}
 
