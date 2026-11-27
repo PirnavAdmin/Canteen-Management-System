@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, AlertCircle, RotateCcw, Ban, CreditCard, CheckCheck, BellRing, ChefHat, CheckCircle } from 'lucide-react';
+import { X, AlertCircle, RotateCcw, Ban, CreditCard, CheckCheck, BellRing, ChefHat, CheckCircle, ShieldCheck, Copy, Check, ExternalLink } from 'lucide-react';
 import { Button } from '../../../../components/common/Button';
 import { StatusBadge } from '../../../../components/common/StatusBadge';
 import { formatCurrency } from '../../../../utils/formatters';

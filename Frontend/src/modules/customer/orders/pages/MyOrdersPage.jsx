@@ -267,6 +267,14 @@ export const MyOrdersPage = () => {
               <span>▣ {order.outletName || order.outlet?.name || 'Campus Canteen'}</span>
               {order.token && <span>│ ▣ Token: <b>{order.token}</b></span>}
             </div>
+            {String(order.payment?.status || order.paymentStatus || '').toLowerCase() === 'pending verification' && (
+              <div style={{ marginTop: '4px', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#c2410c', backgroundColor: '#fff7ed', padding: '2px 8px', borderRadius: '4px', border: '1px solid #ffedd5', fontWeight: 600 }}>
+                <span>⏳ Payment Under Verification</span>
+                {order.payment?.transactionId && !order.payment.transactionId.startsWith('TXN-') && (
+                  <span>({order.payment.transactionId})</span>
+                )}
+              </div>
+            )}
             {order.cancellationReason && (
               <div style={{ fontSize: '11px', color: '#dc2626', marginTop: '3px' }}>
                 Cancellation Reason: {order.cancellationReason}

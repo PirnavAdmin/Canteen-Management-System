@@ -14,6 +14,7 @@ import { PlaceOrderCatalog } from '../components/PlaceOrderCatalog';
 import { useCanteens } from '../../outlets/hooks/useCanteens';
 import { useAuth } from '../../../../app/providers/AuthProvider';
 import { orderService } from '../services/orderService';
+import { paymentService } from '../../../../services/paymentService';
 import { isSameIstDate, isYesterdayIST, isWithinDaysIST } from '../../../../utils/formatters';
 
 export const OrderListPage = ({ cashierMode = false }) => {
@@ -118,6 +119,31 @@ export const OrderListPage = ({ cashierMode = false }) => {
         setSelectedOrder(prev => (prev && String(prev.id) === String(full.id) ? { ...prev, ...full } : prev));
       }
     } catch {}
+  };
+
+  const handleVerifyPayment = async (order) => {
+    const orderId = typeof order === 'string' ? order : order.id;
+    try {
+      setActionLoadingId(orderId);
+      setModalLoading(true);
+      await paymentService.verifyPayment({
+        orderId: orderId,
+        verifiedBy: user?.fullName || user?.name || 'Cashier'
+      });
+      await refreshOrders();
+      if (selectedOrder && selectedOrder.id === orderId) {
+        setSelectedOrder(prev => ({
+          ...prev,
+          status: 'Accepted',
+          payment: { ...(prev.payment || {}), status: 'Paid' }
+        }));
+      }
+    } catch (err) {
+      console.error('Payment verification failed:', err);
+    } finally {
+      setActionLoadingId(null);
+      setModalLoading(false);
+    }
   };
 
   const handleStatusAdvance = async (order, nextStatus) => {
@@ -355,6 +381,7 @@ export const OrderListPage = ({ cashierMode = false }) => {
             onAdvanceStatus={handleStatusAdvance}
             onCancel={(ord) => setOrderToCancel(ord)}
             onPrintReceipt={(ord) => setOrderForReceipt(ord)}
+            onVerifyPayment={handleVerifyPayment}
             footer={
               <Pagination
                 currentPage={currentPage}
@@ -376,6 +403,7 @@ export const OrderListPage = ({ cashierMode = false }) => {
             onUpdateStatus={handleStatusAdvance}
             onOpenCancel={(ord) => setOrderToCancel(ord)}
             onProcessRefund={handleProcessRefund}
+            onVerifyPayment={handleVerifyPayment}
           />
 
           {/* Cancel Order Modal */}

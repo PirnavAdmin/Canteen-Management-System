@@ -33,6 +33,34 @@ namespace CanteenManagement.API.Services.Implementations.Settings
             };
         }
 
+        public async Task<PublicPaymentConfigDto> GetPublicPaymentConfigAsync(int campusId)
+        {
+            var paymentJson = await _repository.GetSettingAsync(campusId, "Payment", "General");
+            var payment = paymentJson != null
+                ? JsonSerializer.Deserialize<PaymentSettingsDto>(paymentJson.SettingValueJson)
+                : null;
+
+            if (payment == null)
+            {
+                return new PublicPaymentConfigDto();
+            }
+
+            return new PublicPaymentConfigDto
+            {
+                UpiEnabled = payment.UpiEnabled,
+                UpiVpa = string.IsNullOrWhiteSpace(payment.UpiVpa) ? "canteen.apex@icici" : payment.UpiVpa,
+                UpiMerchantName = string.IsNullOrWhiteSpace(payment.UpiMerchantName) ? "Apex Institute Canteen" : payment.UpiMerchantName,
+                CardNetBankingEnabled = payment.CardNetBankingEnabled,
+                GatewayProvider = string.IsNullOrWhiteSpace(payment.GatewayProvider) ? "Razorpay" : payment.GatewayProvider,
+                GatewayKeyId = payment.GatewayKeyId,
+                CampusWalletEnabled = payment.CampusWalletEnabled,
+                CampusWalletMaxBalance = payment.CampusWalletMaxBalance,
+                CashOnCounterEnabled = payment.CashOnCounterEnabled,
+                MinOrderAmount = payment.MinOrderAmount,
+                GstPercent = payment.GstPercent
+            };
+        }
+
         public async Task<PaymentSettingsDto> UpdatePaymentSettingsAsync(PaymentSettingsDto dto, int campusId, string performedBy)
         {
             var setting = new SystemSetting
@@ -86,4 +114,3 @@ namespace CanteenManagement.API.Services.Implementations.Settings
         }
     }
 }
-

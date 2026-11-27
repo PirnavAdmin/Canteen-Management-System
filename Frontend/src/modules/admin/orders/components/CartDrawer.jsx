@@ -1,5 +1,23 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { X, Trash2, Plus, Minus, ShoppingBag, ShieldCheck, CreditCard, Banknote, Smartphone, CheckCircle, Store, Utensils } from 'lucide-react';
+import {
+  X,
+  Trash2,
+  Plus,
+  Minus,
+  ShoppingBag,
+  ShieldCheck,
+  CreditCard,
+  Banknote,
+  Smartphone,
+  CheckCircle,
+  Store,
+  Utensils,
+  Copy,
+  Check,
+  QrCode as QrIcon,
+  Maximize2
+} from 'lucide-react';
+import { DynamicQrCode } from '../../../../components/common/DynamicQrCode';
 import { SafeImage } from '../../../../components/common/SafeImage';
 import { formatCurrency } from '../../../../utils/formatters';
 import { orderService } from '../services/orderService';
@@ -28,6 +46,11 @@ export const CartDrawer = ({
   const [packagingFeeSetting, setPackagingFeeSetting] = useState(5.0);
   const [enablePackagingFee, setEnablePackagingFee] = useState(true);
   const [isDineIn, setIsDineIn] = useState(true);
+  const [upiConfig, setUpiConfig] = useState({ upiVpa: 'canteen.apex@icici', upiMerchantName: 'Apex Institute Canteen' });
+  const [upiRefId, setUpiRefId] = useState('');
+  const [isCounterSoundboxVerified, setIsCounterSoundboxVerified] = useState(true);
+  const [isQrModalOpen, setIsQrModalOpen] = useState(false);
+  const [copiedVpa, setCopiedVpa] = useState(false);
 
   useEffect(() => {
     import('../../settings/services/settingsService')
@@ -44,7 +67,7 @@ export const CartDrawer = ({
           setEnablePackagingFee(enable !== false);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   // Convert cart object to array of entries
@@ -90,6 +113,17 @@ export const CartDrawer = ({
     if (outlets.length > 0) return outlets[0].outletId || outlets[0].id;
     return 1;
   }, [selectedOutletId, cartItems, outlets]);
+
+  const upiUri = useMemo(() => {
+    if (!totalAmount || totalAmount <= 0) return '';
+    return `upi://pay?pa=${encodeURIComponent(upiConfig.upiVpa)}&pn=${encodeURIComponent(upiConfig.upiMerchantName)}&am=${totalAmount.toFixed(2)}&cu=INR&tn=${encodeURIComponent('Counter Meal Order')}`;
+  }, [totalAmount, upiConfig]);
+
+  const handleCopyVpa = () => {
+    navigator.clipboard.writeText(upiConfig.upiVpa);
+    setCopiedVpa(true);
+    setTimeout(() => setCopiedVpa(false), 2000);
+  };
 
   const selectedOutletObj = useMemo(() => {
     return outlets.find(o => String(o.outletId || o.id) === String(effectiveOutletId)) || outlets[0];

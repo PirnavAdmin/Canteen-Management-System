@@ -19,63 +19,31 @@ namespace CanteenManagement.API.Repositories.Implementations.Inventory
             _connectionFactory = connectionFactory;
         }
 
-        public async Task<IEnumerable<InventoryItem>> GetItemsAsync(int campusId, int? outletId = null)
+        public async Task<IEnumerable<InventoryItem>> GetItemsAsync(int campusId, int? outletId = null, string? storeType = null)
         {
-            try
+            var query = _dbContext.InventoryItems
+                .Include(i => i.Outlet)
+                .Include(i => i.Warehouse)
+                .Where(i => i.CampusId == campusId);
+
+            if (!string.IsNullOrWhiteSpace(storeType) && storeType.Equals("CentralWarehouse", StringComparison.OrdinalIgnoreCase))
             {
-                using var connection = _connectionFactory.CreateConnection();
-                var items = await connection.QueryAsync<InventoryItem, CanteenOutlet, InventoryItem>(
-                    "sp_GetInventoryItems",
-                    (item, outlet) =>
-                    {
-                        item.Outlet = outlet;
-                        return item;
-                    },
-                    new { p_CampusId = campusId, p_OutletId = outletId ?? 0 },
-                    splitOn: "OutletId",
-                    commandType: CommandType.StoredProcedure);
-
-                return items;
+                query = query.Where(i => i.WarehouseId != null || i.StoreType == "CentralWarehouse" || i.OutletId == null);
             }
-            catch
+            else if (outletId.HasValue && outletId.Value > 0)
             {
-                var query = _dbContext.InventoryItems
-                    .Include(i => i.Outlet)
-                    .Where(i => i.CampusId == campusId);
-
-                if (outletId.HasValue && outletId.Value > 0)
-                {
-                    query = query.Where(i => i.OutletId == outletId.Value);
-                }
-
-                return await query.OrderBy(i => i.IngredientName).AsNoTracking().ToListAsync();
+                query = query.Where(i => i.OutletId == outletId.Value && i.StoreType != "CentralWarehouse");
             }
+
+            return await query.OrderBy(i => i.IngredientName).AsNoTracking().ToListAsync();
         }
 
         public async Task<InventoryItem?> GetItemByIdAsync(int id, int campusId)
         {
-            try
-            {
-                using var connection = _connectionFactory.CreateConnection();
-                var items = await connection.QueryAsync<InventoryItem, CanteenOutlet, InventoryItem>(
-                    "sp_GetInventoryItemById",
-                    (item, outlet) =>
-                    {
-                        item.Outlet = outlet;
-                        return item;
-                    },
-                    new { p_ItemId = id, p_CampusId = campusId },
-                    splitOn: "OutletId",
-                    commandType: CommandType.StoredProcedure);
-
-                return items.FirstOrDefault();
-            }
-            catch
-            {
-                return await _dbContext.InventoryItems
-                    .Include(i => i.Outlet)
-                    .FirstOrDefaultAsync(i => i.ItemId == id && i.CampusId == campusId);
-            }
+            return await _dbContext.InventoryItems
+                .Include(i => i.Outlet)
+                .Include(i => i.Warehouse)
+                .FirstOrDefaultAsync(i => i.ItemId == id && i.CampusId == campusId);
         }
 
         public async Task<InventoryItem> AddItemAsync(InventoryItem item)
@@ -246,45 +214,25 @@ namespace CanteenManagement.API.Repositories.Implementations.Inventory
 
         public async Task<IEnumerable<PurchaseOrder>> GetPurchaseOrdersAsync(int campusId, int? outletId = null)
         {
-            try
-            {
-                using var connection = _connectionFactory.CreateConnection();
-                return await connection.QueryAsync<PurchaseOrder>(
-                    "sp_GetPurchaseOrders",
-                    new { p_CampusId = campusId, p_OutletId = outletId ?? 0 },
-                    commandType: CommandType.StoredProcedure);
-            }
-            catch
-            {
-                var query = _dbContext.PurchaseOrders
-                    .Include(p => p.Supplier)
-                    .Where(p => p.CampusId == campusId);
+            var query = _dbContext.PurchaseOrders
+                .Include(p => p.Supplier)
+                .Include(p => p.Warehouse)
+                .Where(p => p.CampusId == campusId);
 
-                if (outletId.HasValue && outletId.Value > 0)
-                {
-                    query = query.Where(p => p.OutletId == outletId.Value);
-                }
-
-                return await query.OrderByDescending(p => p.OrderDate).AsNoTracking().ToListAsync();
+            if (outletId.HasValue && outletId.Value > 0)
+            {
+                query = query.Where(p => p.OutletId == outletId.Value);
             }
+
+            return await query.OrderByDescending(p => p.OrderDate).AsNoTracking().ToListAsync();
         }
 
         public async Task<PurchaseOrder?> GetPurchaseOrderByIdAsync(int id, int campusId)
         {
-            try
-            {
-                using var connection = _connectionFactory.CreateConnection();
-                return await connection.QueryFirstOrDefaultAsync<PurchaseOrder>(
-                    "sp_GetPurchaseOrderById",
-                    new { p_PurchaseOrderId = id, p_CampusId = campusId },
-                    commandType: CommandType.StoredProcedure);
-            }
-            catch
-            {
-                return await _dbContext.PurchaseOrders
-                    .Include(p => p.Supplier)
-                    .FirstOrDefaultAsync(p => p.PurchaseOrderId == id && p.CampusId == campusId);
-            }
+            return await _dbContext.PurchaseOrders
+                .Include(p => p.Supplier)
+                .Include(p => p.Warehouse)
+                .FirstOrDefaultAsync(p => p.PurchaseOrderId == id && p.CampusId == campusId);
         }
 
         public async Task<PurchaseOrder> CreatePurchaseOrderAsync(PurchaseOrder po)
