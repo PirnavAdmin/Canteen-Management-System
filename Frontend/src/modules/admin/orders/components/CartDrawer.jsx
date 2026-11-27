@@ -7,6 +7,7 @@ import { useToast } from '../../../../app/providers/ToastProvider';
 import { useAuth } from '../../../../app/providers/AuthProvider';
 
 export const CartDrawer = ({
+  cashierMode = false,
   isOpen,
   onClose,
   cart = {},
@@ -71,15 +72,16 @@ export const CartDrawer = ({
 
   // Effective selected outlet
   const effectiveOutletId = useMemo(() => {
+    if (cashierMode) return user?.outletId ?? user?.assignedOutletId ?? user?.canteenOutletId ?? user?.assignedOutlet?.outletId ?? user?.assignedOutlet?.id;
     if (selectedOutletId) return selectedOutletId;
     if (cartItems.length > 0 && cartItems[0].item?.outletId) return cartItems[0].item.outletId;
     if (outlets.length > 0) return outlets[0].outletId || outlets[0].id;
     return 1;
-  }, [selectedOutletId, cartItems, outlets]);
+  }, [cashierMode, user, selectedOutletId, cartItems, outlets]);
 
   const selectedOutletObj = useMemo(() => {
-    return outlets.find(o => String(o.outletId || o.id) === String(effectiveOutletId)) || outlets[0];
-  }, [outlets, effectiveOutletId]);
+    return outlets.find(o => String(o.outletId || o.id) === String(effectiveOutletId)) || (!cashierMode ? outlets[0] : undefined);
+  }, [outlets, effectiveOutletId, cashierMode]);
 
   if (!isOpen) return null;
 
@@ -89,8 +91,13 @@ export const CartDrawer = ({
       return;
     }
 
-    if (!effectiveOutletId) {
-      error('Outlet Required', 'Please select a canteen outlet.');
+    if (!effectiveOutletId || (cashierMode && !selectedOutletObj)) {
+      error('Outlet Required', cashierMode ? 'Your assigned canteen is unavailable. Please contact an administrator.' : 'Please select a canteen outlet.');
+      return;
+    }
+
+    if (cashierMode && cartItems.some(({ item }) => String(item?.outletId) !== String(effectiveOutletId))) {
+      error('Incorrect Canteen', 'Please add items from your assigned canteen only.');
       return;
     }
 
@@ -262,7 +269,11 @@ export const CartDrawer = ({
               <Store size={15} color="var(--color-primary)" />
               <span>Canteen Outlet</span>
             </div>
-            <select
+            {cashierMode ? (
+              <div style={{ width: '100%', minHeight: '36px', padding: '8px 10px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: '13px', fontWeight: 500 }}>
+                {selectedOutletObj ? `${selectedOutletObj.name}${selectedOutletObj.code ? ` (${selectedOutletObj.code})` : ''}` : 'Assigned canteen unavailable'}
+              </div>
+            ) : <select
               value={effectiveOutletId}
               onChange={(e) => onOutletChange?.(Number(e.target.value))}
               style={{
@@ -286,7 +297,7 @@ export const CartDrawer = ({
                     {outlet.name} {outlet.code ? `(${outlet.code})` : ''}
                   </option>
                 ))}
-            </select>
+            </select>}
           </div>
 
           {/* Customer / Ordering Info */}
@@ -617,7 +628,7 @@ export const CartDrawer = ({
         >
           <button
             type="button"
-            disabled={cartItems.length === 0 || isSubmitting}
+            disabled={cartItems.length === 0 || isSubmitting || (cashierMode && !selectedOutletObj)}
             onClick={handlePlaceOrder}
             style={{
               width: '100%',

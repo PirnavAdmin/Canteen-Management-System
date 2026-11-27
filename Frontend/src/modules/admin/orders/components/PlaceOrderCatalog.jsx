@@ -566,6 +566,7 @@ export const PlaceOrderCatalog = ({ onOrderPlaced, cashierMode = false }) => {
 
       {/* Cart Drawer Modal */}
       <CartDrawer
+        cashierMode={cashierMode}
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
         cart={cart}

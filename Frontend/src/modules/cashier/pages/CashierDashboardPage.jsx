@@ -4,11 +4,12 @@ import { dashboardService } from '../../admin/dashboard/services/dashboardServic
 import { orderService } from '../../admin/orders/services/orderService';
 import { formatCurrency } from '../../../utils/formatters';
 import { useAuth } from '../../../app/providers/AuthProvider';
+import { subscribeToOrderSync } from '../../../utils/orderSync';
 import '../styles/cashier.css';
 
 export default function CashierDashboardPage() {
   const { user } = useAuth();
-  const assignedOutlet = user?.outletId || 1;
+  const assignedOutlet = user?.outletId ?? user?.assignedOutletId ?? user?.canteenOutletId ?? user?.assignedOutlet?.outletId ?? user?.assignedOutlet?.id;
   const [summary, setSummary] = useState(null);
   const [liveOrders, setLiveOrders] = useState([]);
   const [todayOrders, setTodayOrders] = useState([]);
@@ -17,6 +18,12 @@ export default function CashierDashboardPage() {
   const [error, setError] = useState(null);
 
   const fetchDashboardData = useCallback(async (isRefresh = false) => {
+    if (!assignedOutlet) {
+      setSummary(null); setLiveOrders([]); setTodayOrders([]);
+      setError('No canteen is assigned to this cashier. Please contact an administrator.');
+      setLoading(false); setRefreshing(false);
+      return;
+    }
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     setError(null);
@@ -29,7 +36,7 @@ export default function CashierDashboardPage() {
       ]);
 
       if ([summaryRes, liveOrdersRes, ordersRes].some(result => result.status === 'rejected')) {
-        setError('Some dashboard data could not be loaded. Please refresh and try again.');
+        throw new Error('Dashboard data could not be loaded. Please refresh and try again.');
       }
 
       if (summaryRes.status === 'fulfilled') {
@@ -44,6 +51,7 @@ export default function CashierDashboardPage() {
         setTodayOrders(Array.isArray(ords) ? ords : []);
       }
     } catch (err) {
+      setSummary(null); setLiveOrders([]); setTodayOrders([]);
       setError(err?.message || 'Failed to load cashier dashboard metrics.');
     } finally {
       setLoading(false);
@@ -53,7 +61,11 @@ export default function CashierDashboardPage() {
 
   useEffect(() => {
     fetchDashboardData();
-  }, [fetchDashboardData]);
+    if (!assignedOutlet) return undefined;
+    const timer = window.setInterval(() => fetchDashboardData(true), 30000);
+    const unsubscribe = subscribeToOrderSync(() => fetchDashboardData(true), () => fetchDashboardData(true));
+    return () => { window.clearInterval(timer); unsubscribe(); };
+  }, [assignedOutlet, fetchDashboardData]);
 
   // Payment Breakdown calculated from today's orders
   const paymentBreakdown = useMemo(() => {
@@ -80,6 +92,7 @@ export default function CashierDashboardPage() {
       cash,
       upi,
       card,
+      other,
       cashPct,
       upiPct,
       cardPct,
@@ -92,11 +105,11 @@ export default function CashierDashboardPage() {
     if (!liveOrders || liveOrders.length === 0) return [];
     return liveOrders.slice(0, 5).map(o => [
       o.token || o.orderId || '-',
-      o.customer || o.customerName || 'Campus Diner',
-      `${o.itemCount || (o.items && o.items.length) || 1}`,
+      (typeof o.customer === 'object' ? o.customer?.name || o.customer?.fullName : o.customer) || o.customerName || '—',
+      o.itemCount ?? (Array.isArray(o.items) ? o.items.length : '—'),
       formatCurrency(o.total || o.totalAmount || 0),
       o.payment?.status || o.paymentStatus || 'Unknown',
-      o.status || 'Preparing'
+      o.status || 'Unknown'
     ]);
   }, [liveOrders]);
 
@@ -136,12 +149,12 @@ export default function CashierDashboardPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <span style={{
             fontSize: '12px',
-            color: '#16a34a',
+            color: error ? 'var(--color-danger-text)' : 'var(--color-success-text)',
             fontWeight: 600,
             display: 'flex',
             alignItems: 'center',
             gap: '5px',
-            backgroundColor: '#dcfce7',
+            backgroundColor: error ? 'var(--color-danger-bg)' : 'var(--color-success-bg)',
             padding: '4px 10px',
             borderRadius: '99px'
           }}>
@@ -176,9 +189,9 @@ export default function CashierDashboardPage() {
           marginBottom: '16px',
           padding: '12px 16px',
           borderRadius: '8px',
-          backgroundColor: '#fee2e2',
-          border: '1px solid #fca5a5',
-          color: '#991b1b',
+          backgroundColor: 'var(--color-danger-bg)',
+          border: '1px solid var(--color-danger-border)',
+          color: 'var(--color-danger-text)',
           display: 'flex',
           alignItems: 'center',
           gap: '8px',
@@ -189,6 +202,7 @@ export default function CashierDashboardPage() {
         </div>
       )}
 
+      {!error && !loading && <>
       {/* KPI Summary Cards */}
       <section className="cashier-kpis">
         <Kpi
@@ -238,8 +252,8 @@ export default function CashierDashboardPage() {
         </section>
 
         <section className="cashier-card breakdown">
-          <div className="donut">
-            <b>{formatCurrency(todaySales).split('.')[0]}</b>
+          <div className="donut" style={{ background: paymentBreakdown.totalSales > 0 ? `conic-gradient(#2563eb 0 ${paymentBreakdown.cash / paymentBreakdown.totalSales * 100}%, #8b5cf6 0 ${(paymentBreakdown.cash + paymentBreakdown.upi) / paymentBreakdown.totalSales * 100}%, #059669 0 ${(paymentBreakdown.cash + paymentBreakdown.upi + paymentBreakdown.card) / paymentBreakdown.totalSales * 100}%, #94a3b8 0 100%)` : 'var(--bg-subtle)' }}>
+            <b>{formatCurrency(paymentBreakdown.totalSales).split('.')[0]}</b>
             <small>Today's Sales</small>
           </div>
           <div>
@@ -247,10 +261,10 @@ export default function CashierDashboardPage() {
             <p>🔵 Cash — {formatCurrency(paymentBreakdown.cash)} ({paymentBreakdown.cashPct}%)</p>
             <p>🟣 UPI / QR — {formatCurrency(paymentBreakdown.upi)} ({paymentBreakdown.upiPct}%)</p>
             <p>🟢 Card / Wallet — {formatCurrency(paymentBreakdown.card)} ({paymentBreakdown.cardPct}%)</p>
+            {paymentBreakdown.other > 0 && <p>Other — {formatCurrency(paymentBreakdown.other)}</p>}
           </div>
         </section>
       </div>
-
       {/* Bottom Grid: Recent Transactions & Alerts */}
       <div className="dashboard-only-grid">
         <section className="cashier-card">
@@ -273,9 +287,10 @@ export default function CashierDashboardPage() {
         <section className="cashier-card mini">
           <b>Operational Status & Counter Alerts</b>
           <p>{activeCount} orders currently in kitchen preparation queue</p>
-          <p>{todayOrders.filter(o => String(o.payment?.status || '').toLowerCase() === 'pending').length} orders pending payment confirmation</p>
+          <p>{todayOrders.filter(o => String(o.payment?.status || o.paymentStatus || '').toLowerCase() === 'pending').length} orders pending payment confirmation</p>
         </section>
       </div>
+      </>}
     </>
   );
 }
@@ -309,8 +324,8 @@ function Table({ heads, rows }) {
                 <td key={j}>
                   {j === 5 ? (
                     <span className="status" style={{
-                      backgroundColor: String(cell).toLowerCase().includes('ready') ? '#dcfce7' : '#e0f2fe',
-                      color: String(cell).toLowerCase().includes('ready') ? '#166534' : '#0369a1'
+                      backgroundColor: String(cell).toLowerCase().includes('ready') ? 'var(--color-success-bg)' : 'var(--color-info-bg)',
+                      color: String(cell).toLowerCase().includes('ready') ? 'var(--color-success-text)' : 'var(--color-info-text)'
                     }}>
                       {cell}
                     </span>

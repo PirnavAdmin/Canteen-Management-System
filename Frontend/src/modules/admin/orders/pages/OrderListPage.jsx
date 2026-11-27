@@ -15,6 +15,8 @@ import { useCanteens } from '../../outlets/hooks/useCanteens';
 import { useAuth } from '../../../../app/providers/AuthProvider';
 import { orderService } from '../services/orderService';
 import { isSameIstDate, isYesterdayIST, isWithinDaysIST } from '../../../../utils/formatters';
+import { ORDER_STATUS, ORDER_LIFECYCLE_NEXT_STEPS } from '../../../../constants/appConstants';
+import { subscribeToOrderSync } from '../../../../utils/orderSync';
 
 export const OrderListPage = ({ cashierMode = false }) => {
   const { user } = useAuth();
@@ -63,6 +65,13 @@ export const OrderListPage = ({ cashierMode = false }) => {
   const [isA4SheetOpen, setIsA4SheetOpen] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
+
+  useEffect(() => {
+    if (!cashierMode || activeTab !== 'TODAYS_ORDERS' || localStorage.getItem('token')?.startsWith('local-demo-token-')) return undefined;
+    const unsubscribe = subscribeToOrderSync(() => refreshOrders(), () => refreshOrders());
+    const timer = window.setInterval(() => refreshOrders(), 30000);
+    return () => { unsubscribe(); window.clearInterval(timer); };
+  }, [cashierMode, activeTab, refreshOrders]);
 
   // Filtered orders
   const filteredOrders = useMemo(() => {
@@ -115,6 +124,10 @@ export const OrderListPage = ({ cashierMode = false }) => {
 
   const handleStatusAdvance = async (order, nextStatus) => {
     const orderId = typeof order === 'string' ? order : order.id;
+    if (cashierMode) {
+      const current = orders.find(item => String(item.id) === String(orderId));
+      if (!current || ![ORDER_STATUS.ACCEPTED, ORDER_STATUS.COMPLETED].includes(nextStatus) || !(ORDER_LIFECYCLE_NEXT_STEPS[current.status] || []).includes(nextStatus)) return;
+    }
     try {
       setActionLoadingId(orderId);
       setModalLoading(true);
@@ -288,6 +301,7 @@ export const OrderListPage = ({ cashierMode = false }) => {
 
           {/* Order Table */}
           <OrderTable
+            cashierMode={cashierMode}
             orders={paginatedOrders}
             loading={loading}
             actionLoadingId={actionLoadingId}
@@ -309,6 +323,7 @@ export const OrderListPage = ({ cashierMode = false }) => {
 
           {/* Order Details Modal */}
           <OrderDetailsModal
+            cashierMode={cashierMode}
             isOpen={Boolean(selectedOrder)}
             onClose={() => !modalLoading && setSelectedOrder(null)}
             order={selectedOrder}

@@ -21,6 +21,7 @@ const getStepIcon = (nextStatus) => {
 };
 
 export const OrderTable = ({
+  cashierMode = false,
   orders = [],
   loading = false,
   actionLoadingId = null,
@@ -211,7 +212,7 @@ export const OrderTable = ({
       render: (_, row) => {
         const orderStatus = row?.status || ORDER_STATUS.PLACED;
         const nextSteps = ORDER_LIFECYCLE_NEXT_STEPS[orderStatus] || [];
-        const nextOperationalStatus = nextSteps.find(s => s !== ORDER_STATUS.CANCELLED && s !== ORDER_STATUS.REFUNDED);
+        const nextOperationalStatus = nextSteps.find(s => s !== ORDER_STATUS.CANCELLED && s !== ORDER_STATUS.REFUNDED && (!cashierMode || s === ORDER_STATUS.ACCEPTED || s === ORDER_STATUS.COMPLETED));
         const StepIcon = nextOperationalStatus ? getStepIcon(nextOperationalStatus) : null;
         const isCancellable = orderStatus !== ORDER_STATUS.COMPLETED && orderStatus !== ORDER_STATUS.CANCELLED && orderStatus !== ORDER_STATUS.REFUNDED;
 
@@ -277,7 +278,7 @@ export const OrderTable = ({
               </button>
             )}
 
-            {isCancellable && onCancel && (
+            {!cashierMode && isCancellable && onCancel && (
               <button
                 type="button"
                 disabled={actionLoadingId === row.id}

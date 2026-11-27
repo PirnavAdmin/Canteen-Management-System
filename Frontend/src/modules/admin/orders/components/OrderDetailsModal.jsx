@@ -6,6 +6,7 @@ import { formatCurrency } from '../../../../utils/formatters';
 import { ORDER_STATUS, ORDER_LIFECYCLE_NEXT_STEPS } from '../../../../constants/appConstants';
 
 export const OrderDetailsModal = ({
+  cashierMode = false,
   isOpen,
   onClose,
   order,
@@ -17,8 +18,8 @@ export const OrderDetailsModal = ({
   if (!isOpen || !order) return null;
 
   const nextSteps = ORDER_LIFECYCLE_NEXT_STEPS[order.status] || [];
-  const canCancel = nextSteps.includes(ORDER_STATUS.CANCELLED);
-  const canRefund = nextSteps.includes(ORDER_STATUS.REFUNDED) && order.status === ORDER_STATUS.CANCELLED;
+  const canCancel = !cashierMode && nextSteps.includes(ORDER_STATUS.CANCELLED);
+  const canRefund = !cashierMode && nextSteps.includes(ORDER_STATUS.REFUNDED) && order.status === ORDER_STATUS.CANCELLED;
 
   return (
     <div style={{
@@ -329,6 +330,7 @@ export const OrderDetailsModal = ({
 
             {nextSteps.map(nextSt => {
               if (nextSt === ORDER_STATUS.CANCELLED || nextSt === ORDER_STATUS.REFUNDED) return null;
+              if (cashierMode && nextSt !== ORDER_STATUS.ACCEPTED && nextSt !== ORDER_STATUS.COMPLETED) return null;
               const ActionIcon = nextSt === ORDER_STATUS.COMPLETED ? CheckCheck
                 : nextSt === ORDER_STATUS.READY_FOR_PICKUP ? BellRing
                   : nextSt === ORDER_STATUS.PREPARING ? ChefHat
