@@ -145,6 +145,22 @@ namespace CanteenManagement.API.Repositories.Implementations.Orders
 
         public async Task<Order> CreateAsync(Order order)
         {
+            if (order.Payments != null)
+            {
+                foreach (var payment in order.Payments)
+                {
+                    if (string.IsNullOrWhiteSpace(payment.TransactionId) ||
+                        payment.TransactionId.Equals("PENDING-COUNTER-COLLECTION", StringComparison.OrdinalIgnoreCase) ||
+                        await _dbContext.PaymentTransactions.AnyAsync(p => p.TransactionId == payment.TransactionId))
+                    {
+                        var methodPrefix = !string.IsNullOrWhiteSpace(payment.Method) && payment.Method.Contains("Cash", StringComparison.OrdinalIgnoreCase)
+                            ? "CASH"
+                            : (!string.IsNullOrWhiteSpace(payment.Method) && payment.Method.Contains("UPI", StringComparison.OrdinalIgnoreCase) ? "UPI" : "TXN");
+                        payment.TransactionId = $"{methodPrefix}-{order.OrderId.Replace("ORD-", "")}-{Guid.NewGuid().ToString("N")[..6].ToUpper()}";
+                    }
+                }
+            }
+
             await _dbContext.Orders.AddAsync(order);
             await _dbContext.SaveChangesAsync();
             return order;

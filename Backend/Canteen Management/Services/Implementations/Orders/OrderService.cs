@@ -195,32 +195,42 @@ namespace CanteenManagement.API.Services.Implementations.Orders
                 paidAt = now;
             }
 
+            string uniqueTokenPart = $"{token}-{now:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..6].ToUpper()}";
             string initialTxnId;
-            if (!string.IsNullOrWhiteSpace(dto.TransactionId))
+
+            bool isGenericPendingTxn = !string.IsNullOrWhiteSpace(dto.TransactionId) &&
+                                       (dto.TransactionId.StartsWith("PENDING-", StringComparison.OrdinalIgnoreCase) ||
+                                        dto.TransactionId.Contains("COLLECTION", StringComparison.OrdinalIgnoreCase) ||
+                                        dto.TransactionId.Contains("COUNTER", StringComparison.OrdinalIgnoreCase));
+
+            if (!string.IsNullOrWhiteSpace(dto.TransactionId) && !isGenericPendingTxn)
             {
-                initialTxnId = dto.TransactionId;
+                initialTxnId = dto.TransactionId.Trim();
+                if (initialTxnId.Length > 60) initialTxnId = initialTxnId[..60];
             }
             else if (!string.IsNullOrWhiteSpace(dto.PaymentReference))
             {
-                initialTxnId = dto.PaymentReference.StartsWith("UTR-", StringComparison.OrdinalIgnoreCase)
-                    ? dto.PaymentReference
-                    : $"UTR-{dto.PaymentReference}";
-            }
-            else if (isCashierOrAdmin)
-            {
-                initialTxnId = $"TXN-POS-{token}";
+                var cleanRef = dto.PaymentReference.Trim();
+                initialTxnId = cleanRef.StartsWith("UTR-", StringComparison.OrdinalIgnoreCase)
+                    ? cleanRef
+                    : $"UTR-{cleanRef}";
+                if (initialTxnId.Length > 60) initialTxnId = initialTxnId[..60];
             }
             else if (isCash)
             {
-                initialTxnId = $"PENDING-CASH-{token}";
+                initialTxnId = $"CASH-{uniqueTokenPart}";
+            }
+            else if (isCashierOrAdmin)
+            {
+                initialTxnId = $"TXN-POS-{uniqueTokenPart}";
             }
             else if (isUpiPendingVerification)
             {
-                initialTxnId = $"PENDING-UPI-{token}";
+                initialTxnId = $"PENDING-UPI-{uniqueTokenPart}";
             }
             else
             {
-                initialTxnId = $"TXN-{Guid.NewGuid().ToString("N")[..10].ToUpper()}";
+                initialTxnId = $"TXN-{Guid.NewGuid().ToString("N")[..12].ToUpper()}";
             }
 
             var orderNotes = dto.Notes?.Trim();
