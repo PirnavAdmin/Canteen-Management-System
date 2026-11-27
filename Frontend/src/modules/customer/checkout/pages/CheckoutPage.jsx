@@ -29,7 +29,9 @@ export const CheckoutPage = () => {
     packagingFee,
     taxAmount,
     totalAmount,
-    gstPercent
+    gstPercent,
+    isDineIn,
+    setIsDineIn
   } = useCart();
 
   const safeCartItems = Array.isArray(cartItems) ? cartItems : [];
@@ -175,6 +177,8 @@ export const CheckoutPage = () => {
         totalAmount,
         gstPercent: gstPercent || 5.0
       },
+      orderType: isDineIn ? 'Dine In' : 'Takeaway',
+      isDineIn,
       cookingNotes,
       status: 'Placed',
       createdAt: new Date().toISOString()
@@ -336,6 +340,14 @@ export const CheckoutPage = () => {
                       <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
                         {item.quantity}x {item.name}
                       </span>
+                      {(item.servingSize || item.calories) && (
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginTop: '1px' }}>
+                          {[
+                            item.servingSize ? item.servingSize : null,
+                            item.calories ? (String(item.calories).toLowerCase().includes('cal') ? item.calories : `${item.calories} kcal`) : null
+                          ].filter(Boolean).join(' • ')}
+                        </span>
+                      )}
                       {item.variant && (
                         <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>
                           ({typeof item.variant === 'object' ? (item.variant.name || item.variant.id) : item.variant})
@@ -347,6 +359,63 @@ export const CheckoutPage = () => {
                     </span>
                   </div>
                 ))}
+              </div>
+
+              {/* Dining Preference: Dine In vs Takeaway Toggle */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '10px 12px',
+                backgroundColor: 'var(--bg-muted)',
+                borderRadius: '8px',
+                border: '1px solid var(--border-color)',
+                marginBottom: '10px'
+              }}>
+                <div>
+                  <span style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--text-primary)', display: 'block' }}>
+                    Dining Preference
+                  </span>
+                  <span style={{ fontSize: '11px', color: isDineIn ? 'var(--color-success)' : 'var(--text-muted)' }}>
+                    {isDineIn ? 'Dine In (No Packaging Fee)' : 'Takeaway (+Packaging Fee)'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: '4px', backgroundColor: 'var(--bg-surface)', padding: '2px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                  <button
+                    type="button"
+                    onClick={() => setIsDineIn(true)}
+                    style={{
+                      padding: '5px 12px',
+                      borderRadius: '5px',
+                      border: 'none',
+                      backgroundColor: isDineIn ? 'var(--color-primary)' : 'transparent',
+                      color: isDineIn ? '#ffffff' : 'var(--text-secondary)',
+                      fontSize: '12px',
+                      fontWeight: isDineIn ? 700 : 500,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    Dine In
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsDineIn(false)}
+                    style={{
+                      padding: '5px 12px',
+                      borderRadius: '5px',
+                      border: 'none',
+                      backgroundColor: !isDineIn ? 'var(--color-primary)' : 'transparent',
+                      color: !isDineIn ? '#ffffff' : 'var(--text-secondary)',
+                      fontSize: '12px',
+                      fontWeight: !isDineIn ? 700 : 500,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    Takeaway
+                  </button>
+                </div>
               </div>
 
               {/* Billing breakdown */}

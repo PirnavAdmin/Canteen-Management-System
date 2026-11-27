@@ -246,19 +246,38 @@ export const CustomerDashboardPage = () => {
   };
 
   const handleAddToCart = (item) => {
+    const rem = item.remainingCapacity !== undefined && item.remainingCapacity !== null
+      ? Number(item.remainingCapacity)
+      : (item.dailyCapacity !== undefined && item.dailyCapacity !== null ? Number(item.dailyCapacity) : null);
+    if ((rem !== null && rem <= 0) || item.availability === 'SoldOut' || item.availability === 'Unavailable') {
+      return;
+    }
     addToCart(item, 1);
   };
 
   const handleBuyNow = (item) => {
+    const rem = item.remainingCapacity !== undefined && item.remainingCapacity !== null
+      ? Number(item.remainingCapacity)
+      : (item.dailyCapacity !== undefined && item.dailyCapacity !== null ? Number(item.dailyCapacity) : null);
+    if ((rem !== null && rem <= 0) || item.availability === 'SoldOut' || item.availability === 'Unavailable') {
+      return;
+    }
     addToCart(item, 1);
     navigate('/customer/checkout');
   };
 
   const handleIncrement = (item) => {
+    const rem = item.remainingCapacity !== undefined && item.remainingCapacity !== null
+      ? Number(item.remainingCapacity)
+      : (item.dailyCapacity !== undefined && item.dailyCapacity !== null ? Number(item.dailyCapacity) : null);
     const found = (cartItems || []).find(ci => ci && (ci.id === item.id || String(ci.id) === String(item.id)));
     if (found) {
+      if (rem !== null && found.quantity >= rem) {
+        return;
+      }
       updateQuantity(found.cartKey, found.quantity + 1);
     } else {
+      if (rem !== null && rem <= 0) return;
       addToCart(item, 1);
     }
   };
@@ -595,6 +614,16 @@ export const CustomerDashboardPage = () => {
                 ? (item.category?.name || 'SPECIALS')
                 : (item.category || item.categoryName || 'SPECIALS');
 
+              // Remaining stock & capacity calculation from live menu API
+              const rem = item.remainingCapacity !== undefined && item.remainingCapacity !== null
+                ? Number(item.remainingCapacity)
+                : (item.dailyCapacity !== undefined && item.dailyCapacity !== null ? Number(item.dailyCapacity) : null);
+              const isOutOfStock = (rem !== null && rem <= 0) ||
+                item.availability === 'SoldOut' ||
+                item.availability === 'Unavailable' ||
+                item.status === 'Inactive';
+              const isLowStock = !isOutOfStock && rem !== null && rem > 0 && rem <= 10;
+
               return (
                 <div
                   key={item.id}
@@ -632,13 +661,58 @@ export const CustomerDashboardPage = () => {
                     <SafeImage
                       src={item.imageUrl}
                       alt={item.name}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.35s ease' }}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        transition: 'transform 0.35s ease',
+                        filter: isOutOfStock ? 'grayscale(0.4) opacity(0.85)' : 'none'
+                      }}
                       fallback={
                         <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-muted)', color: 'var(--text-muted)' }}>
                           <UtensilsCrossed size={28} />
                         </div>
                       }
                     />
+
+                    {/* Low Stock (<= 10 left) or Out of Stock Badge */}
+                    {isOutOfStock ? (
+                      <div style={{
+                        position: 'absolute',
+                        bottom: '8px',
+                        left: '8px',
+                        backgroundColor: '#dc2626',
+                        color: '#ffffff',
+                        padding: '2.5px 8px',
+                        borderRadius: '4px',
+                        fontSize: '10.5px',
+                        fontWeight: 800,
+                        boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+                        letterSpacing: '0.02em',
+                        zIndex: 2
+                      }}>
+                        Out of Stock
+                      </div>
+                    ) : isLowStock ? (
+                      <div style={{
+                        position: 'absolute',
+                        bottom: '8px',
+                        left: '8px',
+                        backgroundColor: '#ea580c',
+                        color: '#ffffff',
+                        padding: '2.5px 8px',
+                        borderRadius: '4px',
+                        fontSize: '10.5px',
+                        fontWeight: 800,
+                        boxShadow: '0 1px 4px rgba(0,0,0,0.25)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '3px',
+                        zIndex: 2
+                      }}>
+                        <span>🔥 {rem} left</span>
+                      </div>
+                    ) : null}
 
                     {/* Veg / Non-veg Tag Badge */}
                     <div style={{
@@ -690,7 +764,7 @@ export const CustomerDashboardPage = () => {
 
                   {/* Card Content Area */}
                   <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '5px', flex: 1 }}>
-                    {/* Category Title & Prep time */}
+                    {/* Category Title & Quantity Count in place of calories */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <span style={{
                         fontSize: '10.5px',
@@ -701,9 +775,25 @@ export const CustomerDashboardPage = () => {
                       }}>
                         {categoryTitle}
                       </span>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px', color: 'var(--text-muted)' }}>
-                        <Clock size={11} /> {prepTime}
-                      </span>
+                      {rem !== null && (
+                        <span style={{
+                          fontSize: '11px',
+                          fontWeight: isLowStock || isOutOfStock ? 800 : 600,
+                          color: isOutOfStock
+                            ? '#dc2626'
+                            : (isLowStock ? '#ea580c' : 'var(--text-secondary)'),
+                          backgroundColor: isOutOfStock
+                            ? (isDark ? 'rgba(220, 38, 38, 0.15)' : '#fee2e2')
+                            : (isLowStock ? (isDark ? 'rgba(234, 88, 12, 0.18)' : '#ffedd5') : (isDark ? '#1e293b' : '#f1f5f9')),
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '3px'
+                        }}>
+                          {isOutOfStock ? 'Out of Stock' : (isLowStock ? `🔥 ${rem} left` : `${rem} left`)}
+                        </span>
+                      )}
                     </div>
 
                     {/* Dish Name */}
@@ -752,9 +842,33 @@ export const CustomerDashboardPage = () => {
                         </div>
                       </div>
 
-                      {/* Action Buttons: Compact +Cart & Buy */}
+                      {/* Action Buttons: Compact +Cart & Buy OR Out of Stock indicator */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        {qty > 0 ? (
+                        {isOutOfStock ? (
+                          <button
+                            type="button"
+                            disabled
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              padding: '5px 12px',
+                              height: '30px',
+                              backgroundColor: isDark ? 'rgba(239, 68, 68, 0.12)' : '#fee2e2',
+                              border: '1px solid rgba(239, 68, 68, 0.3)',
+                              borderRadius: '6px',
+                              color: '#ef4444',
+                              fontSize: '11.5px',
+                              fontWeight: 700,
+                              cursor: 'not-allowed',
+                              userSelect: 'none'
+                            }}
+                            title="Currently Out of Stock - Unable to order"
+                            aria-disabled="true"
+                          >
+                            Out of Stock
+                          </button>
+                        ) : qty > 0 ? (
                           <div style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -788,76 +902,80 @@ export const CustomerDashboardPage = () => {
                             </span>
                             <button
                               type="button"
+                              disabled={rem !== null && qty >= rem}
                               onClick={() => handleIncrement(item)}
                               style={{
                                 border: 'none',
                                 background: 'none',
-                                cursor: 'pointer',
+                                cursor: (rem !== null && qty >= rem) ? 'not-allowed' : 'pointer',
+                                opacity: (rem !== null && qty >= rem) ? 0.5 : 1,
                                 color: 'var(--color-accent, #1d4ed8)',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 padding: '2px'
                               }}
-                              title="Increase quantity"
+                              title={rem !== null && qty >= rem ? `Only ${rem} portions available` : "Increase quantity"}
                             >
                               <Plus size={12} strokeWidth={3} />
                             </button>
                           </div>
                         ) : (
-                          <button
-                            type="button"
-                            onClick={() => handleAddToCart(item)}
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              width: '32px',
-                              height: '30px',
-                              backgroundColor: 'var(--color-accent, #2563eb)',
-                              border: 'none',
-                              borderRadius: '6px',
-                              color: '#ffffff',
-                              cursor: 'pointer',
-                              boxShadow: '0 1px 4px rgba(37, 99, 235, 0.25)',
-                              transition: 'background-color 0.15s ease, transform 0.15s ease'
-                            }}
-                            title="Add to Cart"
-                            aria-label={`Add ${item.name} to Cart`}
-                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#1d4ed8'; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--color-accent, #2563eb)'; }}
-                          >
-                            <Plus size={16} strokeWidth={2.5} />
-                          </button>
-                        )}
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleAddToCart(item)}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                width: '32px',
+                                height: '30px',
+                                backgroundColor: 'var(--color-accent, #2563eb)',
+                                border: 'none',
+                                borderRadius: '6px',
+                                color: '#ffffff',
+                                cursor: 'pointer',
+                                boxShadow: '0 1px 4px rgba(37, 99, 235, 0.25)',
+                                transition: 'background-color 0.15s ease, transform 0.15s ease'
+                              }}
+                              title="Add to Cart"
+                              aria-label={`Add ${item.name} to Cart`}
+                              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#1d4ed8'; }}
+                              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--color-accent, #2563eb)'; }}
+                            >
+                              <Plus size={16} strokeWidth={2.5} />
+                            </button>
 
-                        <button
-                          type="button"
-                          onClick={() => handleBuyNow(item)}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '3px',
-                            padding: '5px 12px',
-                            height: '30px',
-                            backgroundColor: '#f59e0b',
-                            border: 'none',
-                            borderRadius: '6px',
-                            color: '#ffffff',
-                            fontSize: '12px',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            boxShadow: '0 1px 4px rgba(245, 158, 11, 0.25)',
-                            transition: 'background-color 0.15s ease'
-                          }}
-                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#d97706'; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#f59e0b'; }}
-                          title="Buy now and proceed straight to checkout"
-                        >
-                          <Zap size={12} fill="#ffffff" />
-                          <span>Buy</span>
-                        </button>
+                            <button
+                              type="button"
+                              onClick={() => handleBuyNow(item)}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '3px',
+                                padding: '5px 12px',
+                                height: '30px',
+                                backgroundColor: '#f59e0b',
+                                border: 'none',
+                                borderRadius: '6px',
+                                color: '#ffffff',
+                                fontSize: '12px',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                boxShadow: '0 1px 4px rgba(245, 158, 11, 0.25)',
+                                transition: 'background-color 0.15s ease'
+                              }}
+                              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#d97706'; }}
+                              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#f59e0b'; }}
+                              title="Buy now and proceed straight to checkout"
+                            >
+                              <Zap size={12} fill="#ffffff" />
+                              <span>Buy</span>
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>

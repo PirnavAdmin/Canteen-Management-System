@@ -6,10 +6,7 @@
 import { TAX_RATE, PACKAGING_FEE } from '../constants/cartConstants';
 
 const inMemoryCarts = {};
-let inMemorySelectedOutlet = {
-  id: 'ALL',
-  name: 'All Campus Dining Halls'
-};
+let inMemorySelectedOutlet = null;
 
 let activeSettings = {
   gstPercent: 5.0,
@@ -56,11 +53,11 @@ export const cartService = {
   },
 
   setSelectedOutlet: (outlet) => {
-    inMemorySelectedOutlet = outlet || { id: 'ALL', name: 'All Campus Dining Halls' };
+    inMemorySelectedOutlet = outlet || null;
     return inMemorySelectedOutlet;
   },
 
-  calculateTotals: (items) => {
+  calculateTotals: (items, isDineIn = true) => {
     const safeItems = Array.isArray(items) ? items : [];
     const subtotal = safeItems.reduce((acc, item) => {
       let itemPrice = Number(item.price) || 0;
@@ -74,7 +71,7 @@ export const cartService = {
 
     const gstPercent = activeSettings.gstPercent !== undefined ? activeSettings.gstPercent : 5.0;
     const taxAmount = Math.round(subtotal * (gstPercent / 100) * 100) / 100;
-    const packagingFee = !activeSettings.enablePackagingFee || subtotal > 200 || subtotal === 0
+    const packagingFee = isDineIn || !activeSettings.enablePackagingFee || subtotal === 0
       ? 0
       : activeSettings.packagingFee;
     const totalAmount = Math.round((subtotal + taxAmount + packagingFee) * 100) / 100;
@@ -85,6 +82,8 @@ export const cartService = {
       packagingFee,
       totalAmount,
       gstPercent,
+      isDineIn,
+      configuredPackagingFee: activeSettings.packagingFee,
       enablePackagingFee: activeSettings.enablePackagingFee,
       itemCount: safeItems.reduce((acc, item) => acc + (item.quantity || 1), 0)
     };

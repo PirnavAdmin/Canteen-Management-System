@@ -1,5 +1,22 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { X, Trash2, Plus, Minus, ShoppingBag, ShieldCheck, CreditCard, Banknote, Smartphone, CheckCircle, Store, Copy, Check, QrCode as QrIcon, Maximize2 } from 'lucide-react';
+import {
+  X,
+  Trash2,
+  Plus,
+  Minus,
+  ShoppingBag,
+  ShieldCheck,
+  CreditCard,
+  Banknote,
+  Smartphone,
+  CheckCircle,
+  Store,
+  Utensils,
+  Copy,
+  Check,
+  QrCode as QrIcon,
+  Maximize2
+} from 'lucide-react';
 import { DynamicQrCode } from '../../../../components/common/DynamicQrCode';
 import { SafeImage } from '../../../../components/common/SafeImage';
 import { formatCurrency } from '../../../../utils/formatters';
@@ -26,6 +43,9 @@ export const CartDrawer = ({
   const [customerPhone, setCustomerPhone] = useState(() => user?.phone || '9876543210');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [gstPercent, setGstPercent] = useState(5.0);
+  const [packagingFeeSetting, setPackagingFeeSetting] = useState(5.0);
+  const [enablePackagingFee, setEnablePackagingFee] = useState(true);
+  const [isDineIn, setIsDineIn] = useState(true);
   const [upiConfig, setUpiConfig] = useState({ upiVpa: 'canteen.apex@icici', upiMerchantName: 'Apex Institute Canteen' });
   const [upiRefId, setUpiRefId] = useState('');
   const [isCounterSoundboxVerified, setIsCounterSoundboxVerified] = useState(true);
@@ -40,10 +60,14 @@ export const CartDrawer = ({
           const rules = settings.orderRules || settings.OrderRules || settings;
           const payments = settings.payments || settings.Payments || {};
           const gst = rules.gstPercent ?? payments.gstPercent ?? rules.GstPercent ?? payments.GstPercent ?? 5.0;
+          const fee = rules.packagingFee ?? rules.PackagingFee ?? 5.0;
+          const enable = rules.enablePackagingFee ?? rules.EnablePackagingFee ?? true;
           setGstPercent(Number(gst) >= 0 ? Number(gst) : 5.0);
+          setPackagingFeeSetting(Number(fee) >= 0 ? Number(fee) : 5.0);
+          setEnablePackagingFee(enable !== false);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   // Convert cart object to array of entries
@@ -66,14 +90,21 @@ export const CartDrawer = ({
     }, 0);
   }, [cartItems]);
 
+  // Packaging fee: 0 if Dine In; otherwise setting fee if enabled
+  const packagingFee = useMemo(() => {
+    if (isDineIn) return 0;
+    if (!enablePackagingFee || subtotal === 0) return 0;
+    return packagingFeeSetting;
+  }, [isDineIn, enablePackagingFee, packagingFeeSetting, subtotal]);
+
   // Dynamic GST from settings
   const taxAmount = useMemo(() => {
     return Math.round(subtotal * (gstPercent / 100) * 100) / 100;
   }, [subtotal, gstPercent]);
 
   const totalAmount = useMemo(() => {
-    return subtotal + taxAmount;
-  }, [subtotal, taxAmount]);
+    return Math.round((subtotal + taxAmount + packagingFee) * 100) / 100;
+  }, [subtotal, taxAmount, packagingFee]);
 
   // Effective selected outlet
   const effectiveOutletId = useMemo(() => {
@@ -122,6 +153,8 @@ export const CartDrawer = ({
       phone: (customerPhone || '9876543210').trim(),
       email: user?.email || 'admin@canteen.edu',
       paymentMethod: paymentMethod,
+      orderType: typeof isDineIn !== 'undefined' ? (isDineIn ? 'Dine In' : 'Takeaway') : undefined,
+      packagingFee: typeof packagingFee !== 'undefined' ? packagingFee : undefined,
       transactionId: upiRefId.trim() ? (upiRefId.trim().startsWith('UTR-') ? upiRefId.trim() : `UTR-${upiRefId.trim()}`) : (paymentMethod === 'UPI' ? `TXN-POS-UPI-${Date.now()}` : undefined),
       paymentReference: upiRefId.trim() || undefined,
       items: cartItems.map(entry => ({
@@ -545,6 +578,73 @@ export const CartDrawer = ({
             )}
           </div>
 
+          {/* Dining Preference: Dine In vs Takeaway Toggle */}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Utensils size={15} style={{ color: 'var(--color-primary)' }} />
+                <span>Dining Preference</span>
+              </span>
+              <span style={{ fontSize: '11px', color: isDineIn ? 'var(--color-success)' : 'var(--text-muted)', fontWeight: 600 }}>
+                {isDineIn ? 'Dine In (No Packaging Fee)' : `Takeaway (+₹${packagingFeeSetting.toFixed(2)} Fee)`}
+              </span>
+            </div>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '6px',
+              backgroundColor: 'var(--bg-muted)',
+              padding: '4px',
+              borderRadius: '10px',
+              border: '1px solid var(--border-color)'
+            }}>
+              <button
+                type="button"
+                onClick={() => setIsDineIn(true)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  border: isDineIn ? '1px solid var(--color-primary)' : '1px solid transparent',
+                  backgroundColor: isDineIn ? 'var(--color-primary)' : 'transparent',
+                  color: isDineIn ? '#ffffff' : 'var(--text-secondary)',
+                  fontSize: '12.5px',
+                  fontWeight: isDineIn ? 700 : 500,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <Utensils size={14} />
+                <span>Dine In</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsDineIn(false)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  border: !isDineIn ? '1px solid var(--color-primary)' : '1px solid transparent',
+                  backgroundColor: !isDineIn ? 'var(--color-primary)' : 'transparent',
+                  color: !isDineIn ? '#ffffff' : 'var(--text-secondary)',
+                  fontSize: '12.5px',
+                  fontWeight: !isDineIn ? 700 : 500,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <ShoppingBag size={14} />
+                <span>Takeaway</span>
+              </button>
+            </div>
+          </div>
+
           {/* Payment Method */}
           <div>
             <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '8px' }}>
@@ -727,6 +827,13 @@ export const CartDrawer = ({
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-secondary)' }}>
               <span>Items Subtotal</span>
               <span>{formatCurrency(subtotal)}</span>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-secondary)' }}>
+              <span>Takeaway Packaging Fee</span>
+              <span style={{ fontWeight: 600, color: packagingFee === 0 ? 'var(--color-success)' : 'var(--text-primary)' }}>
+                {packagingFee === 0 ? 'FREE' : formatCurrency(packagingFee)}
+              </span>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-secondary)' }}>

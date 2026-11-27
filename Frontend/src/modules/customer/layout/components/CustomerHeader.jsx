@@ -101,11 +101,19 @@ export const CustomerHeader = () => {
       const list = Array.isArray(res) ? res : (res?.data || []);
       const active = list.filter(c => c && (c.status === 'Active' || !c.status));
       setCanteens(active);
+      if (active.length > 0) {
+        setSelectedOutlet(prev => {
+          if (!prev || prev.id === 'ALL' || !active.some(c => String(c.id) === String(prev.id))) {
+            return active[0];
+          }
+          return prev;
+        });
+      }
     }).catch(err => {
       console.warn('Failed to fetch canteens for header dropdown:', err);
     });
     return () => { isMounted = false; };
-  }, []);
+  }, [setSelectedOutlet]);
 
   // Live order status & top-right modal state
   const [activeOrder, setActiveOrder] = useState(null);
@@ -328,15 +336,11 @@ export const CustomerHeader = () => {
           }}>
             <MapPin size={13} style={{ color: 'var(--color-accent)', flexShrink: 0 }} />
             <select
-              value={selectedOutlet?.id || 'ALL'}
+              value={selectedOutlet?.id || (canteens[0]?.id || '')}
               onChange={(e) => {
                 const val = e.target.value;
-                if (val === 'ALL') {
-                  setSelectedOutlet({ id: 'ALL', name: 'All Outlets' });
-                } else {
-                  const match = canteens.find(c => String(c.id) === String(val));
-                  if (match) setSelectedOutlet(match);
-                }
+                const match = canteens.find(c => String(c.id) === String(val));
+                if (match) setSelectedOutlet(match);
               }}
               style={{
                 border: 'none',
@@ -353,7 +357,6 @@ export const CustomerHeader = () => {
               aria-label="Select Campus Outlet"
               title="Select Campus Outlet"
             >
-              <option value="ALL">All Outlets</option>
               {canteens.map(c => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}

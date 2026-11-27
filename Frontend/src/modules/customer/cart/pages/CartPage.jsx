@@ -29,7 +29,9 @@ export const CartPage = () => {
     taxAmount,
     totalAmount,
     itemCount,
-    gstPercent
+    gstPercent,
+    isDineIn,
+    setIsDineIn
   } = useCart();
 
   const safeCartItems = Array.isArray(cartItems) ? cartItems : [];
@@ -175,6 +177,25 @@ export const CartPage = () => {
                                   {item.name}
                                 </span>
                               </div>
+                              {/* Portion size and calories in small size below item */}
+                              {(item.servingSize || item.calories) && (
+                                <div style={{
+                                  fontSize: '11px',
+                                  color: 'var(--text-muted)',
+                                  marginTop: '2px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '6px'
+                                }}>
+                                  {item.servingSize && <span>{item.servingSize}</span>}
+                                  {item.servingSize && item.calories && <span>•</span>}
+                                  {item.calories && (
+                                    <span>
+                                      {String(item.calories).toLowerCase().includes('cal') ? item.calories : `${item.calories} kcal`}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                               {item.variant && (
                                 <span style={{ fontSize: '11px', color: 'var(--color-accent)', display: 'block' }}>
                                   Portion: {typeof item.variant === 'object' ? (item.variant.name || item.variant.id) : item.variant}
@@ -299,6 +320,63 @@ export const CartPage = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <Card title="Billing & Tax Breakdown" padding="20px">
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {/* Dining Preference: Dine In vs Takeaway Toggle */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '10px 12px',
+                backgroundColor: 'var(--bg-muted)',
+                borderRadius: '8px',
+                border: '1px solid var(--border-color)',
+                marginBottom: '4px'
+              }}>
+                <div>
+                  <span style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--text-primary)', display: 'block' }}>
+                    Dining Preference
+                  </span>
+                  <span style={{ fontSize: '11px', color: isDineIn ? 'var(--color-success)' : 'var(--text-muted)' }}>
+                    {isDineIn ? 'Dine In (No Packaging Fee)' : 'Takeaway (+Packaging Fee)'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: '4px', backgroundColor: 'var(--bg-surface)', padding: '2px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                  <button
+                    type="button"
+                    onClick={() => setIsDineIn(true)}
+                    style={{
+                      padding: '5px 12px',
+                      borderRadius: '5px',
+                      border: 'none',
+                      backgroundColor: isDineIn ? 'var(--color-primary)' : 'transparent',
+                      color: isDineIn ? '#ffffff' : 'var(--text-secondary)',
+                      fontSize: '12px',
+                      fontWeight: isDineIn ? 700 : 500,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    Dine In
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsDineIn(false)}
+                    style={{
+                      padding: '5px 12px',
+                      borderRadius: '5px',
+                      border: 'none',
+                      backgroundColor: !isDineIn ? 'var(--color-primary)' : 'transparent',
+                      color: !isDineIn ? '#ffffff' : 'var(--text-secondary)',
+                      fontSize: '12px',
+                      fontWeight: !isDineIn ? 700 : 500,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    Takeaway
+                  </button>
+                </div>
+              </div>
+
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
                 <span style={{ color: 'var(--text-secondary)' }}>Items Subtotal:</span>
                 <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>₹{subtotal.toFixed(2)}</span>

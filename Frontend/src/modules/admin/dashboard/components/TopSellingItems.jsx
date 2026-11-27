@@ -4,11 +4,7 @@ import { Award } from 'lucide-react';
 export const TopSellingItems = ({ items = [], loading = false }) => {
   const sortedItems = React.useMemo(() => {
     if (!Array.isArray(items)) return [];
-    return [...items].sort((a, b) => {
-      const countA = Number(a.count ?? a.qtySold ?? a.orders ?? 0);
-      const countB = Number(b.count ?? b.qtySold ?? b.orders ?? 0);
-      return countB - countA;
-    });
+    return [...items];
   }, [items]);
 
   if (loading) {

@@ -23,6 +23,15 @@ export const customerMenuService = {
           .map(item => {
             const numId = Number(item.id || item.menuItemId || 1);
             const derivedRating = Number(item.rating || (4.5 + ((numId % 5) * 0.1)).toFixed(1));
+            const rawRemaining = item.remainingCapacity ?? item.RemainingCapacity;
+            const rawDaily = item.dailyCapacity ?? item.DailyCapacity;
+            const parsedDaily = rawDaily !== undefined && rawDaily !== null ? Number(rawDaily) : 100;
+            const parsedRemaining = rawRemaining !== undefined && rawRemaining !== null
+              ? Number(rawRemaining)
+              : parsedDaily;
+            const isSoldOut = parsedRemaining <= 0 || item.availability === 'SoldOut' || item.Availability === 'SoldOut';
+            const availability = isSoldOut ? 'SoldOut' : (item.availability || item.Availability || 'Available');
+
             return {
               ...item,
               id: item.id || item.menuItemId,
@@ -40,11 +49,13 @@ export const customerMenuService = {
               foodType: item.foodType || 'Veg',
               status: item.status || 'Active',
               isPublished: item.isPublished !== undefined ? item.isPublished : true,
-              availability: item.availability || (item.status === 'Active' ? 'Available' : 'Out of Stock'),
-              remainingCapacity: item.remainingCapacity,
-              dailyCapacity: item.dailyCapacity,
+              availability,
+              remainingCapacity: parsedRemaining,
+              dailyCapacity: parsedDaily,
               rating: derivedRating,
-              prepTime: item.prepTime || item.preparationTime || item.servingSize || '10-15 min',
+              servingSize: item.servingSize || item.ServingSize || '1 Serving',
+              calories: item.calories || item.Calories || '',
+              prepTime: item.prepTime || item.preparationTime || '10-15 min',
               historicalOrderCount: Number(item.historicalOrderCount || 0),
               isPopular: item.isPopular ?? (derivedRating >= 4.0 || Number(item.historicalOrderCount || 0) > 0)
             };
