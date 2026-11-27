@@ -8,7 +8,7 @@ namespace CanteenManagement.API.Helpers
 {
     public interface IJwtTokenHelper
     {
-        string GenerateToken(User user);
+        string GenerateToken(User user, int? outletId = null);
     }
 
     public class JwtTokenHelper : IJwtTokenHelper
@@ -20,7 +20,7 @@ namespace CanteenManagement.API.Helpers
             _configuration = configuration;
         }
 
-        public string GenerateToken(User user)
+        public string GenerateToken(User user, int? outletId = null)
         {
             var keyString = _configuration["Jwt:Key"] ?? "CanteenManagementSecretKeyMustBe32CharsLongForSecurity123!";
             var issuer = _configuration["Jwt:Issuer"] ?? "CanteenManagementAPI";
@@ -42,6 +42,11 @@ namespace CanteenManagement.API.Helpers
                 new Claim("FullName", user.FullName),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
+
+            if (outletId.HasValue && outletId.Value > 0)
+            {
+                claims.Add(new Claim("OutletId", outletId.Value.ToString()));
+            }
 
             var token = new JwtSecurityToken(
                 issuer: issuer,

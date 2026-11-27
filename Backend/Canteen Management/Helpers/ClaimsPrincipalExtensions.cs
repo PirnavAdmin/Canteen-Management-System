@@ -47,5 +47,18 @@ namespace CanteenManagement.API.Helpers
         }
 
         public static int ResolveInstitutionId(this ClaimsPrincipal user) => ResolveCampusId(user);
+
+        public static int? ResolveOutletId(this ClaimsPrincipal user)
+        {
+            var claim = user.FindFirst("OutletId")?.Value
+                        ?? user.FindFirst("outlet_id")?.Value
+                        ?? user.FindFirst("Outlet")?.Value;
+
+            if (int.TryParse(claim, out var outletId) && outletId > 0)
+            {
+                return outletId;
+            }
+            return null;
+        }
     }
 }

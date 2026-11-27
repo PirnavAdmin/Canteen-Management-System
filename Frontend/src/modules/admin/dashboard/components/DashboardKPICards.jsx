@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   ShoppingBag,
   Clock,
@@ -7,11 +8,14 @@ import {
   BellRing,
   CheckCheck,
   XCircle,
-  IndianRupee
+  IndianRupee,
+  Package
 } from 'lucide-react';
 import { formatCurrency, formatNumber } from '../../../../utils/formatters';
 
 export const DashboardKPICards = ({ summary = {}, loading = false }) => {
+  const navigate = useNavigate();
+
   if (loading) {
     return (
       <div style={{
@@ -20,7 +24,7 @@ export const DashboardKPICards = ({ summary = {}, loading = false }) => {
         gap: '8px',
         marginBottom: '16px'
       }}>
-        {Array.from({ length: 9 }).map((_, i) => (
+        {Array.from({ length: 10 }).map((_, i) => (
           <div
             key={i}
             style={{
@@ -47,6 +51,68 @@ export const DashboardKPICards = ({ summary = {}, loading = false }) => {
         ))}
       </div>
     );
+  }
+
+  const recentReq = summary?.recentKitchenRequest;
+  let kitchenReqCard = null;
+
+  if (recentReq) {
+    const s = (recentReq.status || 'Pending').toLowerCase();
+    const isIssued = s.includes('issued') || s.includes('dispatch') || s.includes('approved') || s.includes('fulfilled') || s.includes('received') || s.includes('completed');
+    const isReceived = s.includes('received') || s.includes('fulfilled') || s.includes('completed');
+    const isDispatched = s.includes('dispatch');
+    const isRejected = s.includes('reject');
+
+    let reqValue = 'Not Issued';
+    let reqTag = 'Pending';
+    let reqColor = '#d97706';
+    let reqBg = '#fffbeb';
+
+    if (isRejected) {
+      reqValue = 'Rejected';
+      reqTag = 'Voided';
+      reqColor = '#dc2626';
+      reqBg = '#fef2f2';
+    } else if (isReceived) {
+      reqValue = 'Items Issued';
+      reqTag = 'Fulfilled';
+      reqColor = '#059669';
+      reqBg = '#ecfdf5';
+    } else if (isDispatched || isIssued) {
+      reqValue = 'Items Issued';
+      reqTag = isDispatched ? 'Dispatched' : 'Approved';
+      reqColor = '#059669';
+      reqBg = '#ecfdf5';
+    }
+
+    const itemName = recentReq.itemName || recentReq.ingredientName || 'Kitchen Stock';
+    const itemQty = recentReq.requestedQuantity || recentReq.quantity || 1;
+    const itemUnit = recentReq.unit || 'kg';
+    const sourceOutlet = recentReq.outletName || (recentReq.outletId ? `Outlet #${recentReq.outletId}` : 'Kitchen');
+
+    kitchenReqCard = {
+      label: 'Kitchen Requisition',
+      value: reqValue,
+      tag: reqTag,
+      subtext: `${itemName} (${itemQty} ${itemUnit}) • ${sourceOutlet}`,
+      icon: ChefHat,
+      color: reqColor,
+      bg: reqBg,
+      onClick: () => navigate('/admin/inventory', { state: { tab: 'kitchen-requests' } }),
+      clickable: true
+    };
+  } else {
+    kitchenReqCard = {
+      label: 'Kitchen Requisition',
+      value: 'No Requests',
+      tag: 'None',
+      subtext: 'No active kitchen requests',
+      icon: ChefHat,
+      color: '#64748b',
+      bg: '#f1f5f9',
+      onClick: () => navigate('/admin/inventory', { state: { tab: 'kitchen-requests' } }),
+      clickable: true
+    };
   }
 
   const cards = [
@@ -113,6 +179,7 @@ export const DashboardKPICards = ({ summary = {}, loading = false }) => {
       color: '#dc2626',
       bg: '#fef2f2'
     },
+    kitchenReqCard,
     {
       label: "Today's Sales",
       value: formatCurrency(summary.todayRevenue || 0),
@@ -146,6 +213,7 @@ export const DashboardKPICards = ({ summary = {}, loading = false }) => {
         return (
           <div
             key={i}
+            onClick={card.onClick}
             style={{
               backgroundColor: 'var(--bg-surface)',
               border: card.isHero ? '1.5px solid var(--color-primary-border)' : '1px solid var(--border-color)',
@@ -156,8 +224,22 @@ export const DashboardKPICards = ({ summary = {}, loading = false }) => {
               gap: '8px',
               boxShadow: 'var(--shadow-xs)',
               minHeight: '54px',
+              cursor: card.clickable ? 'pointer' : 'default',
               transition: 'transform var(--transition-fast), box-shadow var(--transition-fast)'
             }}
+            onMouseEnter={(e) => {
+              if (card.clickable) {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (card.clickable) {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'var(--shadow-xs)';
+              }
+            }}
+            title={card.clickable ? 'Click to view Kitchen Requests' : undefined}
           >
             <div style={{
               width: '30px',

@@ -17,8 +17,10 @@ export const useInventory = (selectedOutlet = 'ALL') => {
     try {
       setLoading(true);
       setError(null);
-      const isWarehouse = String(selectedOutlet) === '4' || String(selectedOutlet) === 'WH-01' || selectedOutlet === 'ALL';
-      const outletParams = selectedOutlet && selectedOutlet !== 'ALL' && Number(selectedOutlet) > 0 ? { outletId: Number(selectedOutlet) } : {};
+      const isWarehouse = String(selectedOutlet) === 'CENTRAL' || String(selectedOutlet) === '4' || String(selectedOutlet) === 'WH-01' || selectedOutlet === 'ALL';
+      const outletParams = isWarehouse
+        ? { storeType: 'CentralWarehouse' }
+        : (selectedOutlet && selectedOutlet !== 'ALL' && Number(selectedOutlet) > 0 ? { outletId: Number(selectedOutlet) } : {});
       
       // For stock requests:
       // Central Warehouse (Admin Master Store) must see requests from ALL campus kitchen outlets!
@@ -28,18 +30,25 @@ export const useInventory = (selectedOutlet = 'ALL') => {
 
       const [itms, ledg, pos, sups, reqs, cItems] = await Promise.all([
         inventoryService.getItems(outletParams),
-        inventoryService.getLedger(outletParams),
-        inventoryService.getPurchaseOrders(outletParams),
+        inventoryService.getLedger(isWarehouse ? {} : outletParams),
+        inventoryService.getPurchaseOrders(isWarehouse ? {} : outletParams),
         inventoryService.getSuppliers(),
         inventoryService.getStockRequests(requestParams),
-        inventoryService.getItems({ outletId: 4 }).catch(() => [])
+        inventoryService.getItems({ storeType: 'CentralWarehouse' }).catch(() => [])
       ]);
+      const rawReqs = Array.isArray(reqs) ? reqs : (reqs?.data || reqs?.requests || []);
+      const filteredReqs = isWarehouse
+        ? rawReqs
+        : rawReqs.filter(r => {
+            const oid = r.outletId ?? r.OutletId;
+            return oid ? Number(oid) === Number(selectedOutlet) : true;
+          });
       setItems(itms);
       setCentralItems(Array.isArray(cItems) && cItems.length > 0 ? cItems : itms);
       setLedger(ledg);
       setPurchaseOrders(pos);
       setSuppliers(sups);
-      setKitchenRequests(Array.isArray(reqs) ? reqs : []);
+      setKitchenRequests(filteredReqs);
     } catch (err) {
       console.error('Failed to load inventory data:', err);
       setError(err.message || 'Error loading inventory');

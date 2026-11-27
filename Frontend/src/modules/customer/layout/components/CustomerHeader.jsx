@@ -112,6 +112,9 @@ export const CustomerHeader = () => {
   const [showOrderModal, setShowOrderModal] = useState(false);
 
   const profileContainerRef = useRef(null);
+  const activeOrderRef = useRef(null);
+  activeOrderRef.current = activeOrder;
+  const isFetchingRef = useRef(false);
 
   // Click outside listener for profile menu
   useEffect(() => {
@@ -125,48 +128,64 @@ export const CustomerHeader = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Poll live orders every 3s & synchronously listen to live status updates
+  // Listen to live order updates on order placement and status milestones
   useEffect(() => {
     let isMounted = true;
     const fetchLatestOrder = async () => {
+      if (isFetchingRef.current) return;
       try {
+        isFetchingRef.current = true;
         const orders = await customerOrderService.getCustomerOrders(user);
         if (!isMounted) return;
         const list = Array.isArray(orders) ? orders : [];
-        // Only pick active in-progress orders (not Completed, Collected, Cancelled, or Refunded)
-        const active = list.find(o => o && !['Completed', 'Collected', 'Cancelled', 'Refunded'].includes(o.status));
+        // Sort descending so the most recent order is checked first
+        const sorted = [...list].sort((a, b) => {
+          const timeA = new Date(a.orderDate || a.createdAt || 0).getTime();
+          const timeB = new Date(b.orderDate || b.createdAt || 0).getTime();
+          return timeB - timeA;
+        });
+        // Only pick active in-progress orders (disappears once Completed, Collected, Cancelled, or Refunded)
+        const active = sorted.find(o => o && !['completed', 'collected', 'cancelled', 'refunded'].includes(String(o.status || '').toLowerCase()));
         setActiveOrder(active || null);
       } catch (err) {
         console.warn('Could not fetch active order:', err);
+      } finally {
+        isFetchingRef.current = false;
       }
     };
 
     fetchLatestOrder();
 
     const handleOrderEvent = (updatedOrder) => {
-      if (updatedOrder && (updatedOrder.id || updatedOrder.orderId)) {
+      const ord = updatedOrder?.updatedOrder || updatedOrder;
+      if (!ord) return;
+      const statusStr = String(ord.status || ord.newStatus || '').toLowerCase();
+      const isTerminal = ['completed', 'collected', 'cancelled', 'refunded'].includes(statusStr);
+      if (isTerminal) {
         setActiveOrder(prev => {
-          if (!prev) return prev;
-          const isMatch = String(prev.id) === String(updatedOrder.id) ||
-                          String(prev.orderId) === String(updatedOrder.orderId) ||
-                          String(prev.token) === String(updatedOrder.token);
-          if (isMatch) {
-            if (['Completed', 'Collected', 'Cancelled', 'Refunded'].includes(updatedOrder.status)) {
-              return null;
-            }
-            return { ...prev, ...updatedOrder };
-          }
-          return prev;
+          if (!prev) return null;
+          const isMatch = !ord.id || String(prev.id) === String(ord.id || ord.orderId) || String(prev.token) === String(ord.token);
+          return isMatch ? null : prev;
         });
+      } else if (ord.id || ord.orderId) {
+        setActiveOrder(ord);
       }
       fetchLatestOrder();
     };
 
     const unsubscribe = subscribeToOrderSync(handleOrderEvent, fetchLatestOrder);
-    const pollInterval = setInterval(fetchLatestOrder, 3000);
-    window.addEventListener('focus', fetchLatestOrder);
-    const handleVisibility = () => { if (!document.hidden) fetchLatestOrder(); };
-    document.addEventListener('visibilitychange', handleVisibility);
+    
+    // Heartbeat check when an active order is present
+    const gentleInterval = setInterval(() => {
+      if (activeOrderRef.current) {
+        fetchLatestOrder();
+      }
+    }, 20000);
+
+    const handleFocus = () => {
+      if (activeOrderRef.current) fetchLatestOrder();
+    };
+    window.addEventListener('focus', handleFocus);
 
     const handleCustomTrigger = () => setShowOrderModal(true);
     window.addEventListener('cms:show-order-status', handleCustomTrigger);
@@ -174,9 +193,8 @@ export const CustomerHeader = () => {
     return () => {
       isMounted = false;
       unsubscribe();
-      clearInterval(pollInterval);
-      window.removeEventListener('focus', fetchLatestOrder);
-      document.removeEventListener('visibilitychange', handleVisibility);
+      clearInterval(gentleInterval);
+      window.removeEventListener('focus', handleFocus);
       window.removeEventListener('cms:show-order-status', handleCustomTrigger);
     };
   }, [user]);
@@ -210,7 +228,17 @@ export const CustomerHeader = () => {
   const handleLogout = () => {
     setIsProfileOpen(false);
     logout();
-    navigate('/customer/login');
+    navigate('/login', { replace: true });
+  };
+
+  const handleTrackLiveOrder = (e) => {
+    e?.stopPropagation?.();
+    if (!activeOrder) return;
+    if (window.location.pathname === '/customer/orders') {
+      window.dispatchEvent(new CustomEvent('cms:open-order-tracker', { detail: { order: activeOrder } }));
+    } else {
+      navigate('/customer/orders', { state: { trackOrder: activeOrder, trackOrderId: activeOrder.id } });
+    }
   };
 
   const statusTheme = getOrderStatusStyle(activeOrder?.status);
@@ -357,6 +385,7 @@ export const CustomerHeader = () => {
                 {/* Status of the food shown below profile in small font with distinct color */}
                 {activeOrder && (
                   <span
+                    onClick={handleTrackLiveOrder}
                     style={{
                       fontSize: '9.5px',
                       fontWeight: 700,
@@ -364,9 +393,10 @@ export const CustomerHeader = () => {
                       display: 'flex',
                       alignItems: 'center',
                       gap: '3px',
-                      marginTop: '1px'
+                      marginTop: '1px',
+                      cursor: 'pointer'
                     }}
-                    title={`Chef Status: ${activeOrder.status}`}
+                    title={`Chef Status: ${activeOrder.status} - Click to track live order`}
                   >
                     <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: statusTheme.dot }} />
                     {statusTheme.label}

@@ -204,6 +204,7 @@ export const MenuListPage = () => {
         initialData={editingItem}
         loading={submitting}
         title={editingItem ? 'Edit Menu Item' : 'Create New Menu Item'}
+        selectedOutlet={selectedOutlet}
       />
 
       {/* Item Details View Modal */}

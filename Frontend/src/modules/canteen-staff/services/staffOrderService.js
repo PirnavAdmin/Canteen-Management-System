@@ -12,7 +12,7 @@ import { isSameIstDate } from '../../../utils/formatters';
  * Safely parses and normalizes outlet ID to positive integer for backend model binding.
  */
 export const cleanOutletId = (raw) => {
-  if (raw === null || raw === undefined || raw === 'all' || raw === '') return undefined;
+  if (raw === null || raw === undefined || raw === 'all' || raw === 'ALL' || raw === '') return undefined;
   if (typeof raw === 'number' && !isNaN(raw) && raw > 0) return raw;
   if (typeof raw === 'string') {
     const trimmed = raw.trim();
@@ -83,25 +83,21 @@ export const isOrderCompletedToday = (order) => {
   if (!order) return false;
   if (!isStatusCompleted(order.status)) return false;
 
-  // 1. Check explicit completion timestamp
   if (order.completedAt) {
     return isSameIstDate(order.completedAt);
   }
 
-  // 2. Check updatedAt timestamp if status is completed
   if (order.updatedAt) {
     return isSameIstDate(order.updatedAt);
   }
 
-  // 3. Check timeline for a completion event with date
   if (Array.isArray(order.timeline)) {
-    const entry = order.timeline.find(t => isStatusCompleted(t.status));
+    const entry = order.timeline.find((t) => isStatusCompleted(t.status));
     if (entry?.date) return isSameIstDate(entry.date);
     if (entry?.fullTimestamp) return isSameIstDate(entry.fullTimestamp);
     if (entry?.createdAt) return isSameIstDate(entry.createdAt);
   }
 
-  // 4. If order was created/placed today in IST and is completed
   const ordDate = order.orderDate || order.createdAt;
   if (ordDate && isSameIstDate(ordDate)) {
     return true;
@@ -111,71 +107,77 @@ export const isOrderCompletedToday = (order) => {
 };
 
 /**
- * Normalizes backend order payload into consistent shape expected by Staff UI components.
+ * Normalizes backend order payload into consistent shape expected by UI components.
  * Supports both PascalCase (.NET DTOs) and camelCase properties.
  */
 export const normalizeOrder = (raw) => {
   if (!raw || typeof raw !== 'object') return raw;
 
   const id = raw.id ?? raw.Id ?? raw.orderId ?? raw.OrderId ?? '';
-  const token = raw.token ?? raw.Token ?? raw.orderToken ?? (id ? `T-${String(id).slice(-3)}` : 'T-001');
+  const token = raw.token ?? raw.Token ?? raw.orderToken ?? (id ? `T-${String(id).slice(-3)}` : '');
   const orderNumber = raw.orderNumber ?? raw.OrderNumber ?? raw.orderCode ?? (id ? `ORD-${id}` : '');
   const status = normalizeOrderStatus(raw.status ?? raw.Status ?? ORDER_STATUS.PLACED);
   const orderType = raw.orderType ?? raw.OrderType ?? 'Pickup';
-  const orderDate = raw.orderDate ?? raw.OrderDate ?? raw.createdAt ?? raw.CreatedAt ?? new Date().toISOString();
+  const orderDate = raw.orderDate ?? raw.OrderDate ?? raw.createdAt ?? raw.CreatedAt ?? null;
   const createdAt = raw.createdAt ?? raw.CreatedAt ?? orderDate;
 
-  // Customer info
   const rawCustomer = raw.customer ?? raw.Customer ?? {};
   const customer = {
-    name: rawCustomer.name ?? raw.customerName ?? raw.CustomerName ?? 'Guest Student',
-    role: rawCustomer.role ?? raw.customerRole ?? raw.CustomerRole ?? 'Student',
+    name: rawCustomer.name ?? rawCustomer.fullName ?? raw.customerName ?? raw.CustomerName ?? 'Customer',
+    role: rawCustomer.role ?? raw.customerRole ?? raw.CustomerRole ?? '',
     rollNo: rawCustomer.rollNo ?? rawCustomer.rollNumber ?? raw.rollNo ?? raw.rollNumber ?? raw.RollNo ?? '—',
     phone: rawCustomer.phone ?? raw.customerPhone ?? raw.CustomerPhone ?? raw.phone ?? '—',
     email: rawCustomer.email ?? raw.customerEmail ?? raw.CustomerEmail ?? raw.email ?? '—'
   };
 
-  // Order items
   const rawItems = raw.items ?? raw.Items ?? raw.orderItems ?? raw.OrderItems ?? [];
   const items = (Array.isArray(rawItems) ? rawItems : []).map((item) => ({
     id: item.id ?? item.Id ?? item.itemId ?? item.menuItemId,
     name: item.name ?? item.Name ?? item.itemName ?? item.ItemName ?? 'Food Item',
+    imageUrl: item.imageUrl ?? item.ImageUrl ?? item.image ?? item.Image ?? item.photoUrl ?? item.photo ?? null,
+    menuItemId: item.menuItemId ?? item.MenuItemId ?? item.itemId ?? item.id ?? null,
     quantity: Number(item.quantity ?? item.Quantity ?? item.qty ?? item.Qty ?? 1),
     price: Number(item.price ?? item.Price ?? item.unitPrice ?? item.UnitPrice ?? 0),
     variant: item.variant ?? item.Variant ?? item.variantName ?? item.notes ?? '',
-    category: item.category ?? item.Category ?? 'Main Course',
+    category: item.category ?? item.Category ?? '',
+    categoryId: item.categoryId ?? item.CategoryId ?? null,
     stationId: item.stationId ?? item.StationId ?? null
   }));
 
-  // Timeline audit trail
   const rawTimeline = raw.timeline ?? raw.Timeline ?? raw.orderTimelines ?? raw.OrderTimelines ?? [];
   const timeline = Array.isArray(rawTimeline) && rawTimeline.length > 0
     ? rawTimeline.map((tl) => ({
-        status: normalizeOrderStatus(tl.status ?? tl.Status ?? status),
-        timestamp: tl.timestamp ?? tl.Timestamp ?? (tl.createdAt ? new Date(tl.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'),
-        note: tl.note ?? tl.Note ?? '',
-        operator: tl.operator ?? tl.Operator ?? 'Staff',
-        fullTimestamp: tl.fullTimestamp ?? tl.createdAt ?? null
-      }))
-    : [
+      status: normalizeOrderStatus(tl.status ?? tl.Status ?? status),
+      timestamp: tl.timestamp ?? tl.Timestamp ?? (tl.createdAt ? new Date(tl.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'),
+      note: tl.note ?? tl.Note ?? '',
+      operator: tl.operator ?? tl.Operator ?? 'Staff',
+      fullTimestamp: tl.fullTimestamp ?? tl.createdAt ?? null
+    }))
+    : createdAt
+      ? [
         {
           status,
           timestamp: new Date(createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           note: `Order ${status}`,
-          operator: 'Staff'
+          operator: 'System'
         }
-      ];
+      ]
+      : [];
 
   const totalAmount = Number(raw.totalAmount ?? raw.TotalAmount ?? raw.total ?? 0);
-  const payment = raw.payment ?? raw.Payment ?? {};
-  const paymentStatus = raw.paymentStatus ?? raw.PaymentStatus ?? payment.status ?? 'Pending';
-  const paymentMethod = raw.paymentMethod ?? raw.PaymentMethod ?? payment.method ?? 'Online';
+  const rawPayment = raw.payment ?? raw.Payment ?? {};
+  const paymentStatus = raw.paymentStatus ?? raw.PaymentStatus ?? rawPayment.status ?? '—';
+  const paymentMethod = raw.paymentMethod ?? raw.PaymentMethod ?? rawPayment.method ?? '—';
+  const payment = {
+    method: paymentMethod,
+    status: paymentStatus
+  };
 
-  let completedAt = raw.completedAt ?? raw.CompletedAt;
+  let completedAt = raw.completedAt ?? raw.CompletedAt ?? null;
   if (!completedAt && isStatusCompleted(status)) {
     if (raw.updatedAt && isSameIstDate(raw.updatedAt)) {
       completedAt = raw.updatedAt;
-    } else if (isSameIstDate(orderDate)) {
+    } else if (orderDate && isSameIstDate(orderDate)) {
       completedAt = orderDate;
     }
   }
@@ -193,7 +195,6 @@ export const normalizeOrder = (raw) => {
     }
   }
 
-  // Acceptance Timestamp: Extract from payload, timeline or persistent storage
   let acceptedAt = raw.acceptedAt ?? raw.AcceptedAt ?? null;
   if (!acceptedAt && Array.isArray(timeline)) {
     for (const t of timeline) {
@@ -210,7 +211,6 @@ export const normalizeOrder = (raw) => {
     }
   }
 
-  // 1. Preparation Start Timestamp: Extract from payload or timeline
   let prepStartedAt = raw.prepStartedAt ?? raw.preparationStartedAt ?? raw.preparingAt ?? raw.PreparingAt ?? null;
   if (!prepStartedAt && Array.isArray(timeline)) {
     for (const t of timeline) {
@@ -224,7 +224,6 @@ export const normalizeOrder = (raw) => {
     }
   }
 
-  // 2. Preparation Completion Timestamp & Duration: Extract from payload or timeline
   let prepCompletedAt = raw.prepCompletedAt ?? raw.preparationCompletedAt ?? raw.readyAt ?? raw.ReadyAt ?? null;
   let prepDurationSeconds = Number(raw.prepDurationSeconds ?? raw.preparationDurationSeconds ?? 0);
   let prepDurationFormatted = raw.prepDurationFormatted ?? '';
@@ -254,12 +253,7 @@ export const normalizeOrder = (raw) => {
     prepDurationFormatted = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   }
 
-  const resolvedOutletId = cleanOutletId(raw.outletId ?? raw.OutletId) || 1;
-  const defaultOutletName = resolvedOutletId === 2
-    ? 'North Campus Canteen'
-    : resolvedOutletId === 3
-      ? 'South Campus Canteen'
-      : 'Central Dining Hall';
+  const resolvedOutletId = cleanOutletId(raw.outletId ?? raw.OutletId) ?? raw.outletId ?? raw.OutletId ?? null;
 
   return {
     ...raw,
@@ -274,17 +268,18 @@ export const normalizeOrder = (raw) => {
     items,
     timeline,
     totalAmount,
+    payment,
     paymentStatus,
     paymentMethod,
     outletId: resolvedOutletId,
-    outletName: raw.outletName ?? raw.OutletName ?? defaultOutletName,
+    outletName: raw.outletName ?? raw.OutletName ?? '',
     notes: raw.notes ?? raw.Notes ?? '',
-    acceptedAt: raw.acceptedAt ?? raw.AcceptedAt,
-    preparingAt: raw.preparingAt ?? raw.PreparingAt,
-    readyAt: raw.readyAt ?? raw.ReadyAt,
+    acceptedAt,
+    preparingAt: raw.preparingAt ?? raw.PreparingAt ?? null,
+    readyAt: raw.readyAt ?? raw.ReadyAt ?? null,
     completedAt,
     collectedAt,
-    cancelledAt: raw.cancelledAt ?? raw.CancelledAt,
+    cancelledAt: raw.cancelledAt ?? raw.CancelledAt ?? null,
     prepStartedAt,
     prepCompletedAt,
     prepDurationSeconds,
@@ -295,20 +290,16 @@ export const normalizeOrder = (raw) => {
 export const staffOrderService = {
   /**
    * GET /api/v1/canteen-orders
-   * Retrieve all canteen orders from live backend API
+   * Retrieve all canteen orders from live backend API.
+   * Propagates errors instead of returning empty fallback data.
    */
   getAllOrders: async (params = {}) => {
-    try {
-      const response = await apiClient.get(API_ENDPOINTS.ORDERS.BASE, params);
-      const raw = response?.data ?? response;
-      const list = Array.isArray(raw)
-        ? raw
-        : (Array.isArray(raw?.items) ? raw.items : (Array.isArray(raw?.orders) ? raw.orders : []));
-      return list.map(normalizeOrder);
-    } catch (err) {
-      console.warn('Network issue fetching /canteen-orders:', err.message);
-      return [];
-    }
+    const response = await apiClient.get(API_ENDPOINTS.ORDERS.BASE, params);
+    const raw = response?.data ?? response;
+    const list = Array.isArray(raw)
+      ? raw
+      : (Array.isArray(raw?.items) ? raw.items : (Array.isArray(raw?.orders) ? raw.orders : []));
+    return list.map(normalizeOrder);
   },
 
   /**
@@ -326,47 +317,88 @@ export const staffOrderService = {
    * Retrieve active cooking tickets and station prep queue for Kitchen Display System
    */
   getKdsOrders: async (params = {}) => {
-    try {
-      const all = await staffOrderService.getAllOrders(params);
-      return all.filter(
-        (o) => isStatusPreparing(o.status) || isStatusAccepted(o.status)
-      );
-    } catch (err) {
-      console.warn('Error fetching active KDS orders:', err.message);
-      return [];
-    }
+    const response = await apiClient.get(API_ENDPOINTS.ORDERS.KDS, params);
+    const raw = response?.data ?? response;
+    const list = Array.isArray(raw)
+      ? raw
+      : (Array.isArray(raw?.items) ? raw.items : (Array.isArray(raw?.orders) ? raw.orders : []));
+    return list.map(normalizeOrder);
   },
 
   /**
-   * GET /api/v1/canteen-orders/stations
+   * GET /api/v1/canteen-categories & GET /api/v1/canteen-menu
+   * Backend OrdersController does not define /canteen-orders/stations (which previously
+   * matched /canteen-orders/{id} with id="stations"). Derive live kitchen prep stations
+   * directly from active database food categories and outlet menu items.
+   */
+  getKitchenStationData: async (params = {}) => {
+    const cleanOutId = cleanOutletId(params.outletId);
+    const menuParams = cleanOutId ? { outletId: cleanOutId } : {};
+
+    const [catResponse, menuResponse] = await Promise.all([
+      apiClient.get(API_ENDPOINTS.CATEGORIES.BASE),
+      apiClient.get(API_ENDPOINTS.MENU.BASE, menuParams)
+    ]);
+
+    const rawCategories = catResponse?.data ?? catResponse;
+    const categoryList = Array.isArray(rawCategories)
+      ? rawCategories
+      : (Array.isArray(rawCategories?.items) ? rawCategories.items : (Array.isArray(rawCategories?.categories) ? rawCategories.categories : []));
+
+    const rawMenu = menuResponse?.data ?? menuResponse;
+    const menuList = Array.isArray(rawMenu)
+      ? rawMenu
+      : (Array.isArray(rawMenu?.items) ? rawMenu.items : []);
+
+    const byMenuItemId = {};
+    const byItemName = {};
+    const outletCategoryIds = new Set();
+
+    menuList.forEach((m) => {
+      const catId = m.categoryId ?? m.CategoryId;
+      const itemId = m.id ?? m.Id ?? m.menuItemId;
+      const itemName = (m.name ?? m.Name ?? '').trim().toLowerCase();
+      if (catId !== undefined && catId !== null) {
+        const strCatId = String(catId);
+        outletCategoryIds.add(strCatId);
+        if (itemId !== undefined && itemId !== null) {
+          byMenuItemId[String(itemId)] = strCatId;
+        }
+        if (itemName) {
+          byItemName[itemName] = strCatId;
+        }
+      }
+    });
+
+    const activeCategories = categoryList
+      .filter((c) => !c.status || String(c.status).toLowerCase() === 'active')
+      .sort((a, b) => Number(a.displayOrder ?? 999) - Number(b.displayOrder ?? 999));
+
+    const scopedCategories = (cleanOutId && outletCategoryIds.size > 0)
+      ? activeCategories.filter((c) => outletCategoryIds.has(String(c.id ?? c.categoryId)))
+      : activeCategories;
+
+    const stations = (scopedCategories.length > 0 ? scopedCategories : activeCategories)
+      .map((c) => ({
+        id: String(c.id ?? c.categoryId ?? ''),
+        name: c.name ?? c.categoryName ?? ''
+      }))
+      .filter((s) => s.id && s.name);
+
+    stations.unshift({ id: 'all', name: 'All Kitchen Stations' });
+
+    return {
+      stations,
+      itemStationMap: { byMenuItemId, byItemName }
+    };
+  },
+
+  /**
    * Retrieve configured kitchen preparation stations from live backend
    */
   getKitchenStations: async (params = {}) => {
-    try {
-      const response = await apiClient.get(API_ENDPOINTS.ORDERS.STATIONS, params);
-      const raw = response?.data ?? response;
-      const list = Array.isArray(raw)
-        ? raw
-        : (Array.isArray(raw?.stations) ? raw.stations : (Array.isArray(raw?.items) ? raw.items : []));
-      if (list.length > 0) {
-        const formatted = list.map((s) => ({
-          id: String(s.id ?? s.stationId ?? s.code ?? ''),
-          name: s.name ?? s.stationName ?? s.title ?? 'Kitchen Station'
-        }));
-        if (!formatted.some((s) => s.id === 'all')) {
-          formatted.unshift({ id: 'all', name: 'All Kitchen Stations' });
-        }
-        return formatted;
-      }
-    } catch (err) {
-      console.warn('Error fetching /canteen-orders/stations:', err.message);
-    }
-    return [
-      { id: 'all', name: 'All Kitchen Stations' },
-      { id: 'station-1', name: 'Station 1: Hot Meals Line (Wok & Curries)' },
-      { id: 'station-2', name: 'Station 2: Snacks & Quick Bites Counter' },
-      { id: 'station-3', name: 'Station 3: Fresh Beverages & Shakes' }
-    ];
+    const { stations } = await staffOrderService.getKitchenStationData(params);
+    return stations;
   },
 
   /**
@@ -394,11 +426,11 @@ export const staffOrderService = {
 
     const normalized = normalizeOrder(orderData);
 
-    if (normalized.status === ORDER_STATUS.COMPLETED) {
+    if (isStatusCompleted(normalized.status)) {
       throw new Error(`Order #${normalized.token || normalized.id} has ALREADY been collected and completed! Duplicate pickup blocked.`);
     }
 
-    if (normalized.status === ORDER_STATUS.CANCELLED || normalized.status === ORDER_STATUS.REFUNDED) {
+    if (isStatusCancelled(normalized.status)) {
       throw new Error(`Order #${normalized.token || normalized.id} was cancelled/refunded and cannot be collected.`);
     }
 
@@ -409,7 +441,7 @@ export const staffOrderService = {
    * PATCH /api/v1/canteen-orders/{id}/status
    * Update order milestone status on live backend API
    */
-  updateOrderStatus: async (orderId, newStatus, staffNote = '', operatorName = 'Staff Attendant') => {
+  updateOrderStatus: async (orderId, newStatus, staffNote = '', operatorName = 'Staff') => {
     const canonicalStatus = normalizeOrderStatus(newStatus);
     const payload = {
       status: canonicalStatus,
@@ -424,7 +456,6 @@ export const staffOrderService = {
       updatedOrder.completedAt = new Date().toISOString();
     }
 
-    // Notify all components and hooks
     window.dispatchEvent(new CustomEvent('cms:order_status_updated', {
       detail: { orderId, newStatus: canonicalStatus, updatedOrder }
     }));
@@ -438,7 +469,7 @@ export const staffOrderService = {
   /**
    * Order Workflow Shortcuts
    */
-  acceptOrder: async (orderId, operatorName = 'Cashier') => {
+  acceptOrder: async (orderId, operatorName = 'Staff') => {
     const acceptedAt = new Date().toISOString();
     const updated = await staffOrderService.updateOrderStatus(
       orderId,
@@ -450,7 +481,7 @@ export const staffOrderService = {
     return updated;
   },
 
-  startPreparation: async (orderId, operatorName = 'Chef / Kitchen Staff') => {
+  startPreparation: async (orderId, operatorName = 'Kitchen Staff') => {
     const prepStartedAt = new Date().toISOString();
     const updated = await staffOrderService.updateOrderStatus(
       orderId,
@@ -462,7 +493,7 @@ export const staffOrderService = {
     return updated;
   },
 
-  markReadyForPickup: async (orderId, operatorName = 'Kitchen & Counter Staff') => {
+  markReadyForPickup: async (orderId, operatorName = 'Kitchen Staff') => {
     const prepCompletedAt = new Date().toISOString();
     const note = `PREP_COMPLETED:end=${prepCompletedAt} by ${operatorName}`;
 
@@ -498,11 +529,7 @@ export const staffOrderService = {
     return updated;
   },
 
-  getPreparationHistory: () => [],
-
-  saveToPreparationHistory: () => {},
-
-  rejectOrder: async (orderId, reason = 'Item unavailable', operatorName = 'Staff Attendant') => {
+  rejectOrder: async (orderId, reason = 'Item unavailable', operatorName = 'Staff') => {
     return staffOrderService.updateOrderStatus(
       orderId,
       ORDER_STATUS.CANCELLED,

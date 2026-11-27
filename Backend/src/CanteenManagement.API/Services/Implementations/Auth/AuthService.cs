@@ -44,7 +44,8 @@ namespace CanteenManagement.API.Services.Implementations.Auth
                 return ApiResponse<AuthResponseDto>.Fail("This account has been deactivated. Please contact administrator.", statusCode: 403);
             }
 
-            var token = _jwtHelper.GenerateToken(user);
+            var staffAssignment = await _repository.GetStaffAssignmentAsync(user.UserId);
+            var token = _jwtHelper.GenerateToken(user, staffAssignment?.OutletId);
 
             // Audit log login action
             await _auditLogger.LogAsync(
@@ -61,7 +62,7 @@ namespace CanteenManagement.API.Services.Implementations.Auth
             {
                 Token = token,
                 ExpiresAt = DateTime.UtcNow.AddHours(24),
-                User = MapToUserDto(user)
+                User = MapToUserDto(user, staffAssignment?.OutletId, staffAssignment?.Outlet?.Name)
             };
 
             return ApiResponse<AuthResponseDto>.Ok(response, "Login successful.");
@@ -124,10 +125,11 @@ namespace CanteenManagement.API.Services.Implementations.Auth
                 return ApiResponse<UserDto>.Fail("User not found or inactive.", statusCode: 404);
             }
 
-            return ApiResponse<UserDto>.Ok(MapToUserDto(user));
+            var staffAssignment = await _repository.GetStaffAssignmentAsync(user.UserId);
+            return ApiResponse<UserDto>.Ok(MapToUserDto(user, staffAssignment?.OutletId, staffAssignment?.Outlet?.Name));
         }
 
-        private static UserDto MapToUserDto(User user)
+        private static UserDto MapToUserDto(User user, int? outletId = null, string? outletName = null)
         {
             return new UserDto
             {
@@ -139,6 +141,8 @@ namespace CanteenManagement.API.Services.Implementations.Auth
                 Role = user.Role,
                 PhoneNumber = user.PhoneNumber,
                 IsActive = user.IsActive,
+                OutletId = outletId,
+                OutletName = outletName,
                 CreatedAt = user.CreatedAt
             };
         }

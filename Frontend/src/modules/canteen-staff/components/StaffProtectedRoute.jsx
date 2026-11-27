@@ -13,32 +13,45 @@ export const StaffProtectedRoute = ({ children }) => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#0f172a',
-        color: '#f8fafc'
+        backgroundColor: 'var(--bg-app)',
+        color: 'var(--text-primary)'
       }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{
             width: '36px',
             height: '36px',
-            border: '3px solid #f97316',
+            border: '3px solid var(--color-primary)',
             borderTopColor: 'transparent',
             borderRadius: '50%',
             animation: 'spin 1s linear infinite',
             margin: '0 auto 12px auto'
           }} />
-          <p style={{ fontSize: '14px', color: '#94a3b8' }}>Verifying Staff Access...</p>
+          <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Verifying Staff Access...</p>
         </div>
       </div>
     );
   }
 
-  // If user not authenticated, redirect to staff login
+  // If user not authenticated, redirect to login
   if (!user) {
-    return <Navigate to="/staff/login" state={{ from: location }} replace />;
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (user.role !== 'Staff' && user.roleCode !== 'CANTEEN_STAFF') {
-    return <Navigate to={user.role === 'Cashier' ? '/cashier/dashboard' : user.role === 'Admin' ? '/admin/dashboard' : '/customer/dashboard'} replace />;
+  const roleStr = String(user.role || '').toUpperCase();
+  const roleCodeStr = String(user.roleCode || '').toUpperCase();
+  if (roleStr !== 'STAFF' && roleCodeStr !== 'CANTEEN_STAFF' && !roleStr.includes('STAFF')) {
+    return (
+      <Navigate
+        to={
+          roleStr === 'CASHIER'
+            ? '/cashier/dashboard'
+            : roleStr === 'ADMIN'
+              ? '/admin/dashboard'
+              : '/customer/dashboard'
+        }
+        replace
+      />
+    );
   }
 
   return children;

@@ -7,6 +7,7 @@ import { SalesAnalyticsChart } from '../components/SalesAnalyticsChart';
 import { LiveOrderQueue } from '../components/LiveOrderQueue';
 import { TopSellingItems } from '../components/TopSellingItems';
 import { StockAlertsCard } from '../components/StockAlertsCard';
+import { KitchenRequestsCard } from '../components/KitchenRequestsCard';
 import { OutletSalesCard } from '../components/OutletSalesCard';
 import { useCanteens } from '../../outlets/hooks/useCanteens';
 
@@ -20,6 +21,7 @@ export const DashboardPage = () => {
     liveOrders,
     topSelling,
     stockAlerts,
+    kitchenRequests,
     outletSales,
     lastUpdated,
     refreshDashboard
@@ -113,6 +115,7 @@ export const DashboardPage = () => {
         <TopSellingItems items={topSelling} loading={loading} />
         <OutletSalesCard outletSales={outletSales} loading={loading} />
         <StockAlertsCard alerts={stockAlerts} loading={loading} />
+        <KitchenRequestsCard requests={kitchenRequests} loading={loading} />
       </div>
     </div>
   );

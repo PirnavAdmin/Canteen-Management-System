@@ -27,6 +27,12 @@ namespace CanteenManagement.API.Controllers.V1
             [FromQuery] string? dateFilter)
         {
             var campusId = User.ResolveCampusId();
+            var assignedOutletId = User.ResolveOutletId();
+            var userRole = User.ResolveUserRole();
+            if (string.Equals(userRole, "Cashier", StringComparison.OrdinalIgnoreCase) && assignedOutletId.HasValue)
+            {
+                outletId = assignedOutletId.Value;
+            }
             var orders = await _orderService.GetAllAsync(campusId, outletId, status, searchTerm, dateFilter);
             return Ok(ApiResponse<IEnumerable<OrderDto>>.SuccessResponse(orders));
         }
@@ -35,6 +41,12 @@ namespace CanteenManagement.API.Controllers.V1
         public async Task<IActionResult> GetKdsOrders([FromQuery] int? outletId)
         {
             var campusId = User.ResolveCampusId();
+            var assignedOutletId = User.ResolveOutletId();
+            var userRole = User.ResolveUserRole();
+            if (string.Equals(userRole, "Cashier", StringComparison.OrdinalIgnoreCase) && assignedOutletId.HasValue)
+            {
+                outletId = assignedOutletId.Value;
+            }
             var orders = await _orderService.GetAllAsync(campusId, outletId, "Preparing", null, null);
             return Ok(ApiResponse<IEnumerable<OrderDto>>.SuccessResponse(orders));
         }
@@ -64,6 +76,12 @@ namespace CanteenManagement.API.Controllers.V1
             {
                 var campusId = User.ResolveCampusId();
                 var userName = User.ResolveUserName();
+                var assignedOutletId = User.ResolveOutletId();
+                var userRole = User.ResolveUserRole();
+                if (string.Equals(userRole, "Cashier", StringComparison.OrdinalIgnoreCase) && assignedOutletId.HasValue)
+                {
+                    dto.OutletId = assignedOutletId.Value;
+                }
                 var created = await _orderService.CreateAsync(dto, campusId, userName);
                 return CreatedAtAction(nameof(GetById), new { id = created.Id }, ApiResponse<OrderDto>.SuccessResponse(created, $"Order created with token {created.Token}."));
             }

@@ -22,6 +22,11 @@ namespace CanteenManagement.API.Controllers.V1
         public async Task<IActionResult> GetSummary([FromQuery] int? outletId)
         {
             var campusId = User.ResolveCampusId();
+            var assignedOutletId = User.ResolveOutletId();
+            if (string.Equals(User.ResolveUserRole(), "Cashier", StringComparison.OrdinalIgnoreCase) && assignedOutletId.HasValue)
+            {
+                outletId = assignedOutletId.Value;
+            }
             var summary = await _dashboardService.GetSummaryAsync(campusId, outletId);
             return Ok(ApiResponse<DashboardSummaryDto>.SuccessResponse(summary));
         }
@@ -30,6 +35,11 @@ namespace CanteenManagement.API.Controllers.V1
         public async Task<IActionResult> GetHourlySales([FromQuery] int? outletId)
         {
             var campusId = User.ResolveCampusId();
+            var assignedOutletId = User.ResolveOutletId();
+            if (string.Equals(User.ResolveUserRole(), "Cashier", StringComparison.OrdinalIgnoreCase) && assignedOutletId.HasValue)
+            {
+                outletId = assignedOutletId.Value;
+            }
             var sales = await _dashboardService.GetHourlySalesAsync(campusId, outletId);
             return Ok(ApiResponse<IEnumerable<HourlySalesDto>>.SuccessResponse(sales));
         }
@@ -38,6 +48,11 @@ namespace CanteenManagement.API.Controllers.V1
         public async Task<IActionResult> GetLiveOrders([FromQuery] int? outletId)
         {
             var campusId = User.ResolveCampusId();
+            var assignedOutletId = User.ResolveOutletId();
+            if (string.Equals(User.ResolveUserRole(), "Cashier", StringComparison.OrdinalIgnoreCase) && assignedOutletId.HasValue)
+            {
+                outletId = assignedOutletId.Value;
+            }
             var orders = await _dashboardService.GetLiveOrdersAsync(campusId, outletId);
             return Ok(ApiResponse<IEnumerable<LiveOrderDto>>.SuccessResponse(orders));
         }
@@ -46,15 +61,25 @@ namespace CanteenManagement.API.Controllers.V1
         public async Task<IActionResult> GetTopSelling([FromQuery] int? outletId)
         {
             var campusId = User.ResolveCampusId();
+            var assignedOutletId = User.ResolveOutletId();
+            if (string.Equals(User.ResolveUserRole(), "Cashier", StringComparison.OrdinalIgnoreCase) && assignedOutletId.HasValue)
+            {
+                outletId = assignedOutletId.Value;
+            }
             var items = await _dashboardService.GetTopSellingItemsAsync(campusId, outletId);
             return Ok(ApiResponse<IEnumerable<TopSellingItemDto>>.SuccessResponse(items));
         }
 
         [HttpGet("stock-alerts")]
-        public async Task<IActionResult> GetStockAlerts()
+        public async Task<IActionResult> GetStockAlerts([FromQuery] int? outletId)
         {
             var campusId = User.ResolveCampusId();
-            var alerts = await _dashboardService.GetStockAlertsAsync(campusId);
+            var assignedOutletId = User.ResolveOutletId();
+            if (string.Equals(User.ResolveUserRole(), "Cashier", StringComparison.OrdinalIgnoreCase) && assignedOutletId.HasValue)
+            {
+                outletId = assignedOutletId.Value;
+            }
+            var alerts = await _dashboardService.GetStockAlertsAsync(campusId, outletId);
             return Ok(ApiResponse<IEnumerable<StockAlertDto>>.SuccessResponse(alerts));
         }
 

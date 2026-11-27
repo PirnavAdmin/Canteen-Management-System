@@ -279,11 +279,13 @@ export const CartDrawer = ({
                 cursor: 'pointer'
               }}
             >
-              {outlets.map((outlet) => (
-                <option key={outlet.outletId || outlet.id} value={outlet.outletId || outlet.id}>
-                  {outlet.name} {outlet.code ? `(${outlet.code})` : ''}
-                </option>
-              ))}
+              {outlets
+                .filter(outlet => outlet.code !== 'WH-01' && !(outlet.name || '').toLowerCase().includes('warehouse'))
+                .map((outlet) => (
+                  <option key={outlet.outletId || outlet.id} value={outlet.outletId || outlet.id}>
+                    {outlet.name} {outlet.code ? `(${outlet.code})` : ''}
+                  </option>
+                ))}
             </select>
           </div>
 

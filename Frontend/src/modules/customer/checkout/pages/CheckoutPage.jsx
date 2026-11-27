@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../../../app/providers/AuthProvider';
 import { useCart } from '../../cart/hooks/useCart';
+import { canteenService } from '../../../../modules/admin/outlets/services/canteenService';
+import { formatTime12Hour } from '../../../../utils/formatters';
 import { PageHeader } from '../../../../components/common/PageHeader';
 import { Card } from '../../../../components/common/Card';
 import { Button } from '../../../../components/common/Button';
@@ -34,6 +36,96 @@ export const CheckoutPage = () => {
 
   const [cookingNotes, setCookingNotes] = useState('');
   const [orderError, setOrderError] = useState('');
+  const [canteens, setCanteens] = useState([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    canteenService.getAll().then(res => {
+      if (!isMounted) return;
+      const list = Array.isArray(res) ? res : (res?.data || []);
+      setCanteens(list.filter(c => c && (c.status === 'Active' || !c.status)));
+    }).catch(err => {
+      console.warn('Could not load canteens for checkout:', err);
+    });
+    return () => { isMounted = false; };
+  }, []);
+
+  // Resolve designated canteen directly from the cart item's outlet
+  const designatedOutlet = useMemo(() => {
+    const itemWithOutlet = safeCartItems.find(item => item && (item.outletId || item.canteenId));
+    const targetOutletId = itemWithOutlet ? (itemWithOutlet.outletId || itemWithOutlet.canteenId) : (safeCartItems[0]?.outletId || safeCartItems[0]?.canteenId);
+    const targetOutletName = safeCartItems.find(item => item && item.outletName && item.outletName !== 'All Outlets' && item.outletName !== 'All Campus Dining Halls')?.outletName || safeCartItems[0]?.outletName;
+
+    // Look up in loaded canteens list matching targetOutletId or targetOutletName
+    if (canteens.length > 0) {
+      if (targetOutletId) {
+        const matchById = canteens.find(c => c && (String(c.outletId) === String(targetOutletId) || String(c.id) === String(targetOutletId)));
+        if (matchById) {
+          return {
+            id: matchById.outletId || matchById.id,
+            outletId: matchById.outletId || matchById.id,
+            name: matchById.name || matchById.outletName || 'Main Canteen',
+            location: matchById.location || 'Campus Center, Ground Floor',
+            closingTime: matchById.closingTime || matchById.closeTime || '10:00 PM'
+          };
+        }
+      }
+      if (targetOutletName && targetOutletName !== 'All Outlets' && targetOutletName !== 'All Campus Dining Halls') {
+        const matchByName = canteens.find(c => c && c.name && c.name.toLowerCase() === targetOutletName.toLowerCase());
+        if (matchByName) {
+          return {
+            id: matchByName.outletId || matchByName.id,
+            outletId: matchByName.outletId || matchByName.id,
+            name: matchByName.name || matchByName.outletName || 'Main Canteen',
+            location: matchByName.location || 'Campus Center, Ground Floor',
+            closingTime: matchByName.closingTime || matchByName.closeTime || '10:00 PM'
+          };
+        }
+      }
+    }
+
+    // Direct item-derived fallback
+    if (targetOutletName && targetOutletName !== 'All Outlets' && targetOutletName !== 'All Campus Dining Halls') {
+      return {
+        id: targetOutletId || 1,
+        outletId: targetOutletId || 1,
+        name: targetOutletName,
+        location: targetOutletName.toLowerCase().includes('main') ? 'Campus Center, Ground Floor' : 'Campus Center, Ground Floor',
+        closingTime: '10:00 PM'
+      };
+    }
+
+    // Context selected outlet fallback (if specific)
+    if (selectedOutlet && selectedOutlet.id !== 'ALL' && selectedOutlet.name && selectedOutlet.name !== 'All Outlets' && selectedOutlet.name !== 'All Campus Dining Halls') {
+      return {
+        id: selectedOutlet.id,
+        outletId: selectedOutlet.id,
+        name: selectedOutlet.name,
+        location: selectedOutlet.location || 'Campus Center, Ground Floor',
+        closingTime: selectedOutlet.closingTime || '10:00 PM'
+      };
+    }
+
+    // First active canteen fallback
+    if (canteens.length > 0) {
+      const first = canteens[0];
+      return {
+        id: first.outletId || first.id || 1,
+        outletId: first.outletId || first.id || 1,
+        name: first.name || 'Main Canteen',
+        location: first.location || 'Campus Center, Ground Floor',
+        closingTime: first.closingTime || first.closeTime || '10:00 PM'
+      };
+    }
+
+    return {
+      id: 1,
+      outletId: 1,
+      name: 'Main Canteen',
+      location: 'Campus Center, Ground Floor',
+      closingTime: '10:00 PM'
+    };
+  }, [safeCartItems, canteens, selectedOutlet]);
 
   const displayName = user?.fullName || user?.username || 'Campus Diner';
   const rawRole = user?.role || user?.roleCode || user?.userType || 'Student';
@@ -50,17 +142,8 @@ export const CheckoutPage = () => {
       return;
     }
 
-    const firstItemOutletId = safeCartItems[0]?.outletId;
-    const numSelected = Number(selectedOutlet?.id);
-    const numItem = Number(firstItemOutletId);
-    const safeOutletId = (!isNaN(numSelected) && numSelected > 0)
-      ? numSelected
-      : (!isNaN(numItem) && numItem > 0)
-        ? numItem
-        : 1;
-    const safeOutletName = (selectedOutlet && selectedOutlet.id !== 'ALL' && selectedOutlet.name)
-      ? selectedOutlet.name
-      : (safeCartItems[0]?.outletName || 'Main Canteen');
+    const safeOutletId = Number(designatedOutlet.outletId || designatedOutlet.id) || 1;
+    const safeOutletName = designatedOutlet.name || 'Main Canteen';
 
     // Prepare draft order payload in session
     const draftOrder = {
@@ -203,10 +286,10 @@ export const CheckoutPage = () => {
                 </div>
                 <div>
                   <h4 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
-                    {selectedOutlet?.name || 'Central Dining Hall'}
+                    {designatedOutlet.name}
                   </h4>
                   <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '3px 0 0 0' }}>
-                    {selectedOutlet?.location || 'Campus Center, Ground Floor'} • Open until {selectedOutlet?.closingTime || '10:00 PM'}
+                    {designatedOutlet.location} • Open until {formatTime12Hour(designatedOutlet.closingTime)}
                   </p>
                 </div>
               </div>

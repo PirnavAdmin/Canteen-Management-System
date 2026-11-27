@@ -162,7 +162,8 @@ export const PaymentPage = () => {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  padding: '16px',
+                  gap: '12px',
+                  padding: '14px 16px',
                   borderRadius: 'var(--border-radius-md)',
                   border: '2px solid',
                   borderColor: selectedMethod === 'UPI' ? 'var(--color-accent)' : 'var(--border-color)',
@@ -171,7 +172,7 @@ export const PaymentPage = () => {
                   transition: 'all var(--transition-fast)'
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: 1 }}>
                   <input
                     type="radio"
                     name="payMethod"
@@ -181,25 +182,28 @@ export const PaymentPage = () => {
                       setSelectedMethod(e.target.value);
                       setErrorMessage(null);
                     }}
-                    style={{ cursor: 'pointer', width: '18px', height: '18px' }}
+                    style={{ cursor: 'pointer', width: '18px', height: '18px', flexShrink: 0 }}
                   />
-                  <QrCode size={24} style={{ color: '#0284c7' }} />
-                  <div>
-                    <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                  <QrCode size={22} style={{ color: '#0284c7', flexShrink: 0 }} />
+                  <div style={{ minWidth: 0 }}>
+                    <span style={{ fontSize: '14.5px', fontWeight: 600, color: 'var(--text-primary)', display: 'block' }}>
                       UPI Instant Payment (QR & VPA)
                     </span>
-                    <span style={{ fontSize: '12.5px', color: 'var(--text-muted)', display: 'block', marginTop: '2px' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginTop: '2px', lineHeight: 1.3 }}>
                       Google Pay, PhonePe, Paytm, BHIM or enter any UPI VPA ID
                     </span>
                   </div>
                 </div>
                 <span style={{
-                  fontSize: '11.5px',
-                  fontWeight: 700,
+                  fontSize: '11px',
+                  fontWeight: 600,
                   color: '#0284c7',
                   backgroundColor: '#e0f2fe',
-                  padding: '4px 10px',
-                  borderRadius: 'var(--border-radius-full)'
+                  padding: '3px 8px',
+                  borderRadius: 'var(--border-radius-full)',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                  lineHeight: '1.2'
                 }}>
                   Instant 0% Fee
                 </span>
@@ -211,7 +215,8 @@ export const PaymentPage = () => {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  padding: '16px',
+                  gap: '12px',
+                  padding: '14px 16px',
                   borderRadius: 'var(--border-radius-md)',
                   border: '2px solid',
                   borderColor: selectedMethod === 'CASH' ? 'var(--color-accent)' : 'var(--border-color)',
@@ -220,7 +225,7 @@ export const PaymentPage = () => {
                   transition: 'all var(--transition-fast)'
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: 1 }}>
                   <input
                     type="radio"
                     name="payMethod"
@@ -230,25 +235,28 @@ export const PaymentPage = () => {
                       setSelectedMethod(e.target.value);
                       setErrorMessage(null);
                     }}
-                    style={{ cursor: 'pointer', width: '18px', height: '18px' }}
+                    style={{ cursor: 'pointer', width: '18px', height: '18px', flexShrink: 0 }}
                   />
-                  <Banknote size={24} style={{ color: '#059669' }} />
-                  <div>
-                    <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                  <Banknote size={22} style={{ color: '#059669', flexShrink: 0 }} />
+                  <div style={{ minWidth: 0 }}>
+                    <span style={{ fontSize: '14.5px', fontWeight: 600, color: 'var(--text-primary)', display: 'block' }}>
                       Pay Cash at Counter Pickup
                     </span>
-                    <span style={{ fontSize: '12.5px', color: 'var(--text-muted)', display: 'block', marginTop: '2px' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginTop: '2px', lineHeight: 1.3 }}>
                       Collect order token now; hand over physical cash at counter pickup
                     </span>
                   </div>
                 </div>
                 <span style={{
-                  fontSize: '11.5px',
-                  fontWeight: 700,
+                  fontSize: '11px',
+                  fontWeight: 600,
                   color: '#059669',
                   backgroundColor: '#d1fae5',
-                  padding: '4px 10px',
-                  borderRadius: 'var(--border-radius-full)'
+                  padding: '3px 8px',
+                  borderRadius: 'var(--border-radius-full)',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                  lineHeight: '1.2'
                 }}>
                   Pay on Pickup
                 </span>

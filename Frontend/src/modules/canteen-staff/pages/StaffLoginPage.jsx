@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { ChefHat, Lock, User, AlertCircle, ArrowRight, ShieldCheck } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { AlertCircle, ArrowRight, Lock, UserRound, Utensils } from 'lucide-react';
 import { useAuth } from '../../../app/providers/AuthProvider';
 import { STAFF_APP_CONFIG } from '../constants/staffNavigation';
+import heroImage from '../../../assets/images/campus-canteen-login-hero.png';
+import styles from '../styles/staff.module.css';
 
 export const StaffLoginPage = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const { login } = useAuth();
 
   const [username, setUsername] = useState('');
@@ -17,7 +18,7 @@ export const StaffLoginPage = () => {
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
     if (!username.trim() || !password) {
-      setError('Please provide staff username and password.');
+      setError('Please enter both staff username/email and password.');
       return;
     }
 
@@ -34,159 +35,93 @@ export const StaffLoginPage = () => {
   };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-      padding: '24px',
-      fontFamily: 'Inter, system-ui, sans-serif'
-    }}>
-      <div style={{
-        width: '100%',
-        maxWidth: '440px',
-        backgroundColor: '#ffffff',
-        borderRadius: '20px',
-        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3)',
-        padding: '36px',
-        color: '#1e293b'
-      }}>
-        {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '60px',
-            height: '60px',
-            borderRadius: '16px',
-            backgroundColor: '#fff7ed',
-            color: '#f97316',
-            marginBottom: '14px',
-            boxShadow: '0 4px 10px rgba(249, 115, 22, 0.2)'
-          }}>
-            <ChefHat size={32} />
+    <main className={styles.loginPage}>
+      <section className={styles.loginShell} aria-label="Canteen Staff sign in">
+        <aside className={styles.loginIllustration}>
+          <img
+            className={styles.loginHeroImage}
+            src={heroImage}
+            alt="Campus canteen staff serving a student"
+          />
+          <div className={styles.loginImageShade} />
+          <div className={styles.loginWelcomeCopy}>
+            <h2>
+              Welcome to <span>{STAFF_APP_CONFIG.portalName}</span>
+            </h2>
+            <p>
+              “Live kitchen operations, order prep,
+              <br />
+              and counter inventory control.”
+            </p>
           </div>
+        </aside>
 
-          <h2 style={{ fontSize: '22px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
-            {STAFF_APP_CONFIG.portalName}
-          </h2>
-          <p style={{ fontSize: '13px', color: '#64748b', margin: '6px 0 0 0' }}>
-            {STAFF_APP_CONFIG.canteenOutlet} • Staff Operations Sign In
-          </p>
-        </div>
-
-        {error && (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '12px 14px',
-            borderRadius: '10px',
-            backgroundColor: '#fef2f2',
-            border: '1px solid #fecaca',
-            color: '#dc2626',
-            fontSize: '13px',
-            marginBottom: '20px'
-          }}>
-            <AlertCircle size={16} />
-            <span>{error}</span>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div>
-            <label style={{ fontSize: '12.5px', fontWeight: 700, color: '#334155', display: 'block', marginBottom: '6px' }}>
-              Staff Username:
-            </label>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              border: '1px solid #cbd5e1',
-              borderRadius: '10px',
-              padding: '10px 14px',
-              backgroundColor: '#f8fafc'
-            }}>
-              <User size={16} color="#64748b" />
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                style={{
-                  border: 'none',
-                  background: 'transparent',
-                  outline: 'none',
-                  fontSize: '14px',
-                  width: '100%',
-                  color: '#0f172a'
-                }}
-              />
+        <section className={styles.loginFormPanel}>
+          <header className={styles.loginBranding}>
+            <div className={styles.loginLogo}>
+              <Utensils size={32} strokeWidth={2.2} />
             </div>
-          </div>
+            <h1>{STAFF_APP_CONFIG.portalName}</h1>
+            <p>Sign in to access kitchen &amp; counter operations</p>
+          </header>
 
-          <div>
-            <label style={{ fontSize: '12.5px', fontWeight: 700, color: '#334155', display: 'block', marginBottom: '6px' }}>
-              Password:
-            </label>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              border: '1px solid #cbd5e1',
-              borderRadius: '10px',
-              padding: '10px 14px',
-              backgroundColor: '#f8fafc'
-            }}>
-              <Lock size={16} color="#64748b" />
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                style={{
-                  border: 'none',
-                  background: 'transparent',
-                  outline: 'none',
-                  fontSize: '14px',
-                  width: '100%',
-                  color: '#0f172a'
-                }}
-              />
+          {error && (
+            <div className={styles.loginError} role="alert">
+              <AlertCircle size={17} />
+              <span>{error}</span>
             </div>
+          )}
+
+          <form className={styles.loginForm} onSubmit={handleSubmit}>
+            <label>
+              <span>Username or Email</span>
+              <div className={styles.loginInputWrap}>
+                <UserRound size={20} />
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Enter staff username or email"
+                  autoComplete="username"
+                  required
+                />
+              </div>
+            </label>
+
+            <label>
+              <span>Password</span>
+              <div className={styles.loginInputWrap}>
+                <Lock size={20} />
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter password"
+                  autoComplete="current-password"
+                  required
+                />
+              </div>
+            </label>
+
+            <button className={styles.loginSubmit} type="submit" disabled={loading}>
+              {loading ? (
+                'Authenticating…'
+              ) : (
+                <>
+                  <span>Sign In</span>
+                  <ArrowRight size={20} />
+                </>
+              )}
+            </button>
+          </form>
+
+          <div className={styles.loginLinks}>
+            <Link to="/customer/login">← Student / Faculty Portal</Link>
+            <Link to="/login">Admin Portal →</Link>
           </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              padding: '12px 18px',
-              borderRadius: '10px',
-              backgroundColor: '#f97316',
-              color: '#ffffff',
-              border: 'none',
-              fontSize: '14px',
-              fontWeight: 800,
-              cursor: loading ? 'not-allowed' : 'pointer',
-              marginTop: '6px',
-              boxShadow: '0 4px 6px rgba(249, 115, 22, 0.25)'
-            }}
-          >
-            {loading ? 'Authenticating Staff...' : 'Sign In to Operations Portal'}
-          </button>
-        </form>
-
-        {/* Alternative Portals */}
-        <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
-          <Link to="/customer/login" style={{ color: '#2563eb', textDecoration: 'none', fontWeight: 600 }}>
-            ← Student / Faculty Portal
-          </Link>
-          <Link to="/login" style={{ color: '#64748b', textDecoration: 'none', fontWeight: 600 }}>
-            Admin Portal →
-          </Link>
-        </div>
-      </div>
-    </div>
+        </section>
+      </section>
+    </main>
   );
 };
 

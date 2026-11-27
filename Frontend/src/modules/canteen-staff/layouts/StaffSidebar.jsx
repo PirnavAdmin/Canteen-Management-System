@@ -10,7 +10,8 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import styles from '../../../styles/layout.module.css';
-import { STAFF_NAV_CONFIG } from '../constants/staffNavigation';
+import { STAFF_NAV_CONFIG, STAFF_APP_CONFIG } from '../constants/staffNavigation';
+import { useStaffOutlet } from '../hooks/useStaffOutlet';
 
 const ICON_MAP = {
   LayoutDashboard,
@@ -22,22 +23,26 @@ const ICON_MAP = {
 };
 
 export const StaffSidebar = ({ isOpen, onClose }) => {
+  const { activeOutletName, selectedOutletObj, outletsLoading } = useStaffOutlet();
+  const outletStatus = selectedOutletObj?.status || (outletsLoading ? 'Connecting...' : 'Online');
+
   return (
     <>
       {isOpen && <div className={styles.backdrop} onClick={onClose} />}
 
       <aside className={`${styles.sidebar} ${isOpen ? styles.sidebarOpen : ''}`} aria-label="Staff Navigation">
-        {/* Brand Header matching Admin */}
+        {/* Brand Header matching Admin Sidebar */}
         <div className={styles.sidebarHeader}>
           <div className={styles.brandLogo}>
             <Utensils size={18} />
           </div>
           <div className={styles.brandInfo}>
-            <span className={styles.brandTitle} title="Apex Institute of Technology & Sciences">
-              Apex Institute of Technology & Sciences
+            <span className={styles.brandTitle} title={STAFF_APP_CONFIG.institutionName}>
+              {STAFF_APP_CONFIG.institutionName}
             </span>
           </div>
           <button
+            type="button"
             onClick={onClose}
             className={styles.mobileMenuBtn}
             style={{ marginLeft: 'auto' }}
@@ -47,7 +52,7 @@ export const StaffSidebar = ({ isOpen, onClose }) => {
           </button>
         </div>
 
-        {/* Navigation links matching Admin */}
+        {/* Navigation links matching Admin Sidebar */}
         <nav className={styles.sidebarNav}>
           {STAFF_NAV_CONFIG.filter((group) => group.items && group.items.length > 0).map((group) => (
             <div key={group.group} className={styles.navGroup}>
@@ -71,9 +76,9 @@ export const StaffSidebar = ({ isOpen, onClose }) => {
                       <span style={{
                         fontSize: '10px',
                         padding: '1px 6px',
-                        borderRadius: '9999px',
+                        borderRadius: 'var(--border-radius-full)',
                         fontWeight: 700,
-                        backgroundColor: item.badge === 'Live' ? '#10b981' : '#f97316',
+                        backgroundColor: 'var(--color-success)',
                         color: '#ffffff'
                       }}>
                         {item.badge}
@@ -86,13 +91,15 @@ export const StaffSidebar = ({ isOpen, onClose }) => {
           ))}
         </nav>
 
-        {/* Institutional Footer */}
+        {/* Live Outlet Footer */}
         <div className={styles.sidebarFooter}>
           <div className={styles.institutionBadge}>
-            <span className={styles.institutionName}>Central Dining Hall</span>
+            <span className={styles.institutionName}>
+              {activeOutletName || (outletsLoading ? 'Loading outlet...' : 'Canteen Operations')}
+            </span>
             <span className={styles.institutionStatus}>
               <span className={styles.statusDot} />
-              Counter 02 Online
+              {selectedOutletObj?.code ? `${selectedOutletObj.code} • ${outletStatus}` : outletStatus}
             </span>
           </div>
         </div>

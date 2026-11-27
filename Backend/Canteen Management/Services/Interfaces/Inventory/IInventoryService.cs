@@ -4,7 +4,7 @@ namespace CanteenManagement.API.Services.Interfaces.Inventory
 {
     public interface IInventoryService
     {
-        Task<IEnumerable<InventoryItemDto>> GetItemsAsync(int campusId, int? outletId = null);
+        Task<IEnumerable<InventoryItemDto>> GetItemsAsync(int campusId, int? outletId = null, string? storeType = null);
         Task<InventoryItemDto> CreateItemAsync(CreateInventoryItemDto dto, int campusId, string performedBy);
         Task<InventoryItemDto?> UpdateItemAsync(int id, UpdateInventoryItemDto dto, int campusId, string performedBy);
         Task<bool> DeleteItemAsync(int id, int campusId, string performedBy);

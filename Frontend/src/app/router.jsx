@@ -85,7 +85,7 @@ import {
 } from '../modules/canteen-staff';
 
 export const router = createBrowserRouter([
-  { path: '/cashier/login', element: <LazyRoute><CashierLoginPage /></LazyRoute> },
+  { path: '/cashier/login', element: <Navigate to="/login" replace /> },
   {
     path: '/cashier',
     element: <LazyRoute><CashierProtectedRoute><CashierLayout /></CashierProtectedRoute></LazyRoute>,
@@ -98,10 +98,10 @@ export const router = createBrowserRouter([
       { path: '*', element: <Navigate to="/cashier/dashboard" replace /> }
     ]
   },
-  // Public Staff Authentication Route
+  // Public Staff Authentication Route (Redirect to unified main login)
   {
     path: '/staff/login',
-    element: <StaffLoginPage />
+    element: <Navigate to="/login" replace />
   },
 
   // Protected Canteen Staff Operations Portal Routes
@@ -193,10 +193,10 @@ export const router = createBrowserRouter([
     path: '/canteen-staff/*',
     element: <Navigate to="/staff/dashboard" replace />
   },
-  // Public Customer Authentication Route
+  // Public Customer Authentication Route (Redirect to unified main login)
   {
     path: '/customer/login',
-    element: <CustomerLoginPage />
+    element: <Navigate to="/login" replace />
   },
 
   // Protected Customer / Student / Faculty Dining Portal Routes

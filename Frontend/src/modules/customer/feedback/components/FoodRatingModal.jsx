@@ -2,8 +2,64 @@ import React, { useState, useEffect } from 'react';
 import { Star, X, Check, ThumbsUp, ThumbsDown, Heart, Sparkles, Utensils } from 'lucide-react';
 import { SafeImage } from '../../../../components/common/SafeImage';
 import { feedbackService } from '../../../admin/feedback/services/feedbackService';
+import { customerMenuService } from '../../menu/services/customerMenuService';
+import { useAuth } from '../../../../app/providers/AuthProvider';
+
+// Module-level menu image cache
+let cachedMenuImages = null;
+let menuImagesPromise = null;
+
+const getCachedMenuImages = async () => {
+  if (cachedMenuImages) return cachedMenuImages;
+  if (!menuImagesPromise) {
+    menuImagesPromise = customerMenuService.getAllFoodItems()
+      .then((items) => {
+        const index = (Array.isArray(items) ? items : []).reduce((acc, item) => {
+          const img = item?.imageUrl || item?.image || item?.photo || item?.photoUrl;
+          if (!img) return acc;
+          if (item.id) acc[`id:${String(item.id)}`] = img;
+          if (item.name) acc[`name:${item.name.trim().toLowerCase()}`] = img;
+          return acc;
+        }, {});
+        cachedMenuImages = index;
+        return index;
+      })
+      .catch(() => ({}))
+      .finally(() => {
+        menuImagesPromise = null;
+      });
+  }
+  return menuImagesPromise;
+};
+
+const getCategoryOrNameFallback = (name = '') => {
+  const n = String(name || '').toLowerCase();
+  if (n.includes('biryani') || n.includes('pulao') || n.includes('rice')) {
+    return 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=600&q=80';
+  }
+  if (n.includes('idly') || n.includes('idli') || n.includes('dosa') || n.includes('vada') || n.includes('sambar') || n.includes('breakfast')) {
+    return 'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&w=600&q=80';
+  }
+  if (n.includes('thali') || n.includes('meal') || n.includes('paneer') || n.includes('curry') || n.includes('roti') || n.includes('naan') || n.includes('dal')) {
+    return 'https://images.unsplash.com/photo-1610057099443-fde8c4d50f91?auto=format&fit=crop&w=600&q=80';
+  }
+  if (n.includes('pizza')) {
+    return 'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=600&q=80';
+  }
+  if (n.includes('burger') || n.includes('sandwich')) {
+    return 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=600&q=80';
+  }
+  if (n.includes('noodle') || n.includes('pasta') || n.includes('chowmein')) {
+    return 'https://images.unsplash.com/photo-1585032226651-759b368d7246?auto=format&fit=crop&w=600&q=80';
+  }
+  if (n.includes('coffee') || n.includes('tea') || n.includes('chai') || n.includes('shake') || n.includes('juice') || n.includes('beverage')) {
+    return 'https://images.unsplash.com/photo-1541167760496-1628856ab772?auto=format&fit=crop&w=600&q=80';
+  }
+  return 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80';
+};
 
 const RATING_LABELS = {
+  0: 'Tap a star to rate your food ⭐',
   1: 'Terrible 😞',
   2: 'Poor 😐',
   3: 'Average 🙂',
@@ -29,33 +85,72 @@ export const FoodRatingModal = ({
   order,
   onFeedbackSubmitted
 }) => {
-  const [rating, setRating] = useState(5);
+  const { user } = useAuth();
+  const [currentItemIndex, setCurrentItemIndex] = useState(0);
+  const [ratedItemNames, setRatedItemNames] = useState(new Set());
+  const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
-  const [selectedTags, setSelectedTags] = useState(['Delicious Taste 😋', 'Fresh & Hot 🔥']);
+  const [selectedTags, setSelectedTags] = useState([]);
   const [reviewText, setReviewText] = useState('');
   const [wouldRecommend, setWouldRecommend] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [dishImageUrl, setDishImageUrl] = useState('');
+
+  const orderItems = Array.isArray(order?.items) && order.items.length > 0
+    ? order.items
+    : [{ name: 'Campus Meal Dish', imageUrl: '' }];
+
+  const currentItem = orderItems[currentItemIndex] || orderItems[0];
+  const hasMultipleItems = orderItems.length > 1;
+  const isLastItem = currentItemIndex === orderItems.length - 1;
 
   useEffect(() => {
     if (isOpen) {
-      setRating(5);
+      setCurrentItemIndex(0);
+      setRatedItemNames(new Set());
+      setRating(0);
       setHoverRating(0);
-      setSelectedTags(['Delicious Taste 😋', 'Fresh & Hot 🔥']);
+      setSelectedTags([]);
       setReviewText('');
       setWouldRecommend(true);
       setSubmitting(false);
       setSubmitted(false);
     }
-  }, [isOpen]);
+  }, [isOpen, order?.id, order?.orderId]);
+
+  useEffect(() => {
+    if (!isOpen || !order) return;
+    const directImage = currentItem?.imageUrl || currentItem?.image || currentItem?.photoUrl || currentItem?.photo || order?.imageUrl || order?.image;
+    if (directImage) {
+      setDishImageUrl(directImage);
+      return;
+    }
+
+    const idKey = currentItem?.id ? `id:${String(currentItem.id)}` : (currentItem?.menuItemId ? `id:${String(currentItem.menuItemId)}` : null);
+    const nameKey = currentItem?.name ? `name:${currentItem.name.trim().toLowerCase()}` : null;
+
+    if (cachedMenuImages) {
+      const match = (idKey && cachedMenuImages[idKey]) || (nameKey && cachedMenuImages[nameKey]);
+      if (match) {
+        setDishImageUrl(match);
+        return;
+      }
+    }
+
+    getCachedMenuImages().then((index) => {
+      const match = (idKey && index[idKey]) || (nameKey && index[nameKey]);
+      if (match) {
+        setDishImageUrl(match);
+      } else {
+        setDishImageUrl(getCategoryOrNameFallback(currentItem?.name));
+      }
+    }).catch(() => {
+      setDishImageUrl(getCategoryOrNameFallback(currentItem?.name));
+    });
+  }, [isOpen, order, currentItemIndex, currentItem?.id, currentItem?.name, currentItem?.imageUrl, currentItem?.image]);
 
   if (!isOpen || !order) return null;
-
-  const orderItems = Array.isArray(order?.items) ? order.items : [];
-  const primaryItem = orderItems[0] || {
-    name: 'Steamed Idli Sambar (2 pcs)',
-    imageUrl: 'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&w=600&q=80'
-  };
 
   const handleToggleTag = (tag) => {
     setSelectedTags((prev) =>
@@ -63,42 +158,86 @@ export const FoodRatingModal = ({
     );
   };
 
+  const handleSkipCurrentDish = () => {
+    if (currentItemIndex < orderItems.length - 1) {
+      setCurrentItemIndex((prev) => prev + 1);
+      setRating(0);
+      setHoverRating(0);
+      setSelectedTags([]);
+      setReviewText('');
+      setWouldRecommend(true);
+    }
+  };
+
+  const handleSkipAll = () => {
+    const orderIdStr = String(order?.id || order?.orderId || '');
+    if (orderIdStr) {
+      inMemoryRatedOrderIds.add(orderIdStr);
+      if (ratedItemNames.size > 0) {
+        window.dispatchEvent(new CustomEvent('cms:feedback_created', { detail: { orderId: orderIdStr } }));
+      }
+    }
+    onClose();
+  };
+
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
+    if (!rating || rating < 1) return;
     setSubmitting(true);
 
+    const rawOutletId = order.outletId || order.outlet?.id;
+    const numOutlet = Number(rawOutletId);
+    const safeOutletId = !isNaN(numOutlet) && numOutlet > 0 ? numOutlet : 1;
+    const dishName = currentItem.name || 'Campus Meal Dish';
+
     const feedbackPayload = {
-      orderId: String(order.id || order.orderId || 'ORD-COMPLETED'),
-      customerName: order.customer?.name || 'Student Customer',
-      customerEmail: order.customer?.email || 'student@cms.edu',
-      rating,
-      comment: reviewText.trim()
-        ? `${reviewText.trim()} [Tags: ${selectedTags.join(', ')}]`
-        : `Customer rated ${rating}/5 stars. Tags: ${selectedTags.join(', ')}`,
-      category: 'Food Quality & Taste',
-      canteenId: order.outletId || 'canteen-001',
-      canteenName: order.outletName || order.canteenName || 'Main Canteen',
-      status: 'Open',
-      wouldRecommend
+      outletId: safeOutletId,
+      customerName: order.customer?.name || user?.fullName || 'Campus Diner',
+      customerRole: order.customer?.role || user?.role || 'Student',
+      customerEmail: order.customer?.email || user?.email || 'student@campus.edu',
+      orderId: String(order.id || order.orderId || ''),
+      orderToken: String(order.token || ''),
+      rating: Number(rating),
+      complaintCategory: dishName,
+      comments: reviewText.trim()
+        ? `${reviewText.trim()} (Tags: ${selectedTags.join(', ')}) [Dish: ${dishName}]`
+        : `Dish: ${dishName}. Customer rated ${rating}/5 stars. Tags: ${selectedTags.join(', ')}`
     };
 
     try {
-      await feedbackService.create(feedbackPayload).catch(() => null);
+      await feedbackService.create(feedbackPayload);
+      window.dispatchEvent(new CustomEvent('cms:feedback_created', { detail: feedbackPayload }));
     } catch (err) {
       console.warn('Backend feedback log:', err);
     }
 
-    // Mark order as rated in memory
+    const updatedRated = new Set(ratedItemNames);
+    updatedRated.add(dishName);
+    setRatedItemNames(updatedRated);
+
+    if (onFeedbackSubmitted) {
+      onFeedbackSubmitted(feedbackPayload);
+    }
+
+    // If there are more items to rate in this order
+    if (hasMultipleItems && !isLastItem) {
+      setSubmitting(false);
+      setCurrentItemIndex((prev) => prev + 1);
+      setRating(0);
+      setHoverRating(0);
+      setSelectedTags([]);
+      setReviewText('');
+      setWouldRecommend(true);
+      return;
+    }
+
+    // Mark whole order as rated
     if (order?.id || order?.orderId) {
       inMemoryRatedOrderIds.add(String(order.id || order.orderId));
     }
 
     setSubmitting(false);
     setSubmitted(true);
-
-    if (onFeedbackSubmitted) {
-      onFeedbackSubmitted(feedbackPayload);
-    }
 
     // Auto-dismiss after 2 seconds
     setTimeout(() => {
@@ -122,7 +261,7 @@ export const FoodRatingModal = ({
         padding: '16px',
         animation: 'fadeIn 0.2s ease'
       }}
-      onClick={onClose}
+      onClick={handleSkipAll}
     >
       <div
         style={{
@@ -157,7 +296,7 @@ export const FoodRatingModal = ({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleSkipAll}
             style={{
               background: 'none',
               border: 'none',
@@ -176,6 +315,61 @@ export const FoodRatingModal = ({
             <X size={18} />
           </button>
         </div>
+
+        {/* Multi-Item Selector Pills */}
+        {hasMultipleItems && !submitted && (
+          <div style={{
+            padding: '8px 16px',
+            backgroundColor: '#f8fafc',
+            borderBottom: '1px solid #e2e8f0',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            overflowX: 'auto'
+          }}>
+            <span style={{ fontSize: '11px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>
+              Item {currentItemIndex + 1} of {orderItems.length}:
+            </span>
+            <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '2px' }}>
+              {orderItems.map((item, idx) => {
+                const isSelected = idx === currentItemIndex;
+                const isItemRated = ratedItemNames.has(item.name || `item-${idx}`);
+                return (
+                  <button
+                    key={`${item.id || item.name}-${idx}`}
+                    type="button"
+                    onClick={() => {
+                      setCurrentItemIndex(idx);
+                      setRating(0);
+                      setHoverRating(0);
+                      setSelectedTags([]);
+                      setReviewText('');
+                      setWouldRecommend(true);
+                    }}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '4px 10px',
+                      borderRadius: '999px',
+                      border: isSelected ? '1.5px solid #2563eb' : '1px solid #cbd5e1',
+                      backgroundColor: isSelected ? '#eff6ff' : isItemRated ? '#f0fdf4' : '#ffffff',
+                      color: isSelected ? '#1d4ed8' : isItemRated ? '#16a34a' : '#475569',
+                      fontSize: '11.5px',
+                      fontWeight: isSelected ? 700 : 500,
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    {isItemRated && <Check size={12} strokeWidth={3} />}
+                    <span>{item.name || `Dish ${idx + 1}`}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {submitted ? (
           /* Celebratory Success State */
@@ -233,22 +427,26 @@ export const FoodRatingModal = ({
             }}>
               <div style={{ width: '48px', height: '48px', borderRadius: '8px', overflow: 'hidden', flexShrink: 0, backgroundColor: '#e2e8f0' }}>
                 <SafeImage
-                  src={primaryItem.imageUrl}
-                  alt={primaryItem.name}
+                  src={dishImageUrl || currentItem.imageUrl || getCategoryOrNameFallback(currentItem.name)}
+                  alt={currentItem.name}
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   fallback={
-                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
-                      <Utensils size={18} />
-                    </div>
+                    <img
+                      src={getCategoryOrNameFallback(currentItem.name)}
+                      alt={currentItem.name}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
                   }
                 />
               </div>
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ fontSize: '13.5px', fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {primaryItem.name}
+                  {currentItem.name}
                 </div>
                 <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '1px' }}>
-                  {orderItems.length > 1 ? `+ ${orderItems.length - 1} more items in this order` : 'Chef prepared dish'}
+                  {hasMultipleItems
+                    ? `Dish ${currentItemIndex + 1} of ${orderItems.length} in this order`
+                    : 'Chef prepared dish'}
                 </div>
               </div>
             </div>
@@ -290,10 +488,10 @@ export const FoodRatingModal = ({
                 marginTop: '8px',
                 fontSize: '13.5px',
                 fontWeight: 700,
-                color: activeRating >= 4 ? '#15803d' : activeRating === 3 ? '#d97706' : '#dc2626',
+                color: activeRating >= 4 ? '#15803d' : activeRating === 3 ? '#d97706' : activeRating >= 1 ? '#dc2626' : '#64748b',
                 minHeight: '20px'
               }}>
-                {RATING_LABELS[activeRating] || 'Tap to rate'}
+                {RATING_LABELS[activeRating] || 'Tap a star to rate'}
               </div>
             </div>
 
@@ -410,29 +608,73 @@ export const FoodRatingModal = ({
               </div>
             </div>
 
-            {/* Submit Button */}
-            <button
-              type="button"
-              disabled={submitting}
-              onClick={handleSubmit}
-              style={{
-                width: '100%',
-                padding: '12px',
-                backgroundColor: '#2563eb',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '10px',
-                fontSize: '14.5px',
-                fontWeight: 700,
-                cursor: submitting ? 'not-allowed' : 'pointer',
-                boxShadow: '0 4px 12px rgba(37, 99, 235, 0.25)',
-                transition: 'background-color 0.15s ease'
-              }}
-              onMouseEnter={(e) => { if (!submitting) e.currentTarget.style.backgroundColor = '#1d4ed8'; }}
-              onMouseLeave={(e) => { if (!submitting) e.currentTarget.style.backgroundColor = '#2563eb'; }}
-            >
-              {submitting ? 'Submitting...' : 'Submit Review'}
-            </button>
+            {/* Submit & Navigation Buttons */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <button
+                type="button"
+                disabled={submitting || rating === 0}
+                onClick={handleSubmit}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  backgroundColor: rating === 0 ? '#94a3b8' : '#2563eb',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '10px',
+                  fontSize: '14.5px',
+                  fontWeight: 700,
+                  cursor: submitting || rating === 0 ? 'not-allowed' : 'pointer',
+                  boxShadow: rating === 0 ? 'none' : '0 4px 12px rgba(37, 99, 235, 0.25)',
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseEnter={(e) => { if (!submitting && rating > 0) e.currentTarget.style.backgroundColor = '#1d4ed8'; }}
+                onMouseLeave={(e) => { if (!submitting && rating > 0) e.currentTarget.style.backgroundColor = '#2563eb'; }}
+              >
+                {submitting
+                  ? 'Submitting...'
+                  : rating === 0
+                    ? 'Select a Star Rating'
+                    : hasMultipleItems && !isLastItem
+                      ? `Rate Next Dish (${currentItemIndex + 1}/${orderItems.length}) →`
+                      : 'Submit Review'}
+              </button>
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '18px' }}>
+                {hasMultipleItems && !isLastItem && (
+                  <button
+                    type="button"
+                    onClick={handleSkipCurrentDish}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#475569',
+                      fontSize: '12.5px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      padding: '4px 6px',
+                      textDecoration: 'underline'
+                    }}
+                  >
+                    Skip this dish →
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={handleSkipAll}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#94a3b8',
+                    fontSize: '12.5px',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    padding: '4px 6px'
+                  }}
+                >
+                  Skip for now
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

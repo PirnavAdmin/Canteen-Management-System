@@ -122,12 +122,13 @@ namespace CanteenManagement.API.Repositories.Implementations.Dashboard
                 commandType: CommandType.StoredProcedure);
         }
 
-        public async Task<IEnumerable<StockAlertDto>> GetStockAlertsAsync(int campusId)
+        public async Task<IEnumerable<StockAlertDto>> GetStockAlertsAsync(int campusId, int? outletId = null)
         {
             using var connection = _connectionFactory.CreateConnection();
             var parameters = new DynamicParameters();
             parameters.Add("p_CampusId", campusId);
             parameters.Add("p_InstitutionId", campusId);
+            parameters.Add("p_OutletId", outletId ?? 0);
 
             return await connection.QueryAsync<StockAlertDto>(
                 "sp_GetStockAlerts",

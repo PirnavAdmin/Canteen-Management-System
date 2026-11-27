@@ -31,6 +31,8 @@ export const useStaffOrders = (outletOverride = null) => {
     selectedOutlet: activeOutletId,
     activeOutletName,
     activeCampusName,
+    outletsLoading,
+    outletsError,
     isOrderInCurrentOutlet
   } = useStaffOutlet();
 
@@ -44,9 +46,10 @@ export const useStaffOrders = (outletOverride = null) => {
   const isFirstMountRef = useRef(true);
   const debounceTimerRef = useRef(null);
 
-  // loadOrders: silent background update by default (isManualRefresh = false)
-  // Only toggles `loading = true` on initial component mount or explicit manual Refresh click
   const loadOrders = useCallback(async (isManualRefresh = false) => {
+    if (outletsLoading && !currentOutletId) {
+      return;
+    }
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
 
@@ -61,10 +64,9 @@ export const useStaffOrders = (outletOverride = null) => {
       const data = await staffOrderService.getAllOrders(params);
       const freshList = Array.isArray(data) ? data : [];
 
-      // Outlet Isolation: Guarantee orders strictly belong to the active outlet
       const outletFilteredList = freshList.filter(isOrderInCurrentOutlet);
 
-      setOrders(prevOrders => {
+      setOrders((prevOrders) => {
         if (areOrdersEqual(prevOrders, outletFilteredList)) {
           return prevOrders;
         }
@@ -72,34 +74,32 @@ export const useStaffOrders = (outletOverride = null) => {
       });
     } catch (err) {
       console.error('Failed to load staff orders:', err);
-      setError(err.message || 'Error fetching staff orders');
+      setError(err.message || outletsError || 'Unable to load orders from server.');
     } finally {
       isFetchingRef.current = false;
       isFirstMountRef.current = false;
       setLoading(false);
     }
-  }, [currentOutletId, isOrderInCurrentOutlet]);
+  }, [currentOutletId, outletsLoading, outletsError, isOrderInCurrentOutlet]);
 
   const manualRefresh = useCallback(() => {
     return loadOrders(true);
   }, [loadOrders]);
 
   useEffect(() => {
-    // Initial fetch on mount
     loadOrders(false);
 
-    // Immediate state reflection + Debounced background sync for cross-tab events
     const handleOrderEvent = (e) => {
       const detail = e?.detail;
       const order = detail?.updatedOrder || detail?.order || detail;
       if (order && order.id) {
-        setOrders(prev => prev.map(o => String(o.id) === String(order.id) ? { ...o, ...order } : o));
+        setOrders((prev) => prev.map((o) => String(o.id) === String(order.id) ? { ...o, ...order } : o));
       }
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }
       debounceTimerRef.current = setTimeout(() => {
-        loadOrders(false); // Silent background fetch without toggling loading spinners
+        loadOrders(false);
       }, 500);
     };
 
@@ -112,9 +112,8 @@ export const useStaffOrders = (outletOverride = null) => {
     window.addEventListener('cms:order_updated', handleOrderEvent);
     window.addEventListener('cms:outlet_changed', handleOutletEvent);
 
-    // Controlled 20-second background polling interval for quiet synchronization
     const pollInterval = setInterval(() => {
-      loadOrders(false); // Silent background sync without loading spinners
+      loadOrders(false);
     }, 20000);
 
     return () => {
@@ -129,57 +128,43 @@ export const useStaffOrders = (outletOverride = null) => {
     };
   }, [loadOrders]);
 
+  const operatorName = user?.fullName || user?.username || user?.name || 'Staff';
+
   const advanceOrderStatus = useCallback(async (orderId, nextStatus, note = '') => {
-    try {
-      const operator = user?.fullName || user?.username || 'Staff Attendant';
-      const updated = await staffOrderService.updateOrderStatus(orderId, nextStatus, note, operator);
-      setOrders(prev => prev.map(o => String(o.id) === String(orderId) ? updated : o));
-      return updated;
-    } catch (err) {
-      console.error('Failed to update status:', err);
-      throw err;
-    }
-  }, [user]);
+    const updated = await staffOrderService.updateOrderStatus(orderId, nextStatus, note, operatorName);
+    setOrders((prev) => prev.map((o) => String(o.id) === String(orderId) ? updated : o));
+    return updated;
+  }, [operatorName]);
 
   const acceptOrder = useCallback(async (orderId) => {
-    const operator = user?.fullName || user?.username || 'Staff Attendant';
-    const updated = await staffOrderService.acceptOrder(orderId, operator);
-    setOrders(prev => prev.map(o => String(o.id) === String(orderId) ? updated : o));
+    const updated = await staffOrderService.acceptOrder(orderId, operatorName);
+    setOrders((prev) => prev.map((o) => String(o.id) === String(orderId) ? updated : o));
     return updated;
-  }, [user]);
+  }, [operatorName]);
 
   const startPreparation = useCallback(async (orderId) => {
-    const operator = user?.fullName || user?.username || 'Chef / Kitchen Staff';
-    const updated = await staffOrderService.startPreparation(orderId, operator);
-    setOrders(prev => prev.map(o => String(o.id) === String(orderId) ? updated : o));
+    const updated = await staffOrderService.startPreparation(orderId, operatorName);
+    setOrders((prev) => prev.map((o) => String(o.id) === String(orderId) ? updated : o));
     return updated;
-  }, [user]);
+  }, [operatorName]);
 
   const markReadyForPickup = useCallback(async (orderId) => {
-    const operator = user?.fullName || user?.username || 'Kitchen & Counter Staff';
-    const updated = await staffOrderService.markReadyForPickup(orderId, operator);
-    setOrders(prev => prev.map(o => String(o.id) === String(orderId) ? updated : o));
+    const updated = await staffOrderService.markReadyForPickup(orderId, operatorName);
+    setOrders((prev) => prev.map((o) => String(o.id) === String(orderId) ? updated : o));
     return updated;
-  }, [user]);
+  }, [operatorName]);
 
   const rejectOrder = useCallback(async (orderId, reason) => {
-    const operator = user?.fullName || user?.username || 'Staff Attendant';
-    const updated = await staffOrderService.rejectOrder(orderId, reason, operator);
-    setOrders(prev => prev.map(o => String(o.id) === String(orderId) ? updated : o));
+    const updated = await staffOrderService.rejectOrder(orderId, reason, operatorName);
+    setOrders((prev) => prev.map((o) => String(o.id) === String(orderId) ? updated : o));
     return updated;
-  }, [user]);
+  }, [operatorName]);
 
   const markCollected = useCallback(async (orderId) => {
-    try {
-      const operator = user?.fullName || user?.username || 'Counter Staff';
-      const updated = await staffOrderService.markCollected(orderId, operator);
-      setOrders(prev => prev.map(o => String(o.id) === String(orderId) ? updated : o));
-      return updated;
-    } catch (err) {
-      console.error('Failed to mark order as collected:', err);
-      throw err;
-    }
-  }, [user]);
+    const updated = await staffOrderService.markCollected(orderId, operatorName);
+    setOrders((prev) => prev.map((o) => String(o.id) === String(orderId) ? updated : o));
+    return updated;
+  }, [operatorName]);
 
   const completeOrder = useCallback(async (orderId) => {
     return markCollected(orderId);

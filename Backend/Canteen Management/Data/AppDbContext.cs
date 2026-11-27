@@ -22,6 +22,7 @@ namespace CanteenManagement.API.Data
         public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
         public DbSet<CanteenOutlet> CanteenOutlets => Set<CanteenOutlet>();
         public DbSet<CanteenOutletSetting> CanteenOutletSettings => Set<CanteenOutletSetting>();
+        public DbSet<CanteenStaffAssignment> CanteenStaffAssignments => Set<CanteenStaffAssignment>();
         public DbSet<Category> Categories => Set<Category>();
         public DbSet<MenuItem> MenuItems => Set<MenuItem>();
         public DbSet<MenuItemVariant> MenuItemVariants => Set<MenuItemVariant>();
@@ -31,6 +32,7 @@ namespace CanteenManagement.API.Data
         public DbSet<OrderTimeline> OrderTimelines => Set<OrderTimeline>();
         public DbSet<PaymentTransaction> PaymentTransactions => Set<PaymentTransaction>();
         public DbSet<InventoryItem> InventoryItems => Set<InventoryItem>();
+        public DbSet<CanteenWarehouse> CanteenWarehouses => Set<CanteenWarehouse>();
         public DbSet<StockMovement> StockMovements => Set<StockMovement>();
         public DbSet<StockRequest> StockRequests => Set<StockRequest>();
         public DbSet<Supplier> Suppliers => Set<Supplier>();
@@ -94,6 +96,23 @@ namespace CanteenManagement.API.Data
             modelBuilder.Entity<InventoryItem>(entity =>
             {
                 entity.HasIndex(i => new { i.OutletId, i.IngredientName });
+            });
+
+            // CanteenStaffAssignment configuration
+            modelBuilder.Entity<CanteenStaffAssignment>(entity =>
+            {
+                entity.HasIndex(a => a.UserId);
+                entity.HasIndex(a => a.OutletId);
+                entity.HasOne(a => a.Outlet)
+                      .WithMany()
+                      .HasForeignKey(a => a.OutletId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // CanteenWarehouse configuration
+            modelBuilder.Entity<CanteenWarehouse>(entity =>
+            {
+                entity.HasIndex(w => new { w.CampusId, w.Code }).IsUnique();
             });
         }
     }

@@ -33,6 +33,9 @@ export const CartPage = () => {
   } = useCart();
 
   const safeCartItems = Array.isArray(cartItems) ? cartItems : [];
+  const displayOutletName = safeCartItems.find(i => i && i.outletName && i.outletName !== 'All Outlets' && i.outletName !== 'All Campus Dining Halls')?.outletName
+    || (selectedOutlet && selectedOutlet.id !== 'ALL' && selectedOutlet.name && selectedOutlet.name !== 'All Outlets' && selectedOutlet.name !== 'All Campus Dining Halls' ? selectedOutlet.name : '')
+    || 'Main Canteen';
 
   if (safeCartItems.length === 0) {
     return (
@@ -110,7 +113,7 @@ export const CartPage = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <Card
             title={`Selected Meals (${itemCount} Items)`}
-            subtitle={selectedOutlet ? `Outlet: ${selectedOutlet.name}` : 'Campus Canteen'}
+            subtitle={`Outlet: ${displayOutletName}`}
             padding="0"
           >
             <div style={{ overflowX: 'auto' }}>

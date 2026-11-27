@@ -49,9 +49,15 @@ export const notifyOrderCreated = (order) => {
 export const subscribeToOrderSync = (onOrderUpdate, onOrderCreate) => {
   const handleLocalUpdate = (e) => onOrderUpdate?.(e?.detail);
   const handleLocalCreate = (e) => onOrderCreate?.(e?.detail);
+  const handleStorage = (e) => {
+    if (e.key === 'cms_order_sync_timestamp') {
+      onOrderUpdate?.();
+    }
+  };
 
   window.addEventListener('cms:order_status_updated', handleLocalUpdate);
   window.addEventListener('cms:order_created', handleLocalCreate);
+  window.addEventListener('storage', handleStorage);
 
   let channel = null;
   try {
@@ -70,6 +76,7 @@ export const subscribeToOrderSync = (onOrderUpdate, onOrderCreate) => {
   return () => {
     window.removeEventListener('cms:order_status_updated', handleLocalUpdate);
     window.removeEventListener('cms:order_created', handleLocalCreate);
+    window.removeEventListener('storage', handleStorage);
     if (channel) {
       try { channel.close(); } catch {}
     }

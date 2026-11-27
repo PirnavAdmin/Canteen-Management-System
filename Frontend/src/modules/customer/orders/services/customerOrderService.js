@@ -1,18 +1,16 @@
 /**
  * Customer Order & Refund Management Service
  * Handles customer order fetching, ownership validation, cancellation rules, and refund processing.
+ * Pure live backend API integration with zero mock data and zero localStorage/sessionStorage fallbacks.
  */
 
-import { storageService } from '../../../../services/storageService';
 import { orderService } from '../../../admin/orders/services/orderService';
-import { ORDER_STATUS, PAYMENT_STATUS } from '../../../../constants/appConstants';
+import { ORDER_STATUS } from '../../../../constants/appConstants';
 import { notifyOrderCreated } from '../../../../utils/orderSync';
-
-const ORDERS_STORAGE_KEY = 'cms_canteen_management_orders';
 
 export const customerOrderService = {
   /**
-   * Get all orders belonging exclusively to the authenticated user
+   * Get all orders belonging exclusively to the authenticated user from live backend API
    */
   getCustomerOrders: async (user) => {
     if (!user) return [];
@@ -30,57 +28,24 @@ export const customerOrderService = {
         (userRollNo && custRoll === userRollNo);
     };
 
-    // Checkout currently persists immediately to local storage. Keep that order visible
-    // while the live API is unavailable or before it has returned the new record.
-    const locallySaved = storageService.getItem(ORDERS_STORAGE_KEY, []);
-    let remoteOrders = [];
     try {
       const response = await orderService.getAll();
-      remoteOrders = Array.isArray(response) ? response : [];
-    } catch (err) {
-      // Gracefully handle live order list unavailability without polluting console with timeout warnings
-      remoteOrders = [];
-    }
-
-    // When live remote orders are available, purge any obsolete client-only fake orders from local storage
-    if (remoteOrders.length > 0) {
-      const validRemoteIds = new Set(remoteOrders.map(o => String(o.id || o.orderId)));
-      const cleanedLocal = (Array.isArray(locallySaved) ? locallySaved : []).filter(o => validRemoteIds.has(String(o.id || o.orderId)));
-      if (cleanedLocal.length !== (locallySaved?.length || 0)) {
-        storageService.setItem(ORDERS_STORAGE_KEY, cleanedLocal);
-      }
-    }
-
-    const uniqueOrders = new Map();
-    // 1. Seed with locally saved orders (only if confirmed by backend or during offline fallback)
-    (Array.isArray(locallySaved) ? locallySaved : [])
-      .filter(belongsToCurrentUser)
-      .filter((o) => {
-        if (!remoteOrders.length) return true;
-        const id = String(o.id || o.orderId || '');
-        return remoteOrders.some(r => String(r.id || r.orderId) === id);
-      })
-      .forEach((order) => uniqueOrders.set(String(order.id || order.orderId), order));
-
-    // 2. Overwrite with live backend database orders (authoritative live status!)
-    remoteOrders
-      .filter(belongsToCurrentUser)
-      .forEach((remoteOrder) => {
-        const key = String(remoteOrder.id || remoteOrder.orderId);
-        const local = uniqueOrders.get(key) || {};
-        uniqueOrders.set(key, {
-          ...local,
+      const remoteOrders = Array.isArray(response) ? response : [];
+      return remoteOrders
+        .filter(belongsToCurrentUser)
+        .map(remoteOrder => ({
           ...remoteOrder,
           id: remoteOrder.orderId || remoteOrder.id,
           orderId: remoteOrder.orderId || remoteOrder.id,
-          notes: remoteOrder.notes || local.notes || local.cookingNotes || remoteOrder.cookingNotes || '',
-          cookingNotes: remoteOrder.notes || local.notes || local.cookingNotes || remoteOrder.cookingNotes || ''
-        });
-      });
-
-    return [...uniqueOrders.values()].sort((a, b) =>
-      new Date(b.orderDate || b.createdAt || 0) - new Date(a.orderDate || a.createdAt || 0)
-    );
+          notes: remoteOrder.notes || remoteOrder.cookingNotes || '',
+          cookingNotes: remoteOrder.notes || remoteOrder.cookingNotes || ''
+        }))
+        .sort((a, b) =>
+          new Date(b.orderDate || b.createdAt || 0) - new Date(a.orderDate || a.createdAt || 0)
+        );
+    } catch {
+      return [];
+    }
   },
 
   /**
@@ -100,7 +65,7 @@ export const customerOrderService = {
       };
     }
 
-    if (status === ORDER_STATUS.COMPLETED) {
+    if (status === ORDER_STATUS.COMPLETED || status === 'Collected') {
       return {
         eligible: false,
         reason: 'This meal has already been prepared, collected, and completed.'
@@ -136,148 +101,18 @@ export const customerOrderService = {
   },
 
   /**
-   * Process Order Cancellation and Automatic Refund
+   * Process Order Cancellation via live backend API
    */
   cancelAndRefundOrder: async (orderId, cancellationReason, user) => {
     if (!cancellationReason || !cancellationReason.trim()) {
       throw new Error('A cancellation reason is required for institutional audit and refund records.');
     }
 
-    const allOrders = storageService.getItem(ORDERS_STORAGE_KEY, []) || [];
-    const idx = allOrders.findIndex(o => String(o.id || o.orderId) === String(orderId));
-
-    let targetOrder;
-    if (idx === -1) {
-      targetOrder = {
-        id: orderId,
-        orderId: orderId,
-        status: ORDER_STATUS.PLACED,
-        customer: { email: (user?.email || '').trim().toLowerCase(), name: (user?.fullName || user?.username || '').trim().toLowerCase() },
-        totalAmount: 0,
-        timeline: []
-      };
-      allOrders.unshift(targetOrder);
-    } else {
-      targetOrder = allOrders[idx];
-    }
-
-    // Ownership check: Prevent cancelling other users' orders
-    const userEmail = (user?.email || '').trim().toLowerCase();
-    const userName = (user?.fullName || user?.username || '').trim().toLowerCase();
-    const custEmail = (targetOrder.customer?.email || '').trim().toLowerCase();
-    const custName = (targetOrder.customer?.name || '').trim().toLowerCase();
-
-    if (userEmail && custEmail && userEmail !== custEmail && userName !== custName) {
-      throw new Error('Access Denied: You can only cancel your own orders.');
-    }
-
-    // Eligibility check
-    const eligibility = customerOrderService.evaluateCancellationEligibility(targetOrder);
-    if (!eligibility.eligible) {
-      throw new Error(eligibility.reason);
-    }
-
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-    // Determine payment and refund status
-    const isPaid =
-      targetOrder.payment?.status === PAYMENT_STATUS.PAID ||
-      targetOrder.payment?.status === 'Paid' ||
-      targetOrder.paymentStatus === 'Paid';
-
-    const orderTotal = Number(targetOrder.totalAmount || targetOrder.pricing?.totalAmount || 0);
-    const payMethod = targetOrder.payment?.method || targetOrder.paymentMethod || 'Campus Wallet';
-
-    let refundDetails;
-
-    if (isPaid && orderTotal > 0) {
-      const refundId = `RFND-2026-${Math.floor(10000 + Math.random() * 90000)}`;
-      const referenceId = `REV-${Math.floor(100000 + Math.random() * 900000)}`;
-
-      let sourceAccount = 'Original Payment Source';
-      if (payMethod.toLowerCase().includes('wallet')) {
-        sourceAccount = 'Campus Dining Wallet';
-      } else if (payMethod.toLowerCase().includes('upi')) {
-        sourceAccount = 'Original UPI VPA Account';
-      } else if (payMethod.toLowerCase().includes('card')) {
-        sourceAccount = 'Institutional RuPay Card';
-      }
-
-      refundDetails = {
-        refundId,
-        referenceId,
-        amount: orderTotal,
-        status: 'Refund Successful',
-        paymentMethod: payMethod,
-        sourceAccount,
-        reason: cancellationReason,
-        processedAt: now.toISOString(),
-        refundDate: now.toLocaleDateString()
-      };
-
-      // If paid via Campus Dining Wallet, credit the refund back to user's wallet
-      if (payMethod.toLowerCase().includes('wallet')) {
-        // Refund credited in runtime state
-      }
-    } else {
-      // Cash on pickup or unpaid
-      refundDetails = {
-        refundId: 'N/A',
-        referenceId: 'N/A',
-        amount: 0,
-        status: 'Not Applicable',
-        paymentMethod: payMethod,
-        sourceAccount: 'Counter Cash (Uncollected)',
-        reason: cancellationReason,
-        processedAt: now.toISOString(),
-        refundDate: now.toLocaleDateString()
-      };
-    }
-
-    // Build timeline entry
-    const existingTimeline = targetOrder.timeline || [];
-    const updatedTimeline = [
-      ...existingTimeline,
-      {
-        status: ORDER_STATUS.CANCELLED,
-        timestamp: timeStr,
-        note: `Order cancelled by customer: ${cancellationReason}`
-      }
-    ];
-
-    if (refundDetails && refundDetails.status === 'Refund Successful') {
-      updatedTimeline.push({
-        status: ORDER_STATUS.REFUNDED,
-        timestamp: timeStr,
-        note: `Refund of ₹${orderTotal.toFixed(2)} credited via ${refundDetails.sourceAccount} (Ref: ${refundDetails.referenceId})`
-      });
-    }
-
-    const updatedOrder = {
-      ...targetOrder,
-      status: ORDER_STATUS.CANCELLED,
-      cancellationReason,
-      cancelledAt: now.toISOString(),
-      paymentStatus: isPaid ? 'Refunded' : 'Cancelled',
-      payment: {
-        ...(targetOrder.payment || {}),
-        status: isPaid ? 'Refunded' : 'Cancelled'
-      },
-      refundDetails,
-      timeline: updatedTimeline,
-      updatedAt: now.toISOString()
-    };
-
-    allOrders[idx] = updatedOrder;
-    storageService.setItem(ORDERS_STORAGE_KEY, [...allOrders]);
-
-    return updatedOrder;
+    return await orderService.cancelOrder(orderId, cancellationReason.trim());
   },
 
   /**
-   * Create and Authorize Customer Order
-   * Handles payment validation, wallet ledger deduction, token generation, and idempotent persistence.
+   * Create and Authorize Customer Order via live backend API
    */
   createOrder: async (orderPayload, user, paymentMethod, paymentDetails = {}) => {
     if (!orderPayload || !orderPayload.orderId) {
@@ -293,17 +128,17 @@ export const customerOrderService = {
     const rawRole = user?.role || user?.roleCode || user?.userType || 'Student';
     const isFaculty = String(rawRole).toUpperCase().includes('FACULTY');
     const userRole = isFaculty ? 'Faculty' : 'Student';
-    const identifier = user?.rollNo || user?.facultyId || user?.studentId || (isFaculty ? 'FAC-CSE-019' : '2023-CS-108');
-    const department = user?.department || (isFaculty ? 'Computer Science & Engineering' : 'Information Technology');
+    const identifier = user?.rollNo || user?.facultyId || user?.studentId || '';
+    const department = user?.department || '';
 
-    // 2. Validate Payment Method & Balance
+    // 2. Validate Payment Method
     let txnId;
     let finalPaymentStatus;
     let methodLabel;
 
     if (paymentMethod === 'WALLET') {
       methodLabel = 'Campus Wallet';
-      const currentBal = Number(user?.balance !== undefined ? user.balance : (isFaculty ? 1420.00 : 850.00));
+      const currentBal = Number(user?.balance || 0);
 
       if (currentBal < orderAmt) {
         throw new Error(`Insufficient Wallet Balance: Available balance is ₹${currentBal.toFixed(2)}, but order total is ₹${orderAmt.toFixed(2)}. Please recharge or choose another payment method.`);
@@ -313,7 +148,7 @@ export const customerOrderService = {
       finalPaymentStatus = 'Paid';
     } else if (paymentMethod === 'UPI') {
       methodLabel = 'UPI Dynamic QR & VPA';
-      const vpa = paymentDetails.upiId || 'student@okcampus';
+      const vpa = paymentDetails.upiId || '';
       if (!vpa || !vpa.includes('@')) {
         throw new Error('Please enter a valid UPI VPA handle (e.g. username@bank).');
       }
@@ -369,7 +204,7 @@ export const customerOrderService = {
       customerRole: userRole,
       rollNo: identifier,
       department: department,
-      phone: user?.phoneNumber || user?.phone || '+91 98765 43210',
+      phone: user?.phoneNumber || user?.phone || '',
       email: user?.email || orderPayload.customer?.email || '',
       paymentMethod: methodLabel,
       items: itemsPayload,
@@ -416,7 +251,7 @@ export const customerOrderService = {
         rollNo: identifier,
         department: department,
         email: user?.email || orderPayload.customer?.email || '',
-        phone: user?.phoneNumber || user?.phone || '+91 98765 43210'
+        phone: user?.phoneNumber || user?.phone || ''
       },
       timeline: createdBackendOrder?.timeline || [
         {
@@ -428,18 +263,8 @@ export const customerOrderService = {
         }
       ],
       orderDate: createdBackendOrder?.orderDate || now.toISOString(),
-      counterNumber: 'Counter 02'
+      counterNumber: createdBackendOrder?.counterNumber || createdBackendOrder?.counter || 'Counter 01'
     };
-
-    // 6. Idempotent storage persistence
-    const allOrders = storageService.getItem(ORDERS_STORAGE_KEY, []) || [];
-    const existingIdx = allOrders.findIndex(o => String(o.id) === String(completedOrder.id));
-    if (existingIdx >= 0) {
-      allOrders[existingIdx] = completedOrder;
-    } else {
-      allOrders.unshift(completedOrder);
-    }
-    storageService.setItem(ORDERS_STORAGE_KEY, allOrders);
 
     // Notify all app components locally and across browser tabs of the new order
     notifyOrderCreated(completedOrder);

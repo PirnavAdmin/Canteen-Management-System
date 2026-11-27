@@ -7,6 +7,7 @@
 import { apiClient, API_ENDPOINTS } from '../../../../services/api';
 import { normalizeOrder, isStatusCompleted } from '../../../canteen-staff/services/staffOrderService';
 import { ORDER_STATUS } from '../../../../constants/appConstants';
+import { notifyOrderStatusUpdated, notifyOrderCreated } from '../../../../utils/orderSync';
 
 export const orderService = {
   getAll: async (params = {}) => {
@@ -25,6 +26,7 @@ export const orderService = {
     const response = await apiClient.post(API_ENDPOINTS.ORDERS.BASE, data);
     const raw = response?.data ?? response;
     const created = normalizeOrder(raw);
+    notifyOrderCreated(created);
     window.dispatchEvent(new CustomEvent('cms:order_created', { detail: created }));
     window.dispatchEvent(new CustomEvent('cms:order_updated', { detail: created }));
     try {
@@ -43,6 +45,7 @@ export const orderService = {
     if (isStatusCompleted(newStatus)) {
       updated.completedAt = new Date().toISOString();
     }
+    notifyOrderStatusUpdated(updated);
     window.dispatchEvent(new CustomEvent('cms:order_status_updated', {
       detail: { orderId: id, newStatus, updatedOrder: updated }
     }));
@@ -60,6 +63,7 @@ export const orderService = {
     const response = await apiClient.post(API_ENDPOINTS.ORDERS.CANCEL(id), { reason });
     const raw = response?.data ?? response;
     const updated = normalizeOrder(raw);
+    notifyOrderStatusUpdated(updated);
     window.dispatchEvent(new CustomEvent('cms:order_status_updated', {
       detail: { orderId: id, newStatus: ORDER_STATUS.CANCELLED, updatedOrder: updated }
     }));
@@ -74,6 +78,7 @@ export const orderService = {
     const response = await apiClient.post(API_ENDPOINTS.ORDERS.REFUND(id));
     const raw = response?.data ?? response;
     const updated = normalizeOrder(raw);
+    notifyOrderStatusUpdated(updated);
     window.dispatchEvent(new CustomEvent('cms:order_status_updated', {
       detail: { orderId: id, newStatus: ORDER_STATUS.REFUNDED, updatedOrder: updated }
     }));
