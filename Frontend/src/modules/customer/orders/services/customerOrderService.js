@@ -161,7 +161,7 @@ export const customerOrderService = {
       finalPaymentStatus = 'Paid';
     } else if (paymentMethod === 'CASH') {
       methodLabel = 'Pay Cash at Counter Pickup';
-      txnId = 'PENDING-COUNTER-COLLECTION';
+      txnId = `CASH-${Date.now().toString().slice(-6)}-${Math.floor(1000 + Math.random() * 9000)}`;
       finalPaymentStatus = 'Pending';
     } else {
       throw new Error(`Unsupported payment method: ${paymentMethod}`);
