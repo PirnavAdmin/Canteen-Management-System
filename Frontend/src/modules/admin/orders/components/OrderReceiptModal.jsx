@@ -40,6 +40,20 @@ export const OrderReceiptModal = ({ isOpen, onClose, order }) => {
   const paymentStatus = order.payment?.status || order.paymentStatus || 'Paid';
   const items = Array.isArray(order.items) ? order.items : [];
 
+  const utrNumber = useMemo(() => {
+    const rawTxn = order.payment?.transactionId || order.transactionId || order.paymentReference || '';
+    if (rawTxn) {
+      const match = rawTxn.match(/\b\d{12}\b/);
+      if (match) return match[0];
+      if (rawTxn.startsWith('UTR-')) return rawTxn.replace(/^UTR-/, '');
+    }
+    const notes = order.notes || (Array.isArray(order.timeline) ? order.timeline.map(t => t.note || '').join(' ') : '');
+    const utrMatch = notes.match(/\[UTR:\s*([^\]]+)\]/i) || notes.match(/\bUTR[:\s-]+([A-Za-z0-9]{6,20})\b/i);
+    if (utrMatch) return utrMatch[1].trim();
+    if (rawTxn && !rawTxn.startsWith('PENDING-') && !rawTxn.startsWith('CASH-')) return rawTxn;
+    return null;
+  }, [order]);
+
   // Print via isolated iframe to prevent Chromium modal scroll clipping
   const handlePrint = () => {
     const isThermal = printFormat === 'thermal';
@@ -593,7 +607,15 @@ export const OrderReceiptModal = ({ isOpen, onClose, order }) => {
                       <td style={{ textAlign: 'left', color: '#374151' }}>Payment Status:</td>
                       <td style={{ textAlign: 'right', fontWeight: 700, color: '#047857' }}>{paymentStatus}</td>
                     </tr>
-                    {order.payment?.transactionId && (
+                    {utrNumber && (
+                      <tr style={{ backgroundColor: '#f3f4f6' }}>
+                        <td style={{ textAlign: 'left', fontWeight: 800, color: '#111827', padding: '3px 0' }}>UTR / Ref No:</td>
+                        <td style={{ textAlign: 'right', fontWeight: 800, color: '#111827', fontFamily: 'monospace', fontSize: '11px', letterSpacing: '0.04em' }}>
+                          {utrNumber}
+                        </td>
+                      </tr>
+                    )}
+                    {!utrNumber && order.payment?.transactionId && (
                       <tr>
                         <td style={{ textAlign: 'left', color: '#6b7280', fontSize: '10px' }}>Txn Ref:</td>
                         <td style={{ textAlign: 'right', color: '#6b7280', fontSize: '10px' }}>{order.payment.transactionId}</td>
@@ -678,7 +700,12 @@ export const OrderReceiptModal = ({ isOpen, onClose, order }) => {
                   </div>
                   <div><strong>Payment Method:</strong> {paymentMethod}</div>
                   <div><strong>Payment Status:</strong> <span style={{ color: '#047857', fontWeight: 700 }}>{paymentStatus}</span></div>
-                  {order.payment?.transactionId && <div><strong>Transaction Ref:</strong> {order.payment.transactionId}</div>}
+                  {utrNumber && (
+                    <div style={{ marginTop: '4px', padding: '4px 6px', backgroundColor: '#e2e8f0', borderRadius: '4px' }}>
+                      <strong>UTR / Ref No:</strong> <span style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '13px', color: '#0f172a' }}>{utrNumber}</span>
+                    </div>
+                  )}
+                  {!utrNumber && order.payment?.transactionId && <div><strong>Transaction Ref:</strong> {order.payment.transactionId}</div>}
                 </div>
               </div>
 

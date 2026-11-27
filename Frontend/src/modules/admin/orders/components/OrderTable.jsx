@@ -263,10 +263,16 @@ export const OrderTable = ({
         const nextOperationalStatus = nextSteps.find(s => s !== ORDER_STATUS.CANCELLED && s !== ORDER_STATUS.REFUNDED);
         const StepIcon = nextOperationalStatus ? getStepIcon(nextOperationalStatus) : null;
         const isCancellable = orderStatus !== ORDER_STATUS.COMPLETED && orderStatus !== ORDER_STATUS.CANCELLED && orderStatus !== ORDER_STATUS.REFUNDED;
-        const isCashPending = orderStatus === ORDER_STATUS.PLACED && (
+        // Cash collection happens on delivery (Collected/Completed) when handing meal to diner
+        const isCashDeliveryCollect = (
+          nextOperationalStatus === ORDER_STATUS.COMPLETED ||
+          nextOperationalStatus === 'Collected' ||
+          orderStatus === ORDER_STATUS.READY_FOR_PICKUP
+        ) && (
           String(row?.payment?.status || '').toLowerCase() === 'pending' ||
           String(row?.payment?.method || '').toLowerCase().includes('cash')
-        );
+        ) && String(row?.payment?.status || '').toLowerCase() !== 'paid';
+
         const isUpiPending = orderStatus === ORDER_STATUS.PLACED && (
           String(row?.payment?.status || '').toLowerCase() === 'pending verification' ||
           (String(row?.payment?.method || '').toLowerCase().includes('upi') && String(row?.payment?.status || '').toLowerCase() === 'pending')
@@ -336,11 +342,11 @@ export const OrderTable = ({
                 disabled={actionLoadingId === row.id}
                 onClick={() => onAdvanceStatus(row, nextOperationalStatus)}
                 style={{
-                  background: isCashPending ? '#fef3c7' : (isUpiPending ? '#fff7ed' : 'var(--color-primary-light)'),
-                  border: isCashPending ? '1px solid #fde68a' : (isUpiPending ? '1px solid #fed7aa' : '1px solid var(--color-primary-border)'),
+                  background: isCashDeliveryCollect ? '#fef3c7' : (isUpiPending ? '#fff7ed' : 'var(--color-primary-light)'),
+                  border: isCashDeliveryCollect ? '1px solid #fde68a' : (isUpiPending ? '1px solid #fed7aa' : '1px solid var(--color-primary-border)'),
                   borderRadius: '4px',
                   padding: '5px',
-                  color: isCashPending ? '#b45309' : (isUpiPending ? '#c2410c' : 'var(--color-primary)'),
+                  color: isCashDeliveryCollect ? '#b45309' : (isUpiPending ? '#c2410c' : 'var(--color-primary)'),
                   cursor: actionLoadingId === row.id ? 'not-allowed' : 'pointer',
                   opacity: actionLoadingId === row.id ? 0.7 : 1,
                   display: 'inline-flex',
@@ -348,8 +354,14 @@ export const OrderTable = ({
                   justifyContent: 'center',
                   transition: 'all 0.15s ease'
                 }}
-                title={isCashPending ? `Accept Order & Confirm Cash Collection (${formatCurrency(row?.totalAmount)})` : (isUpiPending ? `Accept Order & Confirm UPI (${formatCurrency(row?.totalAmount)})` : `Mark as ${nextOperationalStatus}`)}
-                aria-label={isCashPending ? `Accept Order & Confirm Cash Collection (${formatCurrency(row?.totalAmount)})` : `Mark as ${nextOperationalStatus}`}
+                title={isCashDeliveryCollect
+                  ? `Deliver Order & Confirm Cash Collection (${formatCurrency(row?.totalAmount)})`
+                  : (orderStatus === ORDER_STATUS.PLACED
+                    ? (isUpiPending ? `Accept Order & Confirm UPI (${formatCurrency(row?.totalAmount)})` : 'Accept Order')
+                    : `Mark as ${nextOperationalStatus}`)}
+                aria-label={isCashDeliveryCollect
+                  ? `Deliver Order & Confirm Cash Collection (${formatCurrency(row?.totalAmount)})`
+                  : (orderStatus === ORDER_STATUS.PLACED ? 'Accept Order' : `Mark as ${nextOperationalStatus}`)}
               >
                 {actionLoadingId === row.id ? (
                   <Loader2 size={14} style={{ animation: 'spin 0.8s linear infinite' }} />

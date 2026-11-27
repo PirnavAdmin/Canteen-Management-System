@@ -78,6 +78,7 @@ namespace CanteenManagement.API.DTOs.Orders
         public string? Email { get; set; }
         public string? Notes { get; set; }
         public decimal? PackagingFee { get; set; }
+        public string? Status { get; set; }
 
         [Required]
         [MinLength(1, ErrorMessage = "At least one order item is required.")]
