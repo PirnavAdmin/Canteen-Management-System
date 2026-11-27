@@ -155,11 +155,57 @@ namespace CanteenManagement.API.Services.Implementations.Orders
                           (dto.PaymentMethod.Contains("Cash", StringComparison.OrdinalIgnoreCase) ||
                            dto.PaymentMethod.Contains("Counter", StringComparison.OrdinalIgnoreCase));
 
-            string initialPaymentStatus = isCash ? "Pending" : "Paid";
-            DateTime? paidAt = isCash ? null : now;
-            string initialTxnId = isCash
-                ? $"PENDING-CASH-{token}"
-                : $"TXN-{Guid.NewGuid().ToString("N")[..10].ToUpper()}";
+            bool isUpiPendingVerification = !string.IsNullOrWhiteSpace(dto.PaymentMethod) &&
+                                            (dto.PaymentMethod.Contains("UPI", StringComparison.OrdinalIgnoreCase) ||
+                                             dto.PaymentMethod.Contains("QR", StringComparison.OrdinalIgnoreCase)) &&
+                                            (string.Equals(dto.PaymentStatus, "Pending Verification", StringComparison.OrdinalIgnoreCase) ||
+                                             string.Equals(dto.PaymentStatus, "Pending", StringComparison.OrdinalIgnoreCase) ||
+                                             dto.PaymentMethod.Contains("Pending", StringComparison.OrdinalIgnoreCase) ||
+                                             !string.IsNullOrWhiteSpace(dto.PaymentReference) ||
+                                             !string.IsNullOrWhiteSpace(dto.PaymentScreenshot));
+
+            string initialPaymentStatus = isCash
+                ? "Pending"
+                : (isUpiPendingVerification ? "Pending Verification" : (dto.PaymentStatus ?? "Paid"));
+            DateTime? paidAt = (isCash || isUpiPendingVerification) ? null : now;
+
+            string initialTxnId;
+            if (!string.IsNullOrWhiteSpace(dto.TransactionId))
+            {
+                initialTxnId = dto.TransactionId;
+            }
+            else if (!string.IsNullOrWhiteSpace(dto.PaymentReference))
+            {
+                initialTxnId = dto.PaymentReference.StartsWith("UTR-", StringComparison.OrdinalIgnoreCase)
+                    ? dto.PaymentReference
+                    : $"UTR-{dto.PaymentReference}";
+            }
+            else if (isCash)
+            {
+                initialTxnId = $"PENDING-CASH-{token}";
+            }
+            else if (isUpiPendingVerification)
+            {
+                initialTxnId = $"PENDING-UPI-{token}";
+            }
+            else
+            {
+                initialTxnId = $"TXN-{Guid.NewGuid().ToString("N")[..10].ToUpper()}";
+            }
+
+            var orderNotes = dto.Notes?.Trim();
+            if (!string.IsNullOrWhiteSpace(dto.PaymentReference) && (orderNotes == null || !orderNotes.Contains(dto.PaymentReference)))
+            {
+                orderNotes = string.IsNullOrWhiteSpace(orderNotes)
+                    ? $"[UTR: {dto.PaymentReference}]"
+                    : $"{orderNotes} [UTR: {dto.PaymentReference}]";
+            }
+            if (!string.IsNullOrWhiteSpace(dto.PaymentScreenshot) && (orderNotes == null || !orderNotes.Contains(dto.PaymentScreenshot)))
+            {
+                orderNotes = string.IsNullOrWhiteSpace(orderNotes)
+                    ? $"[Proof: {dto.PaymentScreenshot}]"
+                    : $"{orderNotes} [Proof: {dto.PaymentScreenshot}]";
+            }
 
             var order = new Order
             {
@@ -173,7 +219,7 @@ namespace CanteenManagement.API.Services.Implementations.Orders
                 Department = dto.Department,
                 CustomerPhone = dto.Phone,
                 CustomerEmail = dto.Email,
-                Notes = dto.Notes?.Trim(),
+                Notes = orderNotes,
                 Subtotal = subtotal,
                 TaxAmount = taxAmount,
                 PackagingFee = packagingFee,
@@ -187,9 +233,9 @@ namespace CanteenManagement.API.Services.Implementations.Orders
                     {
                         OrderId = orderId,
                         Status = "Placed",
-                        Note = string.IsNullOrWhiteSpace(dto.Notes)
-                            ? (isCash ? "Order placed with Pay at Counter (Cash Pending)" : "Order placed via portal")
-                            : $"Order placed via portal [Notes: {dto.Notes.Trim()}]",
+                        Note = string.IsNullOrWhiteSpace(orderNotes)
+                            ? (isCash ? "Order placed with Pay at Counter (Cash Pending)" : (isUpiPendingVerification ? $"Order placed (UPI payment pending verification - {initialTxnId})" : "Order placed via portal"))
+                            : $"Order placed via portal [Notes: {orderNotes}]",
                         Timestamp = now
                     }
                 },
@@ -263,22 +309,27 @@ namespace CanteenManagement.API.Services.Implementations.Orders
 
             var updated = await _repository.UpdateAsync(order);
 
-            // Settle Pending Cash payment when order is Accepted or Collected by cashier
+            // Settle Pending Cash or Pending UPI payment when order is Accepted or Collected by cashier
             if (order.Payments != null)
             {
-                var pendingCash = order.Payments.FirstOrDefault(p =>
-                    p.Status.Equals("Pending", StringComparison.OrdinalIgnoreCase) &&
-                    (!string.IsNullOrEmpty(p.Method) && (p.Method.Contains("Cash", StringComparison.OrdinalIgnoreCase) || p.Method.Contains("Counter", StringComparison.OrdinalIgnoreCase))));
+                var pendingPayment = order.Payments.FirstOrDefault(p =>
+                    p.Status.Equals("Pending", StringComparison.OrdinalIgnoreCase) ||
+                    p.Status.Equals("Pending Verification", StringComparison.OrdinalIgnoreCase));
 
-                if (pendingCash != null &&
+                if (pendingPayment != null &&
                     (targetStatus.Equals("Accepted", StringComparison.OrdinalIgnoreCase) ||
                      targetStatus.Equals("Collected", StringComparison.OrdinalIgnoreCase)))
                 {
-                    pendingCash.Status = "Paid";
-                    pendingCash.PaidAt = now;
-                    pendingCash.TransactionId = $"CASH-{order.Token}-{now:HHmmss}";
+                    pendingPayment.Status = "Paid";
+                    pendingPayment.PaidAt = now;
+                    if (string.IsNullOrEmpty(pendingPayment.TransactionId) || pendingPayment.TransactionId.StartsWith("PENDING-"))
+                    {
+                        pendingPayment.TransactionId = (!string.IsNullOrEmpty(pendingPayment.Method) && pendingPayment.Method.Contains("Cash", StringComparison.OrdinalIgnoreCase))
+                            ? $"CASH-{order.Token}-{now:HHmmss}"
+                            : $"UPI-{order.Token}-{now:HHmmss}";
+                    }
 
-                    await _repository.UpdatePaymentTransactionAsync(pendingCash);
+                    await _repository.UpdatePaymentTransactionAsync(pendingPayment);
                 }
                 updated.Payments = order.Payments;
             }
@@ -505,7 +556,10 @@ namespace CanteenManagement.API.Services.Implementations.Orders
                     Method = payment?.Method ?? "Counter Cash",
                     Status = payment?.Status ?? (payment?.Method?.Contains("Cash", StringComparison.OrdinalIgnoreCase) == true ? "Pending" : "Paid"),
                     TransactionId = payment?.TransactionId,
-                    PaidAt = payment?.PaidAt
+                    PaidAt = payment?.PaidAt,
+                    PaymentScreenshot = (specialNotes != null && specialNotes.Contains("[Proof:"))
+                        ? specialNotes.Substring(specialNotes.IndexOf("[Proof:") + 7).Split(']')[0].Trim()
+                        : null
                 },
                 Timeline = o.Timeline.Select(t => new TimelineEntryDto
                 {

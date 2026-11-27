@@ -1,5 +1,5 @@
 import React from 'react';
-import { Eye, CheckCircle, ChefHat, BellRing, CheckCheck, ArrowRight, Loader2, XCircle, Printer } from 'lucide-react';
+import { Eye, CheckCircle, ChefHat, BellRing, CheckCheck, ArrowRight, Loader2, XCircle, Printer, ShieldCheck, ExternalLink } from 'lucide-react';
 import { DataTable } from '../../../../components/tables/DataTable';
 import { StatusBadge } from '../../../../components/common/StatusBadge';
 import { formatCurrency, formatTimeIST, formatDate, isSameIstDate } from '../../../../utils/formatters';
@@ -28,6 +28,7 @@ export const OrderTable = ({
   onAdvanceStatus,
   onCancel,
   onPrintReceipt,
+  onVerifyPayment,
   footer
 }) => {
   const columns = [
@@ -185,25 +186,32 @@ export const OrderTable = ({
     {
       key: 'payment',
       header: 'Payment',
-      render: (val) => {
-        const method = val?.method || 'Pay Cash at Counter Pickup';
+      render: (val, row) => {
+        const method = val?.method || row?.paymentMethod || 'Pay Cash at Counter Pickup';
         const rawStatus = (val?.status || (method.toLowerCase().includes('cash') ? 'Pending' : 'Paid')).trim();
         const statusLower = rawStatus.toLowerCase();
         const isPaid = statusLower === 'paid';
+        const isPendingVerification = statusLower === 'pending verification';
         const isPending = statusLower === 'pending';
         const isRefunded = statusLower === 'refunded';
 
         const statusColor = isPaid
           ? 'var(--color-success, #16a34a)'
-          : isPending
-            ? '#d97706'
-            : isRefunded
-              ? '#64748b'
-              : 'var(--color-danger, #ef4444)';
+          : isPendingVerification
+            ? '#ea580c'
+            : isPending
+              ? '#d97706'
+              : isRefunded
+                ? '#64748b'
+                : 'var(--color-danger, #ef4444)';
+
+        const txnRef = val?.transactionId || '';
+        const rawNotes = row?.notes || row?.cookingNotes || '';
+        const proofUrl = val?.paymentScreenshot || (rawNotes.includes('[Proof:') ? rawNotes.split('[Proof:')[1].split(']')[0].trim() : null);
 
         return (
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-            <div>{method}</div>
+            <div style={{ fontWeight: 500 }}>{method}</div>
             <div style={{
               color: statusColor,
               fontWeight: 600,
@@ -211,11 +219,29 @@ export const OrderTable = ({
               alignItems: 'center',
               gap: '4px'
             }}>
-              {isPending && (
-                <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#d97706', display: 'inline-block' }} />
+              {(isPending || isPendingVerification) && (
+                <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: statusColor, display: 'inline-block' }} />
               )}
-              {rawStatus}
+              {isPendingVerification ? 'Pending Verification' : rawStatus}
             </div>
+            {txnRef && !txnRef.startsWith('TXN-') && (
+              <div style={{ fontSize: '10px', color: '#0369a1', fontFamily: 'monospace', fontWeight: 600 }}>
+                {txnRef}
+              </div>
+            )}
+            {proofUrl && (
+              <div style={{ marginTop: '2px' }}>
+                <a
+                  href={proofUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ fontSize: '10px', color: 'var(--color-primary)', textDecoration: 'underline', display: 'inline-flex', alignItems: 'center', gap: '2px' }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  📷 <span>View Proof</span>
+                </a>
+              </div>
+            )}
           </div>
         );
       }
@@ -240,6 +266,10 @@ export const OrderTable = ({
         const isCashPending = orderStatus === ORDER_STATUS.PLACED && (
           String(row?.payment?.status || '').toLowerCase() === 'pending' ||
           String(row?.payment?.method || '').toLowerCase().includes('cash')
+        );
+        const isUpiPending = orderStatus === ORDER_STATUS.PLACED && (
+          String(row?.payment?.status || '').toLowerCase() === 'pending verification' ||
+          (String(row?.payment?.method || '').toLowerCase().includes('upi') && String(row?.payment?.status || '').toLowerCase() === 'pending')
         );
 
         return (
@@ -275,17 +305,17 @@ export const OrderTable = ({
               <Printer size={14} />
             </button>
 
-            {nextOperationalStatus && StepIcon && (
+            {isUpiPending && onVerifyPayment && (
               <button
                 type="button"
                 disabled={actionLoadingId === row.id}
-                onClick={() => onAdvanceStatus(row, nextOperationalStatus)}
+                onClick={() => onVerifyPayment(row)}
                 style={{
-                  background: isCashPending ? '#fef3c7' : 'var(--color-primary-light)',
-                  border: isCashPending ? '1px solid #fde68a' : '1px solid var(--color-primary-border)',
+                  background: '#ecfdf5',
+                  border: '1px solid #a7f3d0',
                   borderRadius: '4px',
                   padding: '5px',
-                  color: isCashPending ? '#b45309' : 'var(--color-primary)',
+                  color: '#059669',
                   cursor: actionLoadingId === row.id ? 'not-allowed' : 'pointer',
                   opacity: actionLoadingId === row.id ? 0.7 : 1,
                   display: 'inline-flex',
@@ -293,7 +323,32 @@ export const OrderTable = ({
                   justifyContent: 'center',
                   transition: 'all 0.15s ease'
                 }}
-                title={isCashPending ? `Accept Order & Confirm Cash Collection (${formatCurrency(row?.totalAmount)})` : `Mark as ${nextOperationalStatus}`}
+                title={`Verify UPI Payment (${row?.payment?.transactionId || 'Check Soundbox'}) & Accept Order`}
+                aria-label="Verify UPI Payment"
+              >
+                <ShieldCheck size={14} />
+              </button>
+            )}
+
+            {nextOperationalStatus && StepIcon && (
+              <button
+                type="button"
+                disabled={actionLoadingId === row.id}
+                onClick={() => onAdvanceStatus(row, nextOperationalStatus)}
+                style={{
+                  background: isCashPending ? '#fef3c7' : (isUpiPending ? '#fff7ed' : 'var(--color-primary-light)'),
+                  border: isCashPending ? '1px solid #fde68a' : (isUpiPending ? '1px solid #fed7aa' : '1px solid var(--color-primary-border)'),
+                  borderRadius: '4px',
+                  padding: '5px',
+                  color: isCashPending ? '#b45309' : (isUpiPending ? '#c2410c' : 'var(--color-primary)'),
+                  cursor: actionLoadingId === row.id ? 'not-allowed' : 'pointer',
+                  opacity: actionLoadingId === row.id ? 0.7 : 1,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.15s ease'
+                }}
+                title={isCashPending ? `Accept Order & Confirm Cash Collection (${formatCurrency(row?.totalAmount)})` : (isUpiPending ? `Accept Order & Confirm UPI (${formatCurrency(row?.totalAmount)})` : `Mark as ${nextOperationalStatus}`)}
                 aria-label={isCashPending ? `Accept Order & Confirm Cash Collection (${formatCurrency(row?.totalAmount)})` : `Mark as ${nextOperationalStatus}`}
               >
                 {actionLoadingId === row.id ? (

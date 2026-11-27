@@ -166,6 +166,13 @@ namespace CanteenManagement.API.Controllers.V1
 
             await _orderRepository.UpdatePaymentTransactionAsync(payment);
 
+            var verifier = !string.IsNullOrWhiteSpace(dto.VerifiedBy)
+                ? dto.VerifiedBy
+                : (User.Identity?.Name ?? "Cashier/Admin");
+            var verificationNote = !string.IsNullOrWhiteSpace(dto.Note)
+                ? dto.Note
+                : $"UPI payment (Ref: {payment.TransactionId}) verified by {verifier}; sent to kitchen.";
+
             // Also advance status to Accepted if it was Placed
             if (order.Status == "Placed")
             {
@@ -174,7 +181,7 @@ namespace CanteenManagement.API.Controllers.V1
                 {
                     OrderId = order.OrderId,
                     Status = "Accepted",
-                    Note = "Online payment verified; sent to kitchen preparation.",
+                    Note = verificationNote,
                     Timestamp = DateTime.UtcNow
                 });
                 await _orderRepository.UpdateAsync(order);

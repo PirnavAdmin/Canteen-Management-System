@@ -8,6 +8,7 @@ import { PageHeader } from '../../../../components/common/PageHeader';
 import { Card } from '../../../../components/common/Card';
 import { Button } from '../../../../components/common/Button';
 import { DynamicQrCode } from '../../../../components/common/DynamicQrCode';
+import { apiClient } from '../../../../services/api/apiClient';
 import {
   QrCode,
   Banknote,
@@ -18,7 +19,11 @@ import {
   Check,
   RefreshCw,
   CreditCard,
-  Wallet
+  Wallet,
+  Upload,
+  CheckCircle,
+  FileImage,
+  X
 } from 'lucide-react';
 
 export const PaymentPage = () => {
@@ -35,6 +40,10 @@ export const PaymentPage = () => {
   // Method specific states
   const [upiTab, setUpiTab] = useState('vpa'); // 'vpa' or 'qr'
   const [upiId, setUpiId] = useState('student@okcampus');
+  const [upiUtr, setUpiUtr] = useState('');
+  const [screenshotUrl, setScreenshotUrl] = useState(null);
+  const [screenshotPreview, setScreenshotPreview] = useState(null);
+  const [screenshotUploading, setScreenshotUploading] = useState(false);
 
   // Live Public Configuration from Admin Settings
   const [paymentConfig, setPaymentConfig] = useState({
@@ -127,22 +136,69 @@ export const PaymentPage = () => {
     );
   }
 
+  const handleScreenshotUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setErrorMessage('Please upload a valid image file (PNG, JPG, JPEG, WEBP).');
+      return;
+    }
+
+    if (file.size > 8 * 1024 * 1024) {
+      setErrorMessage('Image size exceeds 8MB. Please upload a smaller screenshot.');
+      return;
+    }
+
+    const preview = URL.createObjectURL(file);
+    setScreenshotPreview(preview);
+
+    try {
+      setScreenshotUploading(true);
+      setErrorMessage(null);
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await apiClient.post('/media/upload?folder=payments', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      const uploadedUrl = res?.data?.data?.fileUrl || res?.data?.fileUrl || res?.fileUrl;
+      setScreenshotUrl(uploadedUrl || preview);
+    } catch (err) {
+      console.warn('Backend screenshot upload failed; fallback to local reader', err);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setScreenshotUrl(reader.result);
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setScreenshotUploading(false);
+    }
+  };
+
   // Handle Payment Submission
   const handleAuthorizePayment = async () => {
     if (processing) return;
     setErrorMessage(null);
 
     // Frontend validations before dispatching
-    if (selectedMethod === 'UPI' && upiTab === 'vpa' && (!upiId || !upiId.includes('@'))) {
-      setErrorMessage('Please enter a valid UPI VPA handle containing "@" (e.g., student@okcampus).');
-      return;
+    if (selectedMethod === 'UPI') {
+      if (upiTab === 'vpa' && (!upiId || !upiId.includes('@'))) {
+        setErrorMessage('Please enter a valid UPI VPA handle containing "@" (e.g., student@okcampus).');
+        return;
+      }
+      if (upiTab === 'qr' && (!upiUtr || upiUtr.trim().length !== 12)) {
+        setErrorMessage('Please enter the 12-digit UPI Reference Number (UTR) from your payment app (Google Pay / PhonePe / Paytm).');
+        return;
+      }
     }
 
     try {
       setProcessing(true);
 
       const paymentDetails = {
-        upiId: selectedMethod === 'UPI' ? upiId : undefined
+        upiId: selectedMethod === 'UPI' ? (upiTab === 'vpa' ? upiId : activeVpa) : undefined,
+        upiRefId: selectedMethod === 'UPI' ? upiUtr.trim() : undefined,
+        screenshot: screenshotUrl
       };
 
       // Create order and persist through customer order service
@@ -554,8 +610,120 @@ export const PaymentPage = () => {
                       </button>
                     </div>
                     <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginTop: '4px' }}>
-                      Auto-detecting payment from UPI app in real time...
+                      Scan the QR above using any UPI app (Google Pay, PhonePe, Paytm, BHIM)
                     </span>
+
+                    {/* Step 2: Payment Verification Submission */}
+                    <div style={{
+                      marginTop: '16px',
+                      padding: '14px 16px',
+                      backgroundColor: '#f8fafc',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '10px',
+                      textAlign: 'left'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px', color: '#0f172a', fontWeight: 700, fontSize: '13px' }}>
+                        <CheckCircle size={16} color="#0284c7" />
+                        <span>Submit UPI Payment Proof for Cashier Verification</span>
+                      </div>
+
+                      {/* 12-digit UTR Input */}
+                      <div style={{ marginBottom: '12px' }}>
+                        <label style={{ fontSize: '12px', fontWeight: 600, color: '#334155', display: 'block', marginBottom: '4px' }}>
+                          12-Digit UPI Reference Number (UTR) <span style={{ color: '#ef4444' }}>*</span>
+                        </label>
+                        <input
+                          type="text"
+                          maxLength={12}
+                          placeholder="e.g. 432109876543 (from GPay / PhonePe / Paytm)"
+                          value={upiUtr}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, '').slice(0, 12);
+                            setUpiUtr(val);
+                            setErrorMessage(null);
+                          }}
+                          style={{
+                            width: '100%',
+                            padding: '9px 12px',
+                            borderRadius: '6px',
+                            border: upiUtr.length === 12 ? '2px solid #10b981' : '1px solid #cbd5e1',
+                            fontSize: '14px',
+                            fontWeight: 600,
+                            letterSpacing: '1px',
+                            outline: 'none',
+                            backgroundColor: '#ffffff',
+                            color: '#0f172a'
+                          }}
+                        />
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginTop: '4px', color: upiUtr.length === 12 ? '#10b981' : '#64748b' }}>
+                          <span>{upiUtr.length === 12 ? '✓ Valid 12-digit UTR entered' : 'Find 12-digit UTR / UPI Ref ID in your transaction receipt'}</span>
+                          <span style={{ fontWeight: 600 }}>{upiUtr.length}/12 digits</span>
+                        </div>
+                      </div>
+
+                      {/* Screenshot Upload */}
+                      <div>
+                        <label style={{ fontSize: '12px', fontWeight: 600, color: '#334155', display: 'block', marginBottom: '4px' }}>
+                          Upload Payment Screenshot / Receipt (Optional / Recommended)
+                        </label>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                          <input
+                            type="file"
+                            id="customer-upi-screenshot"
+                            accept="image/*"
+                            onChange={handleScreenshotUpload}
+                            style={{ display: 'none' }}
+                          />
+                          <label
+                            htmlFor="customer-upi-screenshot"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '7px 12px',
+                              borderRadius: '6px',
+                              border: '1px solid #cbd5e1',
+                              backgroundColor: '#ffffff',
+                              color: '#334155',
+                              fontSize: '12px',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                            }}
+                          >
+                            <Upload size={14} />
+                            <span>{screenshotUrl ? 'Change Screenshot' : 'Choose Receipt Image'}</span>
+                          </label>
+
+                          {screenshotUploading && (
+                            <span style={{ fontSize: '11px', color: '#64748b' }}>Uploading screenshot...</span>
+                          )}
+
+                          {screenshotUrl && !screenshotUploading && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ fontSize: '11.5px', color: '#10b981', fontWeight: 600 }}>✓ Screenshot Attached</span>
+                              <button
+                                type="button"
+                                onClick={() => { setScreenshotUrl(null); setScreenshotPreview(null); }}
+                                style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '11px', cursor: 'pointer', textDecoration: 'underline' }}
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        {screenshotPreview && (
+                          <div style={{ marginTop: '8px' }}>
+                            <img
+                              src={screenshotPreview}
+                              alt="Payment Proof Preview"
+                              style={{ width: '90px', height: '90px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -659,21 +827,24 @@ export const PaymentPage = () => {
                 variant="primary"
                 icon={processing ? RefreshCw : Lock}
                 loading={processing}
-                disabled={processing}
+                disabled={processing || (selectedMethod === 'UPI' && upiTab === 'qr' && upiUtr.trim().length !== 12)}
                 onClick={handleAuthorizePayment}
                 style={{
                   height: '46px',
                   fontSize: '14.5px',
                   fontWeight: 600,
                   marginTop: '14px',
-                  justifyContent: 'center'
+                  justifyContent: 'center',
+                  opacity: (selectedMethod === 'UPI' && upiTab === 'qr' && upiUtr.trim().length !== 12) ? 0.65 : 1
                 }}
               >
                 {processing
                   ? 'Authorizing Order...'
                   : selectedMethod === 'CASH'
                   ? `Confirm Order • Pay ₹${orderTotal.toFixed(2)} at Counter`
-                  : `Authorize UPI Payment • ₹${orderTotal.toFixed(2)}`}
+                  : selectedMethod === 'UPI' && upiTab === 'qr' && upiUtr.trim().length !== 12
+                  ? `Enter 12-Digit UTR to Place Order`
+                  : `Submit UPI Payment & Place Order • ₹${orderTotal.toFixed(2)}`}
               </Button>
             </div>
 

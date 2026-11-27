@@ -50,6 +50,8 @@ namespace CanteenManagement.API.DTOs.Orders
         public string Status { get; set; } = "Paid";
         public string? TransactionId { get; set; }
         public DateTime? PaidAt { get; set; }
+        public string? PaymentScreenshot { get; set; }
+        public string? VerifiedBy { get; set; }
     }
 
     public class TimelineEntryDto
@@ -83,6 +85,11 @@ namespace CanteenManagement.API.DTOs.Orders
 
         [Required]
         public string PaymentMethod { get; set; } = "UPI";
+
+        public string? PaymentStatus { get; set; }
+        public string? TransactionId { get; set; }
+        public string? PaymentReference { get; set; }
+        public string? PaymentScreenshot { get; set; }
     }
 
     public class CreateOrderItemDto

@@ -39,6 +39,8 @@ namespace CanteenManagement.API.DTOs.Payments
         public string? GatewayPaymentId { get; set; }
         public string? GatewayOrderId { get; set; }
         public string? GatewaySignature { get; set; }
+        public string? VerifiedBy { get; set; }
+        public string? Note { get; set; }
     }
 
     public class PaymentStatusResponseDto
