@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, ArrowRight } from 'lucide-react';
 
-export const StockAlertsCard = ({ alerts = [], loading = false }) => {
+export const StockAlertsCard = ({ alerts = [], loading = false, selectedOutletName = 'All Campus Outlets' }) => {
   const navigate = useNavigate();
 
   if (loading) {
@@ -77,12 +77,21 @@ export const StockAlertsCard = ({ alerts = [], loading = false }) => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
+        gap: '8px',
         marginBottom: '10px',
         flexShrink: 0
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <AlertTriangle size={16} style={{ color: 'var(--color-danger)' }} />
-          <h3 style={{ fontSize: '13.5px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, flex: 1, overflow: 'hidden' }}>
+          <AlertTriangle size={15} style={{ color: 'var(--color-danger)', flexShrink: 0 }} />
+          <h3 style={{
+            fontSize: '12px',
+            fontWeight: 700,
+            color: 'var(--text-primary)',
+            margin: 0,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
+          }} title="Inventory Stock & Expiry Alerts">
             Inventory Stock & Expiry Alerts
           </h3>
         </div>
@@ -94,17 +103,18 @@ export const StockAlertsCard = ({ alerts = [], loading = false }) => {
             background: 'none',
             border: 'none',
             color: 'var(--color-accent)',
-            fontSize: '11.5px',
+            fontSize: '11px',
             fontWeight: 600,
             cursor: 'pointer',
-            display: 'flex',
+            display: 'inline-flex',
             alignItems: 'center',
-            gap: '4px',
-            whiteSpace: 'nowrap'
+            gap: '3px',
+            whiteSpace: 'nowrap',
+            flexShrink: 0
           }}
         >
           <span>Manage Inventory</span>
-          <ArrowRight size={13} />
+          <ArrowRight size={12} />
         </button>
       </div>
 
@@ -122,7 +132,7 @@ export const StockAlertsCard = ({ alerts = [], loading = false }) => {
       >
         {itemsList.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '30px 20px', color: 'var(--text-muted)', fontSize: '12.5px' }}>
-            All ingredient stock levels are optimal.
+            All ingredient stock levels are optimal for {selectedOutletName}.
           </div>
         ) : (
           itemsList.map((alert, idx) => {

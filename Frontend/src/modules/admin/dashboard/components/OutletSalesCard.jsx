@@ -2,7 +2,7 @@ import React from 'react';
 import { Store } from 'lucide-react';
 import { formatCurrency, formatNumber } from '../../../../utils/formatters';
 
-export const OutletSalesCard = ({ outletSales = [], loading = false }) => {
+export const OutletSalesCard = ({ outletSales = [], loading = false, selectedOutletName = 'All Campus Outlets' }) => {
   const filteredSales = React.useMemo(() => {
     if (!Array.isArray(outletSales)) return [];
     return outletSales.filter(o => {
@@ -55,11 +55,21 @@ export const OutletSalesCard = ({ outletSales = [], loading = false }) => {
       display: 'flex',
       flexDirection: 'column'
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', flexShrink: 0 }}>
-        <Store size={16} style={{ color: 'var(--color-primary)' }} />
-        <h3 style={{ fontSize: '13.5px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
-          Outlet-Wise Sales Performance
-        </h3>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '10px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, overflow: 'hidden' }}>
+          <Store size={15} style={{ color: 'var(--color-primary)' }} />
+          <h3 style={{
+            fontSize: '12px',
+            fontWeight: 700,
+            color: 'var(--text-primary)',
+            margin: 0,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
+          }} title="Outlet-Wise Sales Performance">
+            Outlet-Wise Sales Performance
+          </h3>
+        </div>
       </div>
 
       <div
@@ -76,7 +86,7 @@ export const OutletSalesCard = ({ outletSales = [], loading = false }) => {
       >
         {!Array.isArray(filteredSales) || filteredSales.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '30px 20px', color: 'var(--text-muted)', fontSize: '12.5px' }}>
-            No outlet sales records found today.
+            No outlet sales records found today for {selectedOutletName}.
           </div>
         ) : (
           filteredSales.map((outlet, idx) => (
@@ -100,7 +110,7 @@ export const OutletSalesCard = ({ outletSales = [], loading = false }) => {
                   {outlet.name || outlet.outletName || 'Outlet'}
                 </span>
                 <span style={{ fontWeight: 700, color: 'var(--color-primary)', marginLeft: '8px', whiteSpace: 'nowrap' }}>
-                  {formatCurrency(outlet.revenue ?? outlet.grossSales ?? 0)} ({outlet.percentage ?? 0}%)
+                  {formatCurrency(outlet.revenue ?? outlet.grossSales ?? 0)}
                 </span>
               </div>
 

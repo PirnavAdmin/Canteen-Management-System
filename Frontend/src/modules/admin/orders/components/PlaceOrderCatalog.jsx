@@ -10,7 +10,14 @@ import { CartDrawer } from './CartDrawer';
 import { formatCurrency } from '../../../../utils/formatters';
 import { useToast } from '../../../../app/providers/ToastProvider';
 
-export const PlaceOrderCatalog = ({ onOrderPlaced, cashierMode = false }) => {
+export const PlaceOrderCatalog = ({
+  onOrderPlaced,
+  cashierMode = false,
+  cart: externalCart,
+  setCart: setExternalCart,
+  isCartOpen: externalIsCartOpen,
+  setIsCartOpen: setExternalIsCartOpen
+}) => {
   const { error: toastError } = useToast();
   const { user } = useAuth();
   const { selectedOutlet: globalOutlet, setSelectedOutlet: setGlobalOutlet } = useCanteens();
@@ -34,9 +41,14 @@ export const PlaceOrderCatalog = ({ onOrderPlaced, cashierMode = false }) => {
     }
   }, [globalOutlet, cashierMode, user?.outletId]);
 
-  // Cart state: { [itemId]: { item, quantity } }
-  const [cart, setCart] = useState({});
-  const [isCartOpen, setIsCartOpen] = useState(false);
+  // Cart state: fallback to internal state if not provided externally
+  const [internalCart, setInternalCart] = useState({});
+  const [internalIsCartOpen, setInternalIsCartOpen] = useState(false);
+
+  const cart = externalCart !== undefined ? externalCart : internalCart;
+  const setCart = setExternalCart || setInternalCart;
+  const isCartOpen = externalIsCartOpen !== undefined ? externalIsCartOpen : internalIsCartOpen;
+  const setIsCartOpen = setExternalIsCartOpen || setInternalIsCartOpen;
 
   // Load initial data
   const loadData = useCallback(async () => {
@@ -315,45 +327,47 @@ export const PlaceOrderCatalog = ({ onOrderPlaced, cashierMode = false }) => {
             </select>
           </div>
 
-          {/* Cart Trigger Button in Header */}
-          <button
-            type="button"
-            onClick={() => setIsCartOpen(true)}
-            style={{
-              height: '38px',
-              padding: '0 16px',
-              borderRadius: '8px',
-              backgroundColor: totalCartCount > 0 ? 'var(--color-primary)' : 'var(--bg-app)',
-              color: totalCartCount > 0 ? '#ffffff' : 'var(--text-primary)',
-              border: totalCartCount > 0 ? 'none' : '1px solid var(--border-color)',
-              fontWeight: 600,
-              fontSize: '13px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              cursor: 'pointer',
-              marginLeft: 'auto',
-              boxShadow: totalCartCount > 0 ? '0 2px 6px rgba(30, 58, 138, 0.25)' : 'none',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            <ShoppingBag size={16} />
-            <span>Cart</span>
-            {totalCartCount > 0 && (
-              <span
-                style={{
-                  backgroundColor: '#f59e0b',
-                  color: '#ffffff',
-                  padding: '1px 6px',
-                  borderRadius: '9999px',
-                  fontSize: '11px',
-                  fontWeight: 700
-                }}
-              >
-                {totalCartCount}
-              </span>
-            )}
-          </button>
+          {/* Cart Trigger Button in Header (only when not controlled by parent tab header) */}
+          {externalCart === undefined && (
+            <button
+              type="button"
+              onClick={() => setIsCartOpen(true)}
+              style={{
+                height: '38px',
+                padding: '0 16px',
+                borderRadius: '8px',
+                backgroundColor: totalCartCount > 0 ? 'var(--color-primary)' : 'var(--bg-app)',
+                color: totalCartCount > 0 ? '#ffffff' : 'var(--text-primary)',
+                border: totalCartCount > 0 ? 'none' : '1px solid var(--border-color)',
+                fontWeight: 600,
+                fontSize: '13px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+                marginLeft: 'auto',
+                boxShadow: totalCartCount > 0 ? '0 2px 6px rgba(30, 58, 138, 0.25)' : 'none',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <ShoppingBag size={16} />
+              <span>Cart</span>
+              {totalCartCount > 0 && (
+                <span
+                  style={{
+                    backgroundColor: '#f59e0b',
+                    color: '#ffffff',
+                    padding: '1px 6px',
+                    borderRadius: '9999px',
+                    fontSize: '11px',
+                    fontWeight: 700
+                  }}
+                >
+                  {totalCartCount}
+                </span>
+              )}
+            </button>
+          )}
         </div>
 
         {/* Category Pills Bar */}

@@ -38,10 +38,10 @@ export const useDashboard = (selectedOutlet = 'ALL') => {
       const isAllOutlets = !selectedOutlet || selectedOutlet === 'ALL';
       const outletParams = !isAllOutlets ? { outletId: Number(selectedOutlet) } : {};
       
-      // When 'ALL' is selected in navbar, query the Central Warehouse inventory using storeType=CentralWarehouse.
+      // When 'ALL' is selected in navbar, query all inventory stock across all outlets.
       // When a specific outlet is selected, query that specific outlet's inventory with outletId.
       const inventoryParams = isAllOutlets
-        ? { storeType: 'CentralWarehouse' }
+        ? {}
         : { outletId: Number(selectedOutlet) };
 
       // For stock requests:
@@ -70,10 +70,26 @@ export const useDashboard = (selectedOutlet = 'ALL') => {
                 ? allOrdersRaw.data
                 : []));
 
+      // Build an outlet map to ensure accurate outlet naming across campus
+      const outletMap = new Map();
+      const canteensList = Array.isArray(allCanteensRaw) ? allCanteensRaw : (allCanteensRaw?.data || []);
+      canteensList.forEach(c => {
+        const cid = Number(c.id || c.outletId);
+        if (cid) outletMap.set(cid, c.name || c.outletName || `Outlet #${cid}`);
+      });
+      const outletsList = Array.isArray(outlets) ? outlets : (outlets?.data || []);
+      outletsList.forEach(o => {
+        const oid = Number(o.id || o.outletId);
+        if (oid && !outletMap.has(oid)) outletMap.set(oid, o.name || o.outletName || `Outlet #${oid}`);
+      });
+
       const matchesOutlet = (o) => {
         if (!selectedOutlet || selectedOutlet === 'ALL') return true;
         const oOutletId = o.outletId ?? o.OutletId;
-        return Number(oOutletId) === Number(selectedOutlet);
+        if (oOutletId) return Number(oOutletId) === Number(selectedOutlet);
+        const oName = String(o.outletName || o.outlet || '').toLowerCase();
+        const targetName = String(outletMap.get(Number(selectedOutlet)) || '').toLowerCase();
+        return Boolean(oName && targetName && (oName.includes(targetName) || targetName.includes(oName)));
       };
 
       // Filter non-cancelled orders for sales graphs
@@ -167,15 +183,42 @@ export const useDashboard = (selectedOutlet = 'ALL') => {
       const outletStockRequests = isAllOutlets
         ? rawStockRequests
         : rawStockRequests.filter(r => {
-            const oid = r.outletId ?? r.OutletId;
-            return oid ? Number(oid) === Number(selectedOutlet) : true;
+            const oid = Number(r.outletId ?? r.OutletId);
+            if (oid) return oid === Number(selectedOutlet);
+            const rName = String(r.outletName || r.outlet || '').toLowerCase();
+            const targetName = String(outletMap.get(Number(selectedOutlet)) || '').toLowerCase();
+            if (rName && targetName && (rName.includes(targetName) || targetName.includes(rName))) {
+              return true;
+            }
+            return false;
           });
 
-      const sortedStockRequests = [...outletStockRequests].sort((a, b) => {
-        const dateA = new Date(a.createdAt || a.requestDate || a.date || 0).getTime();
-        const dateB = new Date(b.createdAt || b.requestDate || b.date || 0).getTime();
-        return dateB - dateA;
+      // Show ONLY kitchen requests which are not accepted or issued (exclude issued, dispatched, approved, accepted, received, completed, rejected)
+      const requestedStockRequests = outletStockRequests.filter(r => {
+        const s = String(r.status || 'Pending').toLowerCase();
+        const isIssued = s.includes('issued') || s.includes('dispatch') || s.includes('approved') || s.includes('accept');
+        const isCompleted = s.includes('received') || s.includes('collected') || s.includes('fulfilled') || s.includes('completed');
+        const isRejected = s.includes('reject');
+        return !isIssued && !isCompleted && !isRejected;
       });
+
+      const sortedStockRequests = [...requestedStockRequests]
+        .map(r => {
+          let status = r.status || 'Pending';
+          const s = String(status).toLowerCase();
+          if (s.includes('pending review') || s.includes('review') || s === 'pending' || s === 'requested') {
+            status = 'Pending';
+          }
+          return {
+            ...r,
+            status
+          };
+        })
+        .sort((a, b) => {
+          const dateA = new Date(a.createdAt || a.requestDate || a.date || 0).getTime();
+          const dateB = new Date(b.createdAt || b.requestDate || b.date || 0).getTime();
+          return dateB - dateA;
+        });
 
       const recentKitchenRequest = sortedStockRequests[0] || null;
       setKitchenRequests(sortedStockRequests);
@@ -416,97 +459,207 @@ export const useDashboard = (selectedOutlet = 'ALL') => {
         ? allFeedbacksRaw
         : (Array.isArray(allFeedbacksRaw?.data) ? allFeedbacksRaw.data : []);
 
-      const sortedTop = (Array.isArray(top) ? top : (Array.isArray(top?.data) ? top.data : []))
-        .slice()
-        .sort((a, b) => {
-          const countA = Number(a.count ?? a.qtySold ?? a.orders ?? 0);
-          const countB = Number(b.count ?? b.qtySold ?? b.orders ?? 0);
-          return countB - countA;
-        })
-        .map((item, idx) => {
-          const nameLower = (item.name || '').trim().toLowerCase();
-          const itemNorm = (item.name || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
-          const itemIdStr = String(item.id || item.menuItemId || item.code || '').trim();
+      // 1. Analyze actual customer orders to identify which items have been ordered
+      const liveOrderItemsMap = new Map();
+      validOrders.forEach(o => {
+        const oItems = Array.isArray(o.items) ? o.items : (Array.isArray(o.Items) ? o.Items : []);
+        oItems.forEach(it => {
+          const rawName = it.name || it.Name || it.itemName || '';
+          const nameTrimmed = String(rawName).trim();
+          if (!nameTrimmed) return;
+          const key = nameTrimmed.toLowerCase();
+          const qty = Number(it.quantity ?? it.Quantity ?? it.qty ?? 1) || 1;
+          const price = Number(it.price ?? it.Price ?? 0);
+          const total = Number(it.total ?? it.Total ?? (price * qty)) || 0;
+          const itemId = it.menuItemId ?? it.MenuItemId ?? it.id;
 
-          // Find genuine feedback reviews matching this dish
-          const dishFeedbacks = feedbacksList.filter(f => {
-            if (!f) return false;
-            const ratingVal = Number(f.rating);
-            if (isNaN(ratingVal) || ratingVal <= 0) return false;
-
-            const fCat = String(f.complaintCategory || '').trim().toLowerCase();
-            const fCatNorm = fCat.replace(/[^a-z0-9]/g, '');
-            const fComments = String(f.comments || '').trim().toLowerCase();
-            const fItemId = String(f.itemId || f.menuItemId || '').trim();
-
-            // 1. Direct item ID match
-            if (itemIdStr && fItemId && fItemId === itemIdStr) return true;
-
-            // 2. Exact match on complaintCategory (e.g. "khaidi chicken dum biryani", "dosa", "chicken 65")
-            if (fCat && (fCat === nameLower || fCatNorm === itemNorm)) return true;
-
-            // 3. Comments contains exact dish name or "dish: <name>"
-            if (nameLower && (
-              fComments.includes(`dish: ${nameLower}`) ||
-              fComments.includes(`dish: [${nameLower}]`) ||
-              fComments.includes(`(${nameLower})`)
-            )) {
-              return true;
-            }
-
-            // 4. Normalized containment if string is reasonably specific (>= 5 chars)
-            if (itemNorm.length >= 5 && fCatNorm.length >= 5 && (fCatNorm.includes(itemNorm) || itemNorm.includes(fCatNorm))) {
-              return true;
-            }
-
-            return false;
-          });
-
-          const liveReviewsCount = dishFeedbacks.length;
-          const liveRatingSum = dishFeedbacks.reduce((acc, f) => acc + Number(f.rating || 0), 0);
-
-          // Pure genuine rating: average rating = sum of all ratings / total number of all ratings
-          // If the dish has no ratings, show 0 rating
-          const averageRating = liveReviewsCount > 0
-            ? (liveRatingSum / liveReviewsCount).toFixed(1)
-            : '0';
-
-          return {
-            ...item,
-            averageRating,
-            rating: averageRating,
-            reviewCount: liveReviewsCount
-          };
+          if (!liveOrderItemsMap.has(key)) {
+            liveOrderItemsMap.set(key, {
+              id: itemId,
+              menuItemId: itemId,
+              name: nameTrimmed,
+              code: it.code || '',
+              category: it.category || 'Executive Lunch & Thali Meals',
+              foodType: it.foodType || (key.includes('chicken') || key.includes('meat') || key.includes('egg') || key.includes('biryani') ? 'Non-veg' : 'Veg'),
+              liveQtySold: qty,
+              liveOrderCount: 1,
+              revenue: total
+            });
+          } else {
+            const entry = liveOrderItemsMap.get(key);
+            entry.liveQtySold += qty;
+            entry.liveOrderCount += 1;
+            entry.revenue += total;
+            if (!entry.id && itemId) entry.id = itemId;
+          }
         });
-      setTopSelling(sortedTop);
-      // Build an outlet map to ensure accurate outlet naming across campus
-      const outletMap = new Map();
-      const canteensList = Array.isArray(allCanteensRaw) ? allCanteensRaw : (allCanteensRaw?.data || []);
-      canteensList.forEach(c => {
-        const cid = Number(c.id || c.outletId);
-        if (cid) outletMap.set(cid, c.name || c.outletName || `Outlet #${cid}`);
       });
-      const outletsList = Array.isArray(outlets) ? outlets : (outlets?.data || []);
-      outletsList.forEach(o => {
-        const oid = Number(o.id || o.outletId);
-        if (oid && !outletMap.has(oid)) outletMap.set(oid, o.name || o.outletName || `Outlet #${oid}`);
+
+      // 2. Merge with items from getTopSelling endpoint
+      const rawTopList = Array.isArray(top) ? top : (Array.isArray(top?.data) ? top.data : []);
+      const mergedItemsMap = new Map();
+
+      liveOrderItemsMap.forEach((val, key) => {
+        mergedItemsMap.set(key, { ...val, count: val.liveQtySold, qtySold: val.liveQtySold });
       });
+
+      rawTopList.forEach(t => {
+        const nameTrimmed = String(t.name || '').trim();
+        if (!nameTrimmed) return;
+        const key = nameTrimmed.toLowerCase();
+        const topQty = Number(t.count ?? t.qtySold ?? t.orders ?? 0);
+        if (mergedItemsMap.has(key)) {
+          const existing = mergedItemsMap.get(key);
+          existing.qtySold = Math.max(existing.qtySold, topQty);
+          existing.count = existing.qtySold;
+          if (t.id && !existing.id) existing.id = t.id;
+          if (t.foodType) existing.foodType = t.foodType;
+          if (t.category) existing.category = t.category;
+        } else {
+          mergedItemsMap.set(key, {
+            ...t,
+            name: nameTrimmed,
+            liveQtySold: 0,
+            liveOrderCount: 0,
+            count: topQty,
+            qtySold: topQty
+          });
+        }
+      });
+
+      // 3. Match genuine feedback and ratings for each dish
+      const processedTopSelling = Array.from(mergedItemsMap.values()).map(item => {
+        const nameLower = (item.name || '').trim().toLowerCase();
+        const itemNorm = nameLower.replace(/[^a-z0-9]/g, '');
+        const itemIdStr = String(item.id || item.menuItemId || item.code || '').trim();
+
+        // Find genuine feedback reviews matching this dish
+        const dishFeedbacks = feedbacksList.filter(f => {
+          if (!f) return false;
+          const ratingVal = Number(f.rating);
+          if (isNaN(ratingVal) || ratingVal <= 0) return false;
+
+          const fCat = String(f.complaintCategory || '').trim().toLowerCase();
+          const fCatNorm = fCat.replace(/[^a-z0-9]/g, '');
+          const fComments = String(f.comments || '').trim().toLowerCase();
+          const fItemId = String(f.itemId || f.menuItemId || '').trim();
+
+          // 1. Direct item ID match
+          if (itemIdStr && fItemId && fItemId === itemIdStr) return true;
+
+          // 2. Exact match on complaintCategory (e.g. "khaidi chicken dum biryani", "dosa", "chicken 65")
+          if (fCat && (fCat === nameLower || fCatNorm === itemNorm)) return true;
+
+          // 3. Comments contains exact dish name or "dish: <name>"
+          if (nameLower && (
+            fComments.includes(`dish: ${nameLower}`) ||
+            fComments.includes(`dish: [${nameLower}]`) ||
+            fComments.includes(`(${nameLower})`)
+          )) {
+            return true;
+          }
+
+          // 4. Normalized containment if string is reasonably specific (>= 5 chars)
+          if (itemNorm.length >= 5 && fCatNorm.length >= 5 && (fCatNorm.includes(itemNorm) || itemNorm.includes(fCatNorm))) {
+            return true;
+          }
+
+          return false;
+        });
+
+        const liveReviewsCount = dishFeedbacks.length;
+        const liveRatingSum = dishFeedbacks.reduce((acc, f) => acc + Number(f.rating || 0), 0);
+
+        // Pure genuine rating: average rating = sum of all ratings / total number of all ratings
+        // If the dish has no ratings, show 0 rating
+        const averageRating = liveReviewsCount > 0
+          ? (liveRatingSum / liveReviewsCount).toFixed(1)
+          : '0';
+
+        return {
+          ...item,
+          averageRating,
+          rating: averageRating,
+          reviewCount: liveReviewsCount
+        };
+      });
+
+      // 4. Sort: Highly ordered food and highest rating at the top
+      processedTopSelling.sort((a, b) => {
+        const liveA = Number(a.liveQtySold || 0);
+        const liveB = Number(b.liveQtySold || 0);
+        const ratingA = Number(a.averageRating || 0);
+        const ratingB = Number(b.averageRating || 0);
+        const reviewsA = Number(a.reviewCount || 0);
+        const reviewsB = Number(b.reviewCount || 0);
+        const totalQtyA = Number(a.qtySold || a.count || 0);
+        const totalQtyB = Number(b.qtySold || b.count || 0);
+
+        // Dishes with both actual orders and ratings rank first
+        const hasLiveAndRatingA = (liveA > 0 || totalQtyA > 0) && reviewsA > 0;
+        const hasLiveAndRatingB = (liveB > 0 || totalQtyB > 0) && reviewsB > 0;
+        if (hasLiveAndRatingA && !hasLiveAndRatingB) return -1;
+        if (!hasLiveAndRatingA && hasLiveAndRatingB) return 1;
+
+        if (hasLiveAndRatingA && hasLiveAndRatingB) {
+          if (ratingB !== ratingA) return ratingB - ratingA;
+          return totalQtyB - totalQtyA;
+        }
+
+        // Dishes with live orders
+        if (liveA > 0 && liveB <= 0) return -1;
+        if (liveB > 0 && liveA <= 0) return 1;
+        if (liveA > 0 && liveB > 0) {
+          if (ratingB !== ratingA) return ratingB - ratingA;
+          return liveB - liveA;
+        }
+
+        // Dishes with reviews
+        if (reviewsA > 0 && reviewsB <= 0) return -1;
+        if (reviewsB > 0 && reviewsA <= 0) return 1;
+        if (reviewsA > 0 && reviewsB > 0) {
+          if (ratingB !== ratingA) return ratingB - ratingA;
+          return reviewsB - reviewsA;
+        }
+
+        return totalQtyB - totalQtyA;
+      });
+
+      setTopSelling(processedTopSelling.slice(0, 5));
 
       // Identify Central Warehouse outlet
       const warehouseOutlet = canteensList.find(c => c.code === 'WH-01' || (c.name || '').toLowerCase().includes('warehouse') || Number(c.outletId || c.id) === 4);
       const warehouseOutletId = warehouseOutlet ? Number(warehouseOutlet.outletId || warehouseOutlet.id) : 4;
 
-      const targetOid = isAllOutlets ? warehouseOutletId : Number(selectedOutlet);
+      const isWarehouseItem = (item) => {
+        const itemOid = item.outletId ?? item.OutletId;
+        return (
+          item.storeType === 'CentralWarehouse' ||
+          Boolean(item.warehouseId) ||
+          Number(itemOid) === warehouseOutletId ||
+          (!itemOid && !item.outletId)
+        );
+      };
 
-      // Process low stock items strictly from live inventory of the targeted outlet
+      // Process low stock items strictly from live inventory
       const rawInventory = Array.isArray(allInventoryRaw) ? allInventoryRaw : (allInventoryRaw?.data || []);
       const finalAlerts = rawInventory
         .filter(item => {
-          // Strict outlet matching
+          const isWH = isWarehouseItem(item);
           if (!isAllOutlets) {
+            // When a specific outlet is selected in navbar, show that specific outlet's items
+            const targetOid = Number(selectedOutlet);
             const itemOid = item.outletId ?? item.OutletId;
-            if (itemOid && Number(itemOid) !== targetOid) return false;
+            if (itemOid !== undefined && itemOid !== null) {
+              if (Number(itemOid) !== targetOid) return false;
+            } else if (isWH) {
+              if (targetOid !== warehouseOutletId) return false;
+            } else {
+              return false;
+            }
           }
+          // When isAllOutlets is true, show items across ALL outlets and warehouse
+
           const qty = Number(item.availableQuantity ?? item.quantity ?? 0);
           const reorder = Number(item.reorderLevel ?? 0);
           const status = (item.status || '').toLowerCase();
@@ -514,9 +667,9 @@ export const useDashboard = (selectedOutlet = 'ALL') => {
           return qty <= reorder || status === 'low stock' || status === 'out of stock' || status === 'expired' || isExp;
         })
         .map(item => {
-          const displayOutletName = isAllOutlets
-            ? 'Central Warehouse (Admin Master Store)'
-            : (outletMap.get(targetOid) || item.outletName || item.outlet || 'Campus Canteen');
+          const itemOid = item.outletId ?? item.OutletId ?? (isWarehouseItem(item) ? warehouseOutletId : null);
+          const resolvedOutletId = itemOid || (!isAllOutlets ? Number(selectedOutlet) : null);
+          const displayOutletName = item.outletName || item.warehouseName || (itemOid ? outletMap.get(Number(itemOid)) : null) || (isWarehouseItem(item) ? 'Central Procurement Warehouse (Admin Master Store)' : (itemOid ? `Outlet #${itemOid}` : 'Kitchen Outlet'));
 
           const qty = Number(item.availableQuantity ?? item.quantity ?? 0);
           const reorder = Number(item.reorderLevel ?? 0);
@@ -533,7 +686,7 @@ export const useDashboard = (selectedOutlet = 'ALL') => {
             itemId: item.itemId || item.ItemId || item.id,
             ingredient: item.ingredientName || item.name || 'Item',
             ingredientName: item.ingredientName || item.name || 'Item',
-            outletId: targetOid,
+            outletId: resolvedOutletId,
             outlet: displayOutletName,
             outletName: displayOutletName,
             availableQuantity: qty,
@@ -557,13 +710,91 @@ export const useDashboard = (selectedOutlet = 'ALL') => {
         });
 
       setStockAlerts(finalAlerts);
-      const filteredOutletSales = (Array.isArray(outlets) ? outlets : []).filter(o => {
+
+      // Build outlet-wise sales data accurately obeying navbar selection
+      const rawOutletsList = Array.isArray(outlets)
+        ? outlets
+        : (Array.isArray(outlets?.data)
+            ? outlets.data
+            : (Array.isArray(outlets?.items)
+                ? outlets.items
+                : []));
+
+      // Active non-warehouse canteens
+      const activeCanteens = (Array.isArray(canteensList) ? canteensList : [])
+        .filter(c => {
+          const cid = Number(c.id || c.outletId);
+          const cName = (c.name || c.outletName || '').toLowerCase();
+          const cCode = (c.code || '').toUpperCase();
+          return cid !== 4 && cCode !== 'WH-01' && !cName.includes('warehouse');
+        });
+
+      // Index backend sales by outletId
+      const backendSalesMap = new Map();
+      rawOutletsList.forEach(o => {
         const oid = Number(o.outletId || o.id);
-        const name = (o.name || o.outletName || '').toLowerCase();
-        const code = (o.code || '').toUpperCase();
-        return oid !== 4 && code !== 'WH-01' && !name.includes('warehouse');
+        if (oid) backendSalesMap.set(oid, o);
       });
-      setOutletSales(filteredOutletSales);
+
+      // Compute today's completed/non-cancelled orders & revenue per outlet from rawOrders
+      const liveOutletSalesMap = new Map();
+      rawOrders.forEach(o => {
+        const oDate = new Date(o.orderDate || o.OrderDate || o.createdAt || o.CreatedAt || 0);
+        if (isNaN(oDate.getTime()) || oDate.toDateString() !== todayDateStr) return;
+        const status = String(o?.status ?? o?.Status ?? '').trim().toLowerCase();
+        if (status === 'cancelled') return;
+        const oOid = Number(o.outletId ?? o.OutletId);
+        if (!oOid) return;
+        const amt = Number(o.totalAmount ?? o.TotalAmount ?? o.total ?? o.Total ?? 0);
+        if (!liveOutletSalesMap.has(oOid)) {
+          liveOutletSalesMap.set(oOid, { orders: 0, revenue: 0 });
+        }
+        const m = liveOutletSalesMap.get(oOid);
+        m.orders += 1;
+        m.revenue += amt;
+      });
+
+      // Merge backend sales data with known active canteens
+      const baseOutlets = activeCanteens.length > 0 ? activeCanteens : rawOutletsList;
+      const combinedOutletSales = baseOutlets
+        .map(outlet => {
+          const oid = Number(outlet.id || outlet.outletId);
+          const bData = backendSalesMap.get(oid) || {};
+          const lData = liveOutletSalesMap.get(oid) || { orders: 0, revenue: 0 };
+          const orders = Math.max(Number(bData.orders || 0), lData.orders);
+          const revenue = Math.max(Number(bData.revenue ?? bData.grossSales ?? 0), lData.revenue);
+          const name = outlet.name || outlet.outletName || bData.name || bData.outletName || outletMap.get(oid) || `Outlet #${oid}`;
+
+          return {
+            outletId: oid,
+            id: oid,
+            name,
+            outletName: name,
+            orders,
+            revenue,
+            grossSales: revenue,
+            netSales: revenue
+          };
+        })
+        .filter(o => {
+          const oid = Number(o.outletId || o.id);
+          const name = (o.name || o.outletName || '').toLowerCase();
+          return oid !== 4 && !name.includes('warehouse');
+        });
+
+      // Proportional percentages
+      const totalOutletsRevenue = combinedOutletSales.reduce((acc, o) => acc + (o.revenue || 0), 0);
+      const outletSalesWithPercentage = combinedOutletSales.map(o => ({
+        ...o,
+        percentage: totalOutletsRevenue > 0 ? Math.round((o.revenue / totalOutletsRevenue) * 100) : 0
+      }));
+
+      // Obey navbar outlet selection: show all if All Campus Outlets, or single outlet if specific outlet selected
+      const finalOutletSales = !isAllOutlets
+        ? outletSalesWithPercentage.filter(o => Number(o.outletId || o.id) === Number(selectedOutlet))
+        : outletSalesWithPercentage;
+
+      setOutletSales(finalOutletSales);
       setLastUpdated(new Date());
     } catch (err) {
       console.error('Failed to load dashboard data:', err);

@@ -207,6 +207,8 @@ export const customerOrderService = {
       phone: user?.phoneNumber || user?.phone || '',
       email: user?.email || orderPayload.customer?.email || '',
       paymentMethod: methodLabel,
+      orderType: orderPayload.orderType || (orderPayload.isDineIn ? 'Dine In' : 'Takeaway'),
+      packagingFee: orderPayload.pricing?.packagingFee !== undefined ? Number(orderPayload.pricing.packagingFee) : (orderPayload.isDineIn ? 0 : undefined),
       items: itemsPayload,
       notes: specialCookingNotes
     };

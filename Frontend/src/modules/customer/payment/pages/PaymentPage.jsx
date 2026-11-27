@@ -417,18 +417,20 @@ export const PaymentPage = () => {
                   {user?.fullName || draftOrder.customer?.name} ({userRole})
                 </span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Meal Items:</span>
-                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{draftOrder.items?.length || 0} Dishes</span>
-              </div>
-              {draftOrder.cookingNotes && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Cooking Note:</span>
-                  <span style={{ fontWeight: 600, color: '#d97706', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={draftOrder.cookingNotes}>
-                    {draftOrder.cookingNotes}
-                  </span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', fontSize: '13px', gap: '12px' }}>
+                <span style={{ color: 'var(--text-muted)', flexShrink: 0 }}>Item Names:</span>
+                <div style={{ fontWeight: 600, color: 'var(--text-primary)', textAlign: 'right', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {draftOrder.items && draftOrder.items.length > 0 ? (
+                    draftOrder.items.map((item, idx) => (
+                      <span key={idx}>
+                        {item.name || item.itemName || 'Item'}{item.quantity > 1 ? ` x ${item.quantity}` : ''}
+                      </span>
+                    ))
+                  ) : (
+                    <span>-</span>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
 
             <div style={{

@@ -94,15 +94,11 @@ export const CustomerMenuPage = () => {
             {/* Canteen Selector Dropdown */}
             <div style={{ position: 'relative' }}>
               <select
-                value={selectedOutlet ? selectedOutlet.id : 'ALL'}
+                value={selectedOutlet ? selectedOutlet.id : (canteens[0]?.id || '')}
                 onChange={(e) => {
                   const val = e.target.value;
-                  if (val === 'ALL') {
-                    setSelectedOutlet({ id: 'ALL', name: 'All Campus Canteens' });
-                  } else {
-                    const match = canteens.find(c => c.id === val);
-                    if (match) setSelectedOutlet(match);
-                  }
+                  const match = canteens.find(c => String(c.id) === String(val));
+                  if (match) setSelectedOutlet(match);
                 }}
                 style={{
                   height: '38px',
@@ -116,7 +112,6 @@ export const CustomerMenuPage = () => {
                   cursor: 'pointer'
                 }}
               >
-                <option value="ALL">All Campus Dining Halls</option>
                 {canteens.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
