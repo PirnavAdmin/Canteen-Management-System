@@ -101,11 +101,19 @@ export const CustomerHeader = () => {
       const list = Array.isArray(res) ? res : (res?.data || []);
       const active = list.filter(c => c && (c.status === 'Active' || !c.status));
       setCanteens(active);
+      if (active.length > 0) {
+        setSelectedOutlet(prev => {
+          if (!prev || prev.id === 'ALL' || !active.some(c => String(c.id) === String(prev.id))) {
+            return active[0];
+          }
+          return prev;
+        });
+      }
     }).catch(err => {
       console.warn('Failed to fetch canteens for header dropdown:', err);
     });
     return () => { isMounted = false; };
-  }, []);
+  }, [setSelectedOutlet]);
 
   // Live order status & top-right modal state
   const [activeOrder, setActiveOrder] = useState(null);
@@ -328,15 +336,11 @@ export const CustomerHeader = () => {
           }}>
             <MapPin size={13} style={{ color: 'var(--color-accent)', flexShrink: 0 }} />
             <select
-              value={selectedOutlet?.id || 'ALL'}
+              value={selectedOutlet?.id || (canteens[0]?.id || '')}
               onChange={(e) => {
                 const val = e.target.value;
-                if (val === 'ALL') {
-                  setSelectedOutlet({ id: 'ALL', name: 'All Outlets' });
-                } else {
-                  const match = canteens.find(c => String(c.id) === String(val));
-                  if (match) setSelectedOutlet(match);
-                }
+                const match = canteens.find(c => String(c.id) === String(val));
+                if (match) setSelectedOutlet(match);
               }}
               style={{
                 border: 'none',
@@ -353,7 +357,6 @@ export const CustomerHeader = () => {
               aria-label="Select Campus Outlet"
               title="Select Campus Outlet"
             >
-              <option value="ALL">All Outlets</option>
               {canteens.map(c => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
@@ -382,26 +385,6 @@ export const CustomerHeader = () => {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', textAlign: 'left', lineHeight: 1.15 }}>
                 <span className={`${styles.userName} ${styles.userNameText}`}>{studentName}</span>
-                {/* Status of the food shown below profile in small font with distinct color */}
-                {activeOrder && (
-                  <span
-                    onClick={handleTrackLiveOrder}
-                    style={{
-                      fontSize: '9.5px',
-                      fontWeight: 700,
-                      color: statusTheme.dot,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '3px',
-                      marginTop: '1px',
-                      cursor: 'pointer'
-                    }}
-                    title={`Chef Status: ${activeOrder.status} - Click to track live order`}
-                  >
-                    <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: statusTheme.dot }} />
-                    {statusTheme.label}
-                  </span>
-                )}
               </div>
               <ChevronDown
                 size={14}

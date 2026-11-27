@@ -160,7 +160,7 @@ export const KitchenRequestsTable = ({
           return <StatusBadge status="Ready for Pickup" label={label} size="sm" />;
         }
 
-        const label = isWarehouseScope ? 'Pending Review' : 'Requested';
+        const label = 'Pending';
         return <StatusBadge status="Pending" label={label} size="sm" />;
       }
     },

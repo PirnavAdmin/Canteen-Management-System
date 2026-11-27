@@ -216,9 +216,17 @@ export const InventoryPage = () => {
   }, [suppliers, searchTerm]);
 
   const filteredKitchenRequests = useMemo(() => {
-    if (!searchTerm || !searchTerm.trim()) return kitchenRequests;
+    // Only show requests which are NOT accepted or issued (exclude issued, dispatched, approved, accepted, received, completed)
+    const base = (kitchenRequests || []).filter(r => {
+      const s = String(r.status || 'Pending Review').toLowerCase();
+      const isIssued = s.includes('issued') || s.includes('dispatch') || s.includes('approved') || s.includes('accept');
+      const isReceived = s.includes('received') || s.includes('fulfilled') || s.includes('completed');
+      return !isIssued && !isReceived;
+    });
+
+    if (!searchTerm || !searchTerm.trim()) return base;
     const q = searchTerm.trim().toLowerCase();
-    return kitchenRequests.filter(r =>
+    return base.filter(r =>
       (r.itemName || r.ingredientName || '').toLowerCase().includes(q) ||
       (r.requestId || r.id || '').toLowerCase().includes(q) ||
       (r.outletName || '').toLowerCase().includes(q)

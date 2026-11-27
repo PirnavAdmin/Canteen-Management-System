@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, AlertCircle, RotateCcw, Ban, CreditCard, CheckCheck, BellRing, ChefHat, CheckCircle } from 'lucide-react';
+import { X, AlertCircle, RotateCcw, Ban, CreditCard, CheckCheck, BellRing, ChefHat, CheckCircle, ShieldCheck, Copy, Check, ExternalLink } from 'lucide-react';
 import { Button } from '../../../../components/common/Button';
 import { StatusBadge } from '../../../../components/common/StatusBadge';
 import { formatCurrency } from '../../../../utils/formatters';
@@ -335,17 +335,24 @@ export const OrderDetailsModal = ({
                 : nextSt === ORDER_STATUS.READY_FOR_PICKUP ? BellRing
                   : nextSt === ORDER_STATUS.PREPARING ? ChefHat
                     : nextSt === ORDER_STATUS.ACCEPTED ? CheckCircle : null;
+
+              const isDeliveryCash = (nextSt === ORDER_STATUS.COMPLETED || nextSt === 'Collected') &&
+                String(order.payment?.status || '').toLowerCase() === 'pending' &&
+                String(order.payment?.method || '').toLowerCase().includes('cash');
+
               return (
                 <Button
                   key={nextSt}
-                  variant="primary"
+                  variant={isDeliveryCash ? 'warning' : 'primary'}
                   icon={ActionIcon}
                   loading={loading}
                   onClick={() => onUpdateStatus(order.id, nextSt)}
                 >
-                  {nextSt === ORDER_STATUS.PREPARING && order.status === ORDER_STATUS.PLACED
-                    ? 'Accept Order'
-                    : `Mark as ${nextSt}`}
+                  {isDeliveryCash
+                    ? `Deliver & Confirm Cash (${formatCurrency(order.totalAmount)})`
+                    : (nextSt === ORDER_STATUS.PREPARING && order.status === ORDER_STATUS.PLACED
+                      ? 'Accept Order'
+                      : `Mark as ${nextSt}`)}
                 </Button>
               );
             })}

@@ -4,7 +4,7 @@ namespace CanteenManagement.API.Repositories.Interfaces.Inventory
 {
     public interface IInventoryRepository
     {
-        Task<IEnumerable<InventoryItem>> GetItemsAsync(int campusId, int? outletId = null);
+        Task<IEnumerable<InventoryItem>> GetItemsAsync(int campusId, int? outletId = null, string? storeType = null);
         Task<InventoryItem?> GetItemByIdAsync(int id, int campusId);
         Task<InventoryItem> AddItemAsync(InventoryItem item);
         Task<InventoryItem> UpdateItemAsync(InventoryItem item);

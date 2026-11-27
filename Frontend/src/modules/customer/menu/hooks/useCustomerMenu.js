@@ -36,12 +36,14 @@ export const useCustomerMenu = (initialCanteenId = null) => {
           setCategories(activeCats);
         }
 
-        // Handle outlet selection: default to 'ALL' (all campus dining halls) unless explicit initialCanteenId is provided
+        // Handle outlet selection: default to first active canteen unless explicit initialCanteenId is provided
         if (initialCanteenId && safeCanteens.some(c => c && String(c.id) === String(initialCanteenId))) {
           const match = safeCanteens.find(c => c && String(c.id) === String(initialCanteenId));
           setSelectedOutlet(match);
-        } else if (!selectedOutlet || selectedOutlet.id === 'canteen-001') {
-          setSelectedOutlet({ id: 'ALL', name: 'All Campus Dining Halls' });
+        } else if (!selectedOutlet || selectedOutlet.id === 'ALL' || selectedOutlet.id === 'canteen-001' || !safeCanteens.some(c => String(c.id) === String(selectedOutlet?.id))) {
+          if (safeCanteens.length > 0) {
+            setSelectedOutlet(safeCanteens[0]);
+          }
         }
       } catch (err) {
         console.error('Failed to load menu data:', err);

@@ -13,6 +13,7 @@ export const CartProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState(() => cartService.getCart(userId));
   const [selectedOutlet, setSelectedOutletState] = useState(() => cartService.getSelectedOutlet());
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isDineIn, setIsDineIn] = useState(true);
 
   // Load live system settings for GST and packaging fee
   useEffect(() => {
@@ -38,11 +39,27 @@ export const CartProvider = ({ children }) => {
   }, [cartItems, userId]);
 
   const setSelectedOutlet = useCallback((outlet) => {
-    setSelectedOutletState(outlet);
-    cartService.setSelectedOutlet(outlet);
+    if (typeof outlet === 'function') {
+      setSelectedOutletState(prev => {
+        const next = outlet(prev);
+        cartService.setSelectedOutlet(next);
+        return next;
+      });
+    } else {
+      setSelectedOutletState(outlet);
+      cartService.setSelectedOutlet(outlet);
+    }
   }, []);
 
   const addToCart = useCallback((item, quantity = 1, variant = null, selectedAddOns = []) => {
+    if (!item) return;
+    const remaining = item.remainingCapacity !== undefined && item.remainingCapacity !== null
+      ? Number(item.remainingCapacity)
+      : (item.dailyCapacity !== undefined && item.dailyCapacity !== null ? Number(item.dailyCapacity) : null);
+    if ((remaining !== null && remaining <= 0) || item.availability === 'SoldOut' || item.availability === 'Unavailable') {
+      return;
+    }
+
     setCartItems(prev => {
       // Build unique composite key for item + variant + addons
       const cartKey = `${item.id}-${variant?.id || 'std'}-${(selectedAddOns || []).map(a => a.id).sort().join('-')}`;
@@ -80,7 +97,8 @@ export const CartProvider = ({ children }) => {
         quantity,
         variant,
         selectedAddOns,
-        servingSize: item.servingSize || '1 Serving'
+        servingSize: item.servingSize || item.ServingSize || '1 Serving',
+        calories: item.calories || item.Calories || ''
       };
 
       return [...prev, newItem];
@@ -105,8 +123,8 @@ export const CartProvider = ({ children }) => {
   }, [userId]);
 
   const totals = useMemo(() => {
-    return cartService.calculateTotals(cartItems);
-  }, [cartItems]);
+    return cartService.calculateTotals(cartItems, isDineIn);
+  }, [cartItems, isDineIn]);
 
   const value = useMemo(() => ({
     cartItems,
@@ -118,8 +136,10 @@ export const CartProvider = ({ children }) => {
     clearCart,
     isDrawerOpen,
     setIsDrawerOpen,
+    isDineIn,
+    setIsDineIn,
     ...totals
-  }), [cartItems, selectedOutlet, setSelectedOutlet, addToCart, updateQuantity, removeFromCart, clearCart, isDrawerOpen, totals]);
+  }), [cartItems, selectedOutlet, setSelectedOutlet, addToCart, updateQuantity, removeFromCart, clearCart, isDrawerOpen, isDineIn, setIsDineIn, totals]);
 
   return (
     <CartContext.Provider value={value}>

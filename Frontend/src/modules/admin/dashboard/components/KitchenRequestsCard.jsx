@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChefHat, ArrowRight, Clock, CheckCircle2, AlertCircle, XCircle } from 'lucide-react';
 
-export const KitchenRequestsCard = ({ requests = [], loading = false }) => {
+export const KitchenRequestsCard = ({ requests = [], loading = false, selectedOutletName = 'All Campus Outlets' }) => {
   const navigate = useNavigate();
 
   if (loading) {
@@ -82,12 +82,21 @@ export const KitchenRequestsCard = ({ requests = [], loading = false }) => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
+        gap: '8px',
         marginBottom: '10px',
         flexShrink: 0
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <ChefHat size={16} style={{ color: 'var(--color-primary, #2563eb)' }} />
-          <h3 style={{ fontSize: '13.5px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, flex: 1, overflow: 'hidden' }}>
+          <ChefHat size={15} style={{ color: 'var(--color-primary, #2563eb)', flexShrink: 0 }} />
+          <h3 style={{
+            fontSize: '12px',
+            fontWeight: 700,
+            color: 'var(--text-primary)',
+            margin: 0,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
+          }} title="Kitchen Requisition Requests">
             Kitchen Requisition Requests
           </h3>
         </div>
@@ -99,17 +108,18 @@ export const KitchenRequestsCard = ({ requests = [], loading = false }) => {
             background: 'none',
             border: 'none',
             color: 'var(--color-accent, #2563eb)',
-            fontSize: '11.5px',
+            fontSize: '11px',
             fontWeight: 600,
             cursor: 'pointer',
-            display: 'flex',
+            display: 'inline-flex',
             alignItems: 'center',
-            gap: '4px',
-            whiteSpace: 'nowrap'
+            gap: '3px',
+            whiteSpace: 'nowrap',
+            flexShrink: 0
           }}
         >
           <span>Manage Requests</span>
-          <ArrowRight size={13} />
+          <ArrowRight size={12} />
         </button>
       </div>
 
@@ -128,16 +138,14 @@ export const KitchenRequestsCard = ({ requests = [], loading = false }) => {
       >
         {itemsList.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '30px 20px', color: 'var(--text-muted)', fontSize: '12.5px' }}>
-            No kitchen requisition requests found.
+            No pending kitchen requisition requests for {selectedOutletName}.
           </div>
         ) : (
           itemsList.map((req, idx) => {
             const s = (req.status || 'Pending').toLowerCase();
             const isRejected = s.includes('reject');
-            const isReceived = s.includes('received') || s.includes('fulfilled') || s.includes('completed');
-            const isIssued = s.includes('issued') || s.includes('dispatch') || s.includes('approved');
 
-            let badgeLabel = 'Not Issued';
+            let badgeLabel = 'Requested';
             let badgeBg = '#fffbeb';
             let badgeBorder = '#fde68a';
             let badgeColor = '#b45309';
@@ -149,18 +157,18 @@ export const KitchenRequestsCard = ({ requests = [], loading = false }) => {
               badgeBorder = '#fecaca';
               badgeColor = '#dc2626';
               rowBg = '#fefafa';
-            } else if (isReceived) {
-              badgeLabel = 'Issued & Received';
-              badgeBg = '#ecfdf5';
-              badgeBorder = '#a7f3d0';
-              badgeColor = '#047857';
-              rowBg = '#f6fdf9';
-            } else if (isIssued) {
-              badgeLabel = 'Items Issued';
-              badgeBg = '#eff6ff';
-              badgeBorder = '#bfdbfe';
-              badgeColor = '#1d4ed8';
-              rowBg = '#f8fbff';
+            } else if (s.includes('pending review') || s.includes('review') || s.includes('pending')) {
+              badgeLabel = 'Pending';
+              badgeBg = '#fffbeb';
+              badgeBorder = '#fde68a';
+              badgeColor = '#b45309';
+              rowBg = '#fffdfa';
+            } else {
+              badgeLabel = 'Pending';
+              badgeBg = '#fffbeb';
+              badgeBorder = '#fde68a';
+              badgeColor = '#b45309';
+              rowBg = '#fffdfa';
             }
 
             const itemName = req.itemName || req.ingredientName || 'Kitchen Stock';

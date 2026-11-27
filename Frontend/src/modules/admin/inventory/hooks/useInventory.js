@@ -17,38 +17,47 @@ export const useInventory = (selectedOutlet = 'ALL') => {
     try {
       setLoading(true);
       setError(null);
-      const isWarehouse = String(selectedOutlet) === 'CENTRAL' || String(selectedOutlet) === '4' || String(selectedOutlet) === 'WH-01' || selectedOutlet === 'ALL';
+      const isAll = !selectedOutlet || selectedOutlet === 'ALL';
+      const isWarehouse = String(selectedOutlet) === 'CENTRAL' || String(selectedOutlet) === '4' || String(selectedOutlet) === 'WH-01';
       const outletParams = isWarehouse
         ? { storeType: 'CentralWarehouse' }
-        : (selectedOutlet && selectedOutlet !== 'ALL' && Number(selectedOutlet) > 0 ? { outletId: Number(selectedOutlet) } : {});
+        : (!isAll && Number(selectedOutlet) > 0 ? { outletId: Number(selectedOutlet) } : {});
       
       // For stock requests:
-      // Central Warehouse (Admin Master Store) must see requests from ALL campus kitchen outlets!
-      // Therefore, in Central Warehouse view, we query without outletId filter.
-      // In a specific kitchen outlet view (e.g. outlet 1 Main Canteen), we query with that outletId.
-      const requestParams = isWarehouse ? {} : outletParams;
+      // When All Outlets or Warehouse is selected, query all campus kitchen requests.
+      // In a specific kitchen outlet view (e.g. outlet 1 Main Canteen), query with that outletId.
+      const requestParams = (isAll || isWarehouse) ? {} : outletParams;
 
       const [itms, ledg, pos, sups, reqs, cItems] = await Promise.all([
         inventoryService.getItems(outletParams),
-        inventoryService.getLedger(isWarehouse ? {} : outletParams),
-        inventoryService.getPurchaseOrders(isWarehouse ? {} : outletParams),
+        inventoryService.getLedger((isAll || isWarehouse) ? {} : outletParams),
+        inventoryService.getPurchaseOrders((isAll || isWarehouse) ? {} : outletParams),
         inventoryService.getSuppliers(),
         inventoryService.getStockRequests(requestParams),
         inventoryService.getItems({ storeType: 'CentralWarehouse' }).catch(() => [])
       ]);
       const rawReqs = Array.isArray(reqs) ? reqs : (reqs?.data || reqs?.requests || []);
-      const filteredReqs = isWarehouse
+      const outletFilteredReqs = (isAll || isWarehouse)
         ? rawReqs
         : rawReqs.filter(r => {
             const oid = r.outletId ?? r.OutletId;
             return oid ? Number(oid) === Number(selectedOutlet) : true;
           });
+
+      // Filter kitchen requests: only show requests which are NOT accepted or issued (exclude issued, dispatched, approved, accepted, received, completed)
+      const unissuedReqs = outletFilteredReqs.filter(r => {
+        const s = String(r.status || 'Pending Review').toLowerCase();
+        const isIssued = s.includes('issued') || s.includes('dispatch') || s.includes('approved') || s.includes('accept');
+        const isReceived = s.includes('received') || s.includes('fulfilled') || s.includes('completed');
+        return !isIssued && !isReceived;
+      });
+
       setItems(itms);
       setCentralItems(Array.isArray(cItems) && cItems.length > 0 ? cItems : itms);
       setLedger(ledg);
       setPurchaseOrders(pos);
       setSuppliers(sups);
-      setKitchenRequests(filteredReqs);
+      setKitchenRequests(unissuedReqs);
     } catch (err) {
       console.error('Failed to load inventory data:', err);
       setError(err.message || 'Error loading inventory');

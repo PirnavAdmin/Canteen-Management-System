@@ -1,17 +1,67 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '../../../../components/common/Button';
-import { CreditCard, QrCode, Wallet, Banknote } from 'lucide-react';
+import { CreditCard, QrCode, Wallet, Banknote, AlertCircle, CheckCircle } from 'lucide-react';
 
 export const PaymentSettingsTab = ({ initialData = {}, onSave }) => {
-  const [formData, setFormData] = useState({ ...initialData });
+  const [formData, setFormData] = useState({
+    upiEnabled: initialData.upiEnabled ?? initialData.allowUpi ?? true,
+    upiVpa: initialData.upiVpa || 'canteen.apex@icici',
+    upiMerchantName: initialData.upiMerchantName || 'Apex Institute Canteen',
+    cardNetBankingEnabled: initialData.cardNetBankingEnabled ?? initialData.allowCards ?? false,
+    gatewayProvider: initialData.gatewayProvider || 'Razorpay',
+    campusWalletEnabled: initialData.campusWalletEnabled ?? initialData.allowWallet ?? true,
+    campusWalletMaxBalance: initialData.campusWalletMaxBalance || 2000,
+    cashOnCounterEnabled: initialData.cashOnCounterEnabled ?? initialData.allowCash ?? true,
+    ...initialData
+  });
+
+  const [saving, setSaving] = useState(false);
+  const [validationError, setValidationError] = useState(null);
 
   useEffect(() => {
-    setFormData({ ...initialData });
+    if (initialData && Object.keys(initialData).length > 0) {
+      setFormData(prev => ({
+        ...prev,
+        upiEnabled: initialData.upiEnabled ?? initialData.allowUpi ?? prev.upiEnabled,
+        upiVpa: initialData.upiVpa || prev.upiVpa || 'canteen.apex@icici',
+        upiMerchantName: initialData.upiMerchantName || prev.upiMerchantName || 'Apex Institute Canteen',
+        cardNetBankingEnabled: initialData.cardNetBankingEnabled ?? initialData.allowCards ?? prev.cardNetBankingEnabled,
+        gatewayProvider: initialData.gatewayProvider || prev.gatewayProvider || 'Razorpay',
+        campusWalletEnabled: initialData.campusWalletEnabled ?? initialData.allowWallet ?? prev.campusWalletEnabled,
+        campusWalletMaxBalance: initialData.campusWalletMaxBalance || prev.campusWalletMaxBalance || 2000,
+        cashOnCounterEnabled: initialData.cashOnCounterEnabled ?? initialData.allowCash ?? prev.cashOnCounterEnabled,
+        ...initialData
+      }));
+    }
   }, [initialData]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onSave(formData);
+    setValidationError(null);
+
+    // Validation
+    if (formData.upiEnabled && (!formData.upiVpa || !formData.upiVpa.includes('@'))) {
+      setValidationError('Please enter a valid Merchant VPA handle containing "@" (e.g. canteen.apex@icici).');
+      return;
+    }
+
+    if (formData.campusWalletEnabled && Number(formData.campusWalletMaxBalance) <= 0) {
+      setValidationError('Maximum per-order wallet limit must be greater than ₹0.');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await onSave({
+        ...formData,
+        allowUpi: formData.upiEnabled,
+        allowCards: formData.cardNetBankingEnabled,
+        allowWallet: formData.campusWalletEnabled,
+        allowCash: formData.cashOnCounterEnabled
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -34,6 +84,23 @@ export const PaymentSettingsTab = ({ initialData = {}, onSave }) => {
         </p>
       </div>
 
+      {validationError && (
+        <div style={{
+          padding: '10px 14px',
+          backgroundColor: '#fef2f2',
+          border: '1px solid #fecaca',
+          borderRadius: 'var(--border-radius-md)',
+          color: '#b91c1c',
+          fontSize: '12.5px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          <AlertCircle size={16} style={{ flexShrink: 0 }} />
+          <span>{validationError}</span>
+        </div>
+      )}
+
       {/* UPI Section */}
       <div style={{
         padding: '16px',
@@ -53,7 +120,7 @@ export const PaymentSettingsTab = ({ initialData = {}, onSave }) => {
           </div>
           <input
             type="checkbox"
-            checked={formData.upiEnabled || false}
+            checked={Boolean(formData.upiEnabled)}
             onChange={(e) => setFormData({ ...formData, upiEnabled: e.target.checked })}
             style={{ width: '18px', height: '18px', cursor: 'pointer' }}
           />
@@ -108,7 +175,7 @@ export const PaymentSettingsTab = ({ initialData = {}, onSave }) => {
           </div>
           <input
             type="checkbox"
-            checked={formData.cardNetBankingEnabled || false}
+            checked={Boolean(formData.cardNetBankingEnabled)}
             onChange={(e) => setFormData({ ...formData, cardNetBankingEnabled: e.target.checked })}
             style={{ width: '18px', height: '18px', cursor: 'pointer' }}
           />
@@ -123,6 +190,7 @@ export const PaymentSettingsTab = ({ initialData = {}, onSave }) => {
               type="text"
               value={formData.gatewayProvider || ''}
               onChange={(e) => setFormData({ ...formData, gatewayProvider: e.target.value })}
+              placeholder="e.g. Razorpay / Cashfree"
               style={{ width: '100%', height: '34px', padding: '0 8px', fontSize: '12.5px', border: '1px solid var(--border-color)', borderRadius: '4px' }}
             />
           </div>
@@ -148,7 +216,7 @@ export const PaymentSettingsTab = ({ initialData = {}, onSave }) => {
           </div>
           <input
             type="checkbox"
-            checked={formData.campusWalletEnabled || false}
+            checked={Boolean(formData.campusWalletEnabled)}
             onChange={(e) => setFormData({ ...formData, campusWalletEnabled: e.target.checked })}
             style={{ width: '18px', height: '18px', cursor: 'pointer' }}
           />
@@ -187,14 +255,14 @@ export const PaymentSettingsTab = ({ initialData = {}, onSave }) => {
         </div>
         <input
           type="checkbox"
-          checked={formData.cashOnCounterEnabled || false}
+          checked={Boolean(formData.cashOnCounterEnabled)}
           onChange={(e) => setFormData({ ...formData, cashOnCounterEnabled: e.target.checked })}
           style={{ width: '18px', height: '18px', cursor: 'pointer' }}
         />
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
-        <Button variant="primary" type="submit">
+        <Button variant="primary" type="submit" loading={saving} disabled={saving}>
           Save Payment Configurations
         </Button>
       </div>

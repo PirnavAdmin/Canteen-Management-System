@@ -81,7 +81,12 @@ export const ItemDetailsPage = () => {
   const addOnsTotal = selectedAddOns.reduce((acc, curr) => acc + Number(curr.price), 0);
   const unitPrice = basePrice + addOnsTotal;
   const totalPrice = unitPrice * quantity;
-  const isAvailable = item.availability === 'Available' && (item.remainingCapacity === undefined || item.remainingCapacity > 0);
+  const remaining = item.remainingCapacity !== undefined && item.remainingCapacity !== null
+    ? Number(item.remainingCapacity)
+    : (item.dailyCapacity !== undefined && item.dailyCapacity !== null ? Number(item.dailyCapacity) : null);
+  const isOutOfStock = (remaining !== null && remaining <= 0) || item.availability === 'SoldOut' || item.availability === 'Unavailable';
+  const isLowStock = !isOutOfStock && remaining !== null && remaining > 0 && remaining <= 10;
+  const isAvailable = !isOutOfStock;
 
   const toggleAddOn = (addon) => {
     if (selectedAddOns.some(a => a.id === addon.id)) {
@@ -206,8 +211,8 @@ export const ItemDetailsPage = () => {
                 </div>
                 <div style={{ padding: '10px', backgroundColor: 'var(--bg-app)', borderRadius: 'var(--border-radius-md)' }}>
                   <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>Kitchen Status</span>
-                  <span style={{ fontSize: '13px', fontWeight: 700, color: isAvailable ? 'var(--color-success)' : 'var(--color-danger)', marginTop: '2px', display: 'block' }}>
-                    {isAvailable ? 'In Stock' : 'Sold Out'}
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: isAvailable ? (isLowStock ? '#ea580c' : 'var(--color-success)') : 'var(--color-danger)', marginTop: '2px', display: 'block' }}>
+                    {isOutOfStock ? 'Sold Out' : (isLowStock ? `Only ${remaining} left` : 'In Stock')}
                   </span>
                 </div>
               </div>

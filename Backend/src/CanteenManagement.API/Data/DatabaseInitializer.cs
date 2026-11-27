@@ -114,8 +114,20 @@ namespace CanteenManagement.API.Data
                     // 4. Permanently remove WH-01 from CanteenOutlets (CanteenOutlets will ONLY contain dining outlets)
                     try
                     {
-                        await alterConn.ExecuteAsync("DELETE FROM CanteenOutlets WHERE Code = 'WH-01' OR Name LIKE '%Warehouse%';");
-                    } catch { }
+                        await alterConn.ExecuteAsync("DELETE FROM CanteenOutletSettings WHERE OutletId = 4;");
+                        await alterConn.ExecuteAsync("DELETE FROM CanteenStaffAssignments WHERE OutletId = 4;");
+                        await alterConn.ExecuteAsync("UPDATE StockRequests SET OutletId = 1 WHERE OutletId = 4;");
+                        await alterConn.ExecuteAsync("UPDATE MenuItems SET OutletId = 1 WHERE OutletId = 4;");
+                        await alterConn.ExecuteAsync("UPDATE Orders SET OutletId = 1 WHERE OutletId = 4;");
+                        var deletedOutlets = await alterConn.ExecuteAsync("DELETE FROM CanteenOutlets WHERE Code = 'WH-01' OR Name LIKE '%Warehouse%';");
+                        if (deletedOutlets > 0)
+                        {
+                            logger.LogInformation("Permanently decoupled Central Warehouse from CanteenOutlets ({Count} rows removed from dining outlets table).", deletedOutlets);
+                        }
+                    } catch (Exception ex)
+                    {
+                        logger.LogWarning("Notice cleaning up WH-01 from CanteenOutlets: {Message}", ex.Message);
+                    }
 
                     // Ensure StockRequests table exists safely with VARCHAR(50) RequestId
                     await alterConn.ExecuteAsync(@"
@@ -230,8 +242,21 @@ namespace CanteenManagement.API.Data
                     using var spConn = new MySqlConnection(activeCs);
                     await spConn.OpenAsync();
                     var dbDir = ResolveDatabaseDirectory();
-                    logger.LogInformation("Verifying and deploying latest Stored Procedures from {Path}...", dbDir);
-                    await DeployStoredProceduresFromFilesAsync(spConn, dbDir, logger);
+                    var forceDeploySp = string.Equals(Environment.GetEnvironmentVariable("DEPLOY_SP"), "true", StringComparison.OrdinalIgnoreCase);
+                    
+                    var existingSpCount = await spConn.ExecuteScalarAsync<int>(@"
+                        SELECT COUNT(1) FROM information_schema.ROUTINES 
+                        WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE';");
+
+                    if (forceDeploySp || existingSpCount < 10)
+                    {
+                        logger.LogInformation("Deploying latest Stored Procedures from {Path}...", dbDir);
+                        await DeployStoredProceduresFromFilesAsync(spConn, dbDir, logger);
+                    }
+                    else
+                    {
+                        logger.LogInformation("Verified {Count} existing Stored Procedures in database. Redundant deployment skipped.", existingSpCount);
+                    }
                 }
                 catch (Exception ex)
                 {

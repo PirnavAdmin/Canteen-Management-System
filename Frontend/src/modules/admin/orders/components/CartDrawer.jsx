@@ -1,5 +1,23 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { X, Trash2, Plus, Minus, ShoppingBag, ShieldCheck, CreditCard, Banknote, Smartphone, CheckCircle, Store } from 'lucide-react';
+import {
+  X,
+  Trash2,
+  Plus,
+  Minus,
+  ShoppingBag,
+  ShieldCheck,
+  CreditCard,
+  Banknote,
+  Smartphone,
+  CheckCircle,
+  Store,
+  Utensils,
+  Copy,
+  Check,
+  QrCode as QrIcon,
+  Maximize2
+} from 'lucide-react';
+import { DynamicQrCode } from '../../../../components/common/DynamicQrCode';
 import { SafeImage } from '../../../../components/common/SafeImage';
 import { formatCurrency } from '../../../../utils/formatters';
 import { orderService } from '../services/orderService';
@@ -26,6 +44,14 @@ export const CartDrawer = ({
   const [customerPhone, setCustomerPhone] = useState(() => user?.phone || '9876543210');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [gstPercent, setGstPercent] = useState(5.0);
+  const [packagingFeeSetting, setPackagingFeeSetting] = useState(5.0);
+  const [enablePackagingFee, setEnablePackagingFee] = useState(true);
+  const [isDineIn, setIsDineIn] = useState(true);
+  const [upiConfig, setUpiConfig] = useState({ upiVpa: 'canteen.apex@icici', upiMerchantName: 'Apex Institute Canteen' });
+  const [upiRefId, setUpiRefId] = useState('');
+  const [isCounterSoundboxVerified, setIsCounterSoundboxVerified] = useState(true);
+  const [isQrModalOpen, setIsQrModalOpen] = useState(false);
+  const [copiedVpa, setCopiedVpa] = useState(false);
 
   useEffect(() => {
     import('../../settings/services/settingsService')
@@ -35,10 +61,14 @@ export const CartDrawer = ({
           const rules = settings.orderRules || settings.OrderRules || settings;
           const payments = settings.payments || settings.Payments || {};
           const gst = rules.gstPercent ?? payments.gstPercent ?? rules.GstPercent ?? payments.GstPercent ?? 5.0;
+          const fee = rules.packagingFee ?? rules.PackagingFee ?? 5.0;
+          const enable = rules.enablePackagingFee ?? rules.EnablePackagingFee ?? true;
           setGstPercent(Number(gst) >= 0 ? Number(gst) : 5.0);
+          setPackagingFeeSetting(Number(fee) >= 0 ? Number(fee) : 5.0);
+          setEnablePackagingFee(enable !== false);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   // Convert cart object to array of entries
@@ -61,14 +91,21 @@ export const CartDrawer = ({
     }, 0);
   }, [cartItems]);
 
+  // Packaging fee: 0 if Dine In; otherwise setting fee if enabled
+  const packagingFee = useMemo(() => {
+    if (isDineIn) return 0;
+    if (!enablePackagingFee || subtotal === 0) return 0;
+    return packagingFeeSetting;
+  }, [isDineIn, enablePackagingFee, packagingFeeSetting, subtotal]);
+
   // Dynamic GST from settings
   const taxAmount = useMemo(() => {
     return Math.round(subtotal * (gstPercent / 100) * 100) / 100;
   }, [subtotal, gstPercent]);
 
   const totalAmount = useMemo(() => {
-    return subtotal + taxAmount;
-  }, [subtotal, taxAmount]);
+    return Math.round((subtotal + taxAmount + packagingFee) * 100) / 100;
+  }, [subtotal, taxAmount, packagingFee]);
 
   // Effective selected outlet
   const effectiveOutletId = useMemo(() => {
@@ -78,6 +115,17 @@ export const CartDrawer = ({
     if (outlets.length > 0) return outlets[0].outletId || outlets[0].id;
     return 1;
   }, [cashierMode, user, selectedOutletId, cartItems, outlets]);
+
+  const upiUri = useMemo(() => {
+    if (!totalAmount || totalAmount <= 0) return '';
+    return `upi://pay?pa=${encodeURIComponent(upiConfig.upiVpa)}&pn=${encodeURIComponent(upiConfig.upiMerchantName)}&am=${totalAmount.toFixed(2)}&cu=INR&tn=${encodeURIComponent('Counter Meal Order')}`;
+  }, [totalAmount, upiConfig]);
+
+  const handleCopyVpa = () => {
+    navigator.clipboard.writeText(upiConfig.upiVpa);
+    setCopiedVpa(true);
+    setTimeout(() => setCopiedVpa(false), 2000);
+  };
 
   const selectedOutletObj = useMemo(() => {
     return outlets.find(o => String(o.outletId || o.id) === String(effectiveOutletId)) || (!cashierMode ? outlets[0] : undefined);
@@ -104,12 +152,18 @@ export const CartDrawer = ({
     const payload = {
       outletId: Number(effectiveOutletId),
       customerName: (customerName || user?.fullName || user?.name || 'Mrs. Sunitha (Canteen Admin)').trim(),
-      customerRole: 'Admin',
+      customerRole: user?.role || 'Admin',
+      status: 'Accepted',
+      paymentStatus: 'Paid',
       rollNo: user?.rollNo || 'ADM-01',
       department: 'Canteen Administration',
       phone: (customerPhone || '9876543210').trim(),
       email: user?.email || 'admin@canteen.edu',
       paymentMethod: paymentMethod,
+      orderType: typeof isDineIn !== 'undefined' ? (isDineIn ? 'Dine In' : 'Takeaway') : undefined,
+      packagingFee: typeof packagingFee !== 'undefined' ? packagingFee : undefined,
+      transactionId: upiRefId.trim() ? (upiRefId.trim().startsWith('UTR-') ? upiRefId.trim() : `UTR-${upiRefId.trim()}`) : (paymentMethod === 'UPI' ? `TXN-POS-UPI-${Date.now()}` : undefined),
+      paymentReference: upiRefId.trim() || undefined,
       items: cartItems.map(entry => ({
         menuItemId: Number(entry.item.id || entry.item.menuItemId),
         variantName: null,
@@ -535,6 +589,73 @@ export const CartDrawer = ({
             )}
           </div>
 
+          {/* Dining Preference: Dine In vs Takeaway Toggle */}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Utensils size={15} style={{ color: 'var(--color-primary)' }} />
+                <span>Dining Preference</span>
+              </span>
+              <span style={{ fontSize: '11px', color: isDineIn ? 'var(--color-success)' : 'var(--text-muted)', fontWeight: 600 }}>
+                {isDineIn ? 'Dine In (No Packaging Fee)' : `Takeaway (+₹${packagingFeeSetting.toFixed(2)} Fee)`}
+              </span>
+            </div>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '6px',
+              backgroundColor: 'var(--bg-muted)',
+              padding: '4px',
+              borderRadius: '10px',
+              border: '1px solid var(--border-color)'
+            }}>
+              <button
+                type="button"
+                onClick={() => setIsDineIn(true)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  border: isDineIn ? '1px solid var(--color-primary)' : '1px solid transparent',
+                  backgroundColor: isDineIn ? 'var(--color-primary)' : 'transparent',
+                  color: isDineIn ? '#ffffff' : 'var(--text-secondary)',
+                  fontSize: '12.5px',
+                  fontWeight: isDineIn ? 700 : 500,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <Utensils size={14} />
+                <span>Dine In</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsDineIn(false)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  border: !isDineIn ? '1px solid var(--color-primary)' : '1px solid transparent',
+                  backgroundColor: !isDineIn ? 'var(--color-primary)' : 'transparent',
+                  color: !isDineIn ? '#ffffff' : 'var(--text-secondary)',
+                  fontSize: '12.5px',
+                  fontWeight: !isDineIn ? 700 : 500,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <ShoppingBag size={14} />
+                <span>Takeaway</span>
+              </button>
+            </div>
+          </div>
+
           {/* Payment Method */}
           <div>
             <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '8px' }}>
@@ -574,6 +695,134 @@ export const CartDrawer = ({
             </div>
           </div>
 
+          {/* Dynamic QR Code Card when UPI is selected */}
+          {paymentMethod === 'UPI' && (
+            <div
+              style={{
+                padding: '14px',
+                borderRadius: '12px',
+                backgroundColor: 'var(--bg-muted)',
+                border: '1.5px solid var(--color-primary-light, #bfdbfe)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <QrIcon size={16} color="var(--color-primary)" />
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    Counter UPI Dynamic QR
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsQrModalOpen(true)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '4px 8px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--color-primary-border, #93c5fd)',
+                    backgroundColor: 'var(--bg-surface)',
+                    color: 'var(--color-primary)',
+                    fontSize: '11.5px',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                  title="Enlarge QR Code for customer to scan"
+                >
+                  <Maximize2 size={13} />
+                  <span>Enlarge for Customer</span>
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <div
+                  style={{
+                    padding: '8px',
+                    backgroundColor: '#ffffff',
+                    borderRadius: '10px',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}
+                >
+                  <DynamicQrCode value={upiUri} size={95} />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0, flex: 1 }}>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                    Scan & pay with any UPI app (GPay, PhonePe, Paytm):
+                  </div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      backgroundColor: 'var(--bg-surface)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '6px',
+                      padding: '4px 8px'
+                    }}
+                  >
+                    <span style={{ fontSize: '11.5px', fontFamily: 'monospace', fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {upiConfig.upiVpa}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleCopyVpa}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: '2px',
+                        color: copiedVpa ? 'var(--color-success)' : 'var(--text-muted)'
+                      }}
+                      title="Copy UPI VPA"
+                    >
+                      {copiedVpa ? <Check size={14} /> : <Copy size={14} />}
+                    </button>
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                    Payable: <strong style={{ color: 'var(--color-primary)' }}>{formatCurrency(totalAmount)}</strong>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                  UTR / Transaction Ref No. (Optional for counter payment)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 12-digit UTR from customer app"
+                  value={upiRefId}
+                  onChange={(e) => setUpiRefId(e.target.value)}
+                  maxLength={20}
+                  style={{
+                    height: '32px',
+                    padding: '0 8px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: 'var(--bg-surface)',
+                    fontSize: '12px',
+                    fontFamily: 'monospace'
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#047857' }}>
+                <ShieldCheck size={14} />
+                <span>Cashier POS: Order is auto-accepted with instant Paid status.</span>
+              </div>
+            </div>
+          )}
+
+
           {/* Bill Breakdown */}
           <div
             style={{
@@ -589,6 +838,13 @@ export const CartDrawer = ({
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-secondary)' }}>
               <span>Items Subtotal</span>
               <span>{formatCurrency(subtotal)}</span>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-secondary)' }}>
+              <span>Takeaway Packaging Fee</span>
+              <span style={{ fontWeight: 600, color: packagingFee === 0 ? 'var(--color-success)' : 'var(--text-primary)' }}>
+                {packagingFee === 0 ? 'FREE' : formatCurrency(packagingFee)}
+              </span>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-secondary)' }}>
@@ -653,11 +909,114 @@ export const CartDrawer = ({
             ) : (
               <>
                 <CheckCircle size={18} />
-                <span>Place Order & Pay {formatCurrency(totalAmount)}</span>
+                <span>Place & Accept Order ({formatCurrency(totalAmount)})</span>
               </>
             )}
           </button>
         </div>
+        {/* Enlarge QR Code Modal for Customer Display */}
+        {isQrModalOpen && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 1200,
+              backgroundColor: 'rgba(15, 23, 42, 0.75)',
+              backdropFilter: 'blur(4px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '20px'
+            }}
+            onClick={() => setIsQrModalOpen(false)}
+          >
+            <div
+              style={{
+                width: '100%',
+                maxWidth: '380px',
+                backgroundColor: '#ffffff',
+                borderRadius: '16px',
+                padding: '24px',
+                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                textAlign: 'center',
+                gap: '14px',
+                animation: 'scaleIn 0.2s ease-out'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <QrIcon size={20} color="var(--color-primary, #1e3a8a)" />
+                  <span style={{ fontWeight: 700, fontSize: '16px', color: '#0f172a' }}>Scan to Pay at Counter</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsQrModalOpen(false)}
+                  style={{
+                    background: '#f1f5f9',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: '32px',
+                    height: '32px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div style={{ fontSize: '13px', color: '#475569' }}>
+                Please scan using Google Pay, PhonePe, Paytm, or any BHIM UPI app:
+              </div>
+
+              <div
+                style={{
+                  padding: '16px',
+                  backgroundColor: '#ffffff',
+                  borderRadius: '16px',
+                  border: '2px solid #e2e8f0',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                }}
+              >
+                <DynamicQrCode value={upiUri} size={230} />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '100%' }}>
+                <span style={{ fontSize: '12px', color: '#64748b' }}>Merchant: {upiConfig.upiMerchantName}</span>
+                <span style={{ fontSize: '13px', fontWeight: 600, fontFamily: 'monospace', color: '#0f172a' }}>
+                  {upiConfig.upiVpa}
+                </span>
+                <div style={{ fontSize: '24px', fontWeight: 800, color: '#1e3a8a', marginTop: '4px' }}>
+                  {formatCurrency(totalAmount)}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsQrModalOpen(false)}
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  borderRadius: '10px',
+                  backgroundColor: '#1e3a8a',
+                  color: '#ffffff',
+                  border: 'none',
+                  fontWeight: 600,
+                  fontSize: '14px',
+                  cursor: 'pointer'
+                }}
+              >
+                Done / Close QR
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

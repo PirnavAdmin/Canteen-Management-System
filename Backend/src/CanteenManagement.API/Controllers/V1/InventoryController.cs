@@ -22,10 +22,10 @@ namespace CanteenManagement.API.Controllers.V1
 
         [HttpGet]
         [HttpGet("items")]
-        public async Task<IActionResult> GetItems([FromQuery] int? outletId)
+        public async Task<IActionResult> GetItems([FromQuery] int? outletId, [FromQuery] string? storeType)
         {
             var campusId = User.ResolveCampusId();
-            var items = await _inventoryService.GetItemsAsync(campusId, outletId);
+            var items = await _inventoryService.GetItemsAsync(campusId, outletId, storeType);
             return Ok(ApiResponse<IEnumerable<InventoryItemDto>>.SuccessResponse(items));
         }
 

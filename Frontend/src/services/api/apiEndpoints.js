@@ -106,8 +106,18 @@ export const API_ENDPOINTS = {
   // System Settings
   SETTINGS: {
     BASE: '/canteen-settings',
+    PUBLIC_PAYMENT_CONFIG: '/canteen-settings/public-payment-config',
     PAYMENTS: '/canteen-settings/payments',
     RULES: '/canteen-settings/rules'
+  },
+
+  // Payment Gateway & Transactions
+  PAYMENTS: {
+    CONFIG: '/payments/config',
+    CREATE_INTENT: '/payments/create-intent',
+    STATUS: (orderId) => `/payments/status/${orderId}`,
+    VERIFY: '/payments/verify',
+    WEBHOOK: '/payments/webhook'
   }
 };
 

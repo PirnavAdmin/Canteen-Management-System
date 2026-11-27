@@ -146,14 +146,11 @@ export const customerOrderService = {
 
       txnId = `TXN-WAL-${Math.floor(100000 + Math.random() * 900000)}`;
       finalPaymentStatus = 'Paid';
-    } else if (paymentMethod === 'UPI') {
+    } else if (paymentMethod === 'UPI' || paymentMethod === 'UPI_DYNAMIC_QR' || paymentMethod === 'UPI_VPA') {
       methodLabel = 'UPI Dynamic QR & VPA';
-      const vpa = paymentDetails.upiId || '';
-      if (!vpa || !vpa.includes('@')) {
-        throw new Error('Please enter a valid UPI VPA handle (e.g. username@bank).');
-      }
-      txnId = `TXN-UPI-${Math.floor(100000 + Math.random() * 900000)}`;
-      finalPaymentStatus = 'Paid';
+      const utr = (paymentDetails.upiRefId || '').trim();
+      txnId = utr ? (utr.startsWith('UTR-') ? utr : `UTR-${utr}`) : `TXN-UPI-${Math.floor(100000 + Math.random() * 900000)}`;
+      finalPaymentStatus = 'Pending Verification';
     } else if (paymentMethod === 'CARD') {
       methodLabel = 'RuPay / Campus ID Smart Card';
       const cardNum = (paymentDetails.cardNum || '').replace(/\s+/g, '');
@@ -164,7 +161,7 @@ export const customerOrderService = {
       finalPaymentStatus = 'Paid';
     } else if (paymentMethod === 'CASH') {
       methodLabel = 'Pay Cash at Counter Pickup';
-      txnId = 'PENDING-COUNTER-COLLECTION';
+      txnId = `CASH-${Date.now().toString().slice(-6)}-${Math.floor(1000 + Math.random() * 9000)}`;
       finalPaymentStatus = 'Pending';
     } else {
       throw new Error(`Unsupported payment method: ${paymentMethod}`);
@@ -207,6 +204,12 @@ export const customerOrderService = {
       phone: user?.phoneNumber || user?.phone || '',
       email: user?.email || orderPayload.customer?.email || '',
       paymentMethod: methodLabel,
+      orderType: orderPayload.orderType || (orderPayload.isDineIn ? 'Dine In' : 'Takeaway'),
+      packagingFee: orderPayload.pricing?.packagingFee !== undefined ? Number(orderPayload.pricing.packagingFee) : (orderPayload.isDineIn ? 0 : undefined),
+      paymentStatus: finalPaymentStatus,
+      transactionId: txnId,
+      paymentReference: paymentDetails.upiRefId || undefined,
+      paymentScreenshot: paymentDetails.screenshot || undefined,
       items: itemsPayload,
       notes: specialCookingNotes
     };

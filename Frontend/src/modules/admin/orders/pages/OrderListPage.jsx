@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { RefreshCw, UtensilsCrossed, Clock, Printer } from 'lucide-react';
+import { RefreshCw, UtensilsCrossed, Clock, Printer, ShoppingBag } from 'lucide-react';
 import { PageHeader } from '../../../../components/common/PageHeader';
 import { Button } from '../../../../components/common/Button';
 import { Pagination } from '../../../../components/common/Pagination';
@@ -14,6 +14,7 @@ import { PlaceOrderCatalog } from '../components/PlaceOrderCatalog';
 import { useCanteens } from '../../outlets/hooks/useCanteens';
 import { useAuth } from '../../../../app/providers/AuthProvider';
 import { orderService } from '../services/orderService';
+import { paymentService } from '../../../../services/paymentService';
 import { isSameIstDate, isYesterdayIST, isWithinDaysIST } from '../../../../utils/formatters';
 import { ORDER_STATUS, ORDER_LIFECYCLE_NEXT_STEPS } from '../../../../constants/appConstants';
 import { subscribeToOrderSync } from '../../../../utils/orderSync';
@@ -48,6 +49,13 @@ export const OrderListPage = ({ cashierMode = false }) => {
       setSelectedOutlet(globalOutlet || 'ALL');
     }
   }, [globalOutlet, cashierMode, user?.outletId]);
+
+  // Cart state shared with PlaceOrderCatalog
+  const [catalogCart, setCatalogCart] = useState({});
+  const [isCatalogCartOpen, setIsCatalogCartOpen] = useState(false);
+  const totalCartCount = useMemo(() => {
+    return Object.values(catalogCart).reduce((acc, entry) => acc + (entry?.quantity || 0), 0);
+  }, [catalogCart]);
 
   // Count of orders specifically placed today in IST
   const todaysOrdersCount = useMemo(() => {
@@ -120,6 +128,31 @@ export const OrderListPage = ({ cashierMode = false }) => {
         setSelectedOrder(prev => (prev && String(prev.id) === String(full.id) ? { ...prev, ...full } : prev));
       }
     } catch {}
+  };
+
+  const handleVerifyPayment = async (order) => {
+    const orderId = typeof order === 'string' ? order : order.id;
+    try {
+      setActionLoadingId(orderId);
+      setModalLoading(true);
+      await paymentService.verifyPayment({
+        orderId: orderId,
+        verifiedBy: user?.fullName || user?.name || 'Cashier'
+      });
+      await refreshOrders();
+      if (selectedOrder && selectedOrder.id === orderId) {
+        setSelectedOrder(prev => ({
+          ...prev,
+          status: 'Accepted',
+          payment: { ...(prev.payment || {}), status: 'Paid' }
+        }));
+      }
+    } catch (err) {
+      console.error('Payment verification failed:', err);
+    } finally {
+      setActionLoadingId(null);
+      setModalLoading(false);
+    }
   };
 
   const handleStatusAdvance = async (order, nextStatus) => {
@@ -208,68 +241,114 @@ export const OrderListPage = ({ cashierMode = false }) => {
         style={{
           display: 'flex',
           alignItems: 'center',
+          justifyContent: 'space-between',
           gap: '8px',
           marginBottom: '16px',
           borderBottom: '1px solid var(--border-color)',
-          paddingBottom: '12px'
+          paddingBottom: '12px',
+          flexWrap: 'wrap'
         }}
       >
-        <button
-          type="button"
-          onClick={() => setActiveTab('PLACE_ORDER')}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '8px 18px',
-            borderRadius: '8px',
-            fontSize: '13px',
-            fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'all 0.15s ease',
-            border: activeTab === 'PLACE_ORDER' ? 'none' : '1px solid var(--border-color)',
-            backgroundColor: activeTab === 'PLACE_ORDER' ? 'var(--color-primary)' : 'var(--bg-surface)',
-            color: activeTab === 'PLACE_ORDER' ? '#ffffff' : 'var(--text-secondary)',
-            boxShadow: activeTab === 'PLACE_ORDER' ? 'var(--shadow-xs)' : 'none'
-          }}
-        >
-          <UtensilsCrossed size={16} />
-          <span>Place Order</span>
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            type="button"
+            onClick={() => setActiveTab('PLACE_ORDER')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 18px',
+              borderRadius: '8px',
+              fontSize: '13px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+              border: activeTab === 'PLACE_ORDER' ? 'none' : '1px solid var(--border-color)',
+              backgroundColor: activeTab === 'PLACE_ORDER' ? 'var(--color-primary)' : 'var(--bg-surface)',
+              color: activeTab === 'PLACE_ORDER' ? '#ffffff' : 'var(--text-secondary)',
+              boxShadow: activeTab === 'PLACE_ORDER' ? 'var(--shadow-xs)' : 'none'
+            }}
+          >
+            <UtensilsCrossed size={16} />
+            <span>Place Order</span>
+          </button>
 
+          <button
+            type="button"
+            onClick={() => setActiveTab('TODAYS_ORDERS')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 18px',
+              borderRadius: '8px',
+              fontSize: '13px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+              border: activeTab === 'TODAYS_ORDERS' ? 'none' : '1px solid var(--border-color)',
+              backgroundColor: activeTab === 'TODAYS_ORDERS' ? 'var(--color-primary)' : 'var(--bg-surface)',
+              color: activeTab === 'TODAYS_ORDERS' ? '#ffffff' : 'var(--text-secondary)',
+              boxShadow: activeTab === 'TODAYS_ORDERS' ? 'var(--shadow-xs)' : 'none'
+            }}
+          >
+            <Clock size={16} />
+            <span>Today's Orders</span>
+            {todaysOrdersCount > 0 && (
+              <span
+                style={{
+                  padding: '2px 7px',
+                  borderRadius: '9999px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  backgroundColor: activeTab === 'TODAYS_ORDERS' ? 'rgba(255, 255, 255, 0.25)' : 'var(--bg-muted)',
+                  color: activeTab === 'TODAYS_ORDERS' ? '#ffffff' : 'var(--text-primary)'
+                }}
+              >
+                {todaysOrdersCount}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Cart Trigger Button Aligned in line with Today's Orders on the Right */}
         <button
           type="button"
-          onClick={() => setActiveTab('TODAYS_ORDERS')}
+          onClick={() => {
+            if (activeTab !== 'PLACE_ORDER') setActiveTab('PLACE_ORDER');
+            setIsCatalogCartOpen(true);
+          }}
           style={{
+            height: '36px',
+            padding: '0 16px',
+            borderRadius: '8px',
+            backgroundColor: totalCartCount > 0 ? 'var(--color-primary)' : 'var(--bg-surface)',
+            color: totalCartCount > 0 ? '#ffffff' : 'var(--text-primary)',
+            border: totalCartCount > 0 ? 'none' : '1px solid var(--border-color)',
+            fontWeight: 600,
+            fontSize: '13px',
             display: 'inline-flex',
             alignItems: 'center',
             gap: '8px',
-            padding: '8px 18px',
-            borderRadius: '8px',
-            fontSize: '13px',
-            fontWeight: 600,
             cursor: 'pointer',
-            transition: 'all 0.15s ease',
-            border: activeTab === 'TODAYS_ORDERS' ? 'none' : '1px solid var(--border-color)',
-            backgroundColor: activeTab === 'TODAYS_ORDERS' ? 'var(--color-primary)' : 'var(--bg-surface)',
-            color: activeTab === 'TODAYS_ORDERS' ? '#ffffff' : 'var(--text-secondary)',
-            boxShadow: activeTab === 'TODAYS_ORDERS' ? 'var(--shadow-xs)' : 'none'
+            boxShadow: totalCartCount > 0 ? '0 2px 6px rgba(30, 58, 138, 0.25)' : 'none',
+            transition: 'all 0.15s ease'
           }}
         >
-          <Clock size={16} />
-          <span>Today's Orders</span>
-          {todaysOrdersCount > 0 && (
+          <ShoppingBag size={16} />
+          <span>Cart</span>
+          {totalCartCount > 0 && (
             <span
               style={{
-                padding: '2px 7px',
+                backgroundColor: '#f59e0b',
+                color: '#ffffff',
+                padding: '1px 6px',
                 borderRadius: '9999px',
                 fontSize: '11px',
-                fontWeight: 700,
-                backgroundColor: activeTab === 'TODAYS_ORDERS' ? 'rgba(255, 255, 255, 0.25)' : 'var(--bg-muted)',
-                color: activeTab === 'TODAYS_ORDERS' ? '#ffffff' : 'var(--text-primary)'
+                fontWeight: 700
               }}
             >
-              {todaysOrdersCount}
+              {totalCartCount}
             </span>
           )}
         </button>
@@ -277,7 +356,14 @@ export const OrderListPage = ({ cashierMode = false }) => {
 
       {/* Tab 1: Place Order Food Catalog */}
       {activeTab === 'PLACE_ORDER' && (
-        <PlaceOrderCatalog onOrderPlaced={handleOrderPlaced} cashierMode={cashierMode} />
+        <PlaceOrderCatalog
+          onOrderPlaced={handleOrderPlaced}
+          cashierMode={cashierMode}
+          cart={catalogCart}
+          setCart={setCatalogCart}
+          isCartOpen={isCatalogCartOpen}
+          setIsCartOpen={setIsCatalogCartOpen}
+        />
       )}
 
       {/* Tab 2: Today's Orders & Live Queue */}
@@ -309,6 +395,7 @@ export const OrderListPage = ({ cashierMode = false }) => {
             onAdvanceStatus={handleStatusAdvance}
             onCancel={(ord) => setOrderToCancel(ord)}
             onPrintReceipt={(ord) => setOrderForReceipt(ord)}
+            onVerifyPayment={handleVerifyPayment}
             footer={
               <Pagination
                 currentPage={currentPage}
@@ -331,6 +418,7 @@ export const OrderListPage = ({ cashierMode = false }) => {
             onUpdateStatus={handleStatusAdvance}
             onOpenCancel={(ord) => setOrderToCancel(ord)}
             onProcessRefund={handleProcessRefund}
+            onVerifyPayment={handleVerifyPayment}
           />
 
           {/* Cancel Order Modal */}

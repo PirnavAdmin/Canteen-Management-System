@@ -12,7 +12,16 @@ export const FoodItemCard = ({ item }) => {
   const safeCartItems = Array.isArray(cartItems) ? cartItems : [];
   const cartItem = safeCartItems.find(ci => ci && ci.id === item.id);
   const qty = cartItem ? cartItem.quantity : 0;
-  const isAvailable = item.availability === 'Available' && (item.remainingCapacity === undefined || item.remainingCapacity > 0);
+  
+  const remaining = item.remainingCapacity !== undefined && item.remainingCapacity !== null
+    ? Number(item.remainingCapacity)
+    : (item.dailyCapacity !== undefined && item.dailyCapacity !== null ? Number(item.dailyCapacity) : null);
+  const isOutOfStock = (remaining !== null && remaining <= 0) ||
+    item.availability === 'SoldOut' ||
+    item.availability === 'Unavailable' ||
+    item.status === 'Inactive';
+  const isLowStock = !isOutOfStock && remaining !== null && remaining > 0 && remaining <= 10;
+  const isAvailable = !isOutOfStock;
 
   const handleAdd = (e) => {
     e.preventDefault();
@@ -25,8 +34,10 @@ export const FoodItemCard = ({ item }) => {
     e.preventDefault();
     e.stopPropagation();
     if (cartItem) {
+      if (remaining !== null && cartItem.quantity >= remaining) return;
       updateQuantity(cartItem.cartKey, cartItem.quantity + 1);
     } else {
+      if (remaining !== null && remaining <= 0) return;
       addToCart(item, 1);
     }
   };
@@ -127,6 +138,44 @@ export const FoodItemCard = ({ item }) => {
           </div>
         )}
 
+        {/* Low Stock (<= 10 left) or Out of Stock Badge */}
+        {isOutOfStock ? (
+          <div style={{
+            position: 'absolute',
+            bottom: '10px',
+            left: '10px',
+            backgroundColor: '#dc2626',
+            color: '#ffffff',
+            padding: '2.5px 8px',
+            borderRadius: 'var(--border-radius-xs)',
+            fontSize: '11px',
+            fontWeight: 800,
+            boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+            zIndex: 2
+          }}>
+            Out of Stock
+          </div>
+        ) : isLowStock ? (
+          <div style={{
+            position: 'absolute',
+            bottom: '10px',
+            left: '10px',
+            backgroundColor: '#ea580c',
+            color: '#ffffff',
+            padding: '2.5px 8px',
+            borderRadius: 'var(--border-radius-xs)',
+            fontSize: '11px',
+            fontWeight: 800,
+            boxShadow: '0 2px 4px rgba(0,0,0,0.25)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '3px',
+            zIndex: 2
+          }}>
+            <span>🔥 {remaining} left</span>
+          </div>
+        ) : null}
+
         {/* Rating badge */}
         <div style={{
           position: 'absolute',
@@ -164,16 +213,26 @@ export const FoodItemCard = ({ item }) => {
           }}>
             {typeof item.category === 'object' ? (item.category?.name || item.category?.id || '') : item.category}
           </span>
-          <span style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '3px',
-            fontSize: '11.5px',
-            color: 'var(--text-muted)'
-          }}>
-            <Clock size={12} />
-            {item.preparationTimeMinutes || 10}m
-          </span>
+          {remaining !== null && (
+            <span style={{
+              fontSize: '11px',
+              fontWeight: isLowStock || isOutOfStock ? 800 : 600,
+              color: isOutOfStock
+                ? '#dc2626'
+                : (isLowStock ? '#ea580c' : 'var(--text-secondary)'),
+              backgroundColor: isOutOfStock
+                ? 'rgba(220, 38, 38, 0.15)'
+                : (isLowStock ? '#ffedd5' : 'var(--bg-app)'),
+              border: isLowStock || isOutOfStock ? 'none' : '1px solid var(--border-color)',
+              padding: '2px 8px',
+              borderRadius: '4px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '3px'
+            }}>
+              {isOutOfStock ? 'Out of Stock' : (isLowStock ? `🔥 ${remaining} left` : `${remaining} left`)}
+            </span>
+          )}
         </div>
 
         <Link

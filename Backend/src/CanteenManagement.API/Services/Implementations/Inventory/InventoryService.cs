@@ -18,18 +18,24 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
             _auditService = auditService;
         }
 
-        public async Task<IEnumerable<InventoryItemDto>> GetItemsAsync(int campusId, int? outletId = null)
+        public async Task<IEnumerable<InventoryItemDto>> GetItemsAsync(int campusId, int? outletId = null, string? storeType = null)
         {
-            var items = await _repository.GetItemsAsync(campusId, outletId);
+            var items = await _repository.GetItemsAsync(campusId, outletId, storeType);
             return items.Select(MapToItemDto).ToList();
         }
 
         public async Task<InventoryItemDto> CreateItemAsync(CreateInventoryItemDto dto, int campusId, string performedBy)
         {
+            var isCentral = string.Equals(dto.StoreType, "CentralWarehouse", StringComparison.OrdinalIgnoreCase) ||
+                            dto.WarehouseId.HasValue ||
+                            (dto.OutletId == null || dto.OutletId <= 0);
+
             var item = new InventoryItem
             {
                 CampusId = campusId,
-                OutletId = dto.OutletId ?? 1,
+                OutletId = isCentral ? null : dto.OutletId,
+                WarehouseId = isCentral ? (dto.WarehouseId ?? 1) : null,
+                StoreType = isCentral ? "CentralWarehouse" : "KitchenOutlet",
                 IngredientName = dto.IngredientName.Trim(),
                 Category = string.IsNullOrWhiteSpace(dto.Category) ? "Groceries" : dto.Category.Trim(),
                 AvailableQuantity = dto.AvailableQuantity,
@@ -282,6 +288,8 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
             {
                 Id = p.PurchaseOrderId,
                 OutletId = p.OutletId,
+                WarehouseId = p.WarehouseId,
+                WarehouseName = p.Warehouse?.Name,
                 PoNumber = p.PoNumber,
                 SupplierId = p.SupplierId,
                 SupplierName = p.SupplierName ?? p.Supplier?.Name ?? "Institutional Supplier",
@@ -313,10 +321,12 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
                 ? JsonSerializer.Serialize(dto.Items)
                 : null;
 
+            var isCentralPo = dto.WarehouseId.HasValue || dto.OutletId == null || dto.OutletId <= 0;
             var po = new PurchaseOrder
             {
                 CampusId = campusId,
-                OutletId = dto.OutletId,
+                OutletId = isCentralPo ? null : dto.OutletId,
+                WarehouseId = isCentralPo ? (dto.WarehouseId ?? 1) : null,
                 PoNumber = $"PO-{DateTime.UtcNow.Year}-{Random.Shared.Next(1000, 9999)}",
                 SupplierId = dto.SupplierId,
                 SupplierName = supplierName,
@@ -344,6 +354,8 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
             {
                 Id = created.PurchaseOrderId,
                 OutletId = created.OutletId,
+                WarehouseId = created.WarehouseId,
+                WarehouseName = created.Warehouse?.Name,
                 PoNumber = created.PoNumber,
                 SupplierId = created.SupplierId,
                 SupplierName = created.SupplierName,
@@ -454,6 +466,8 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
             {
                 Id = updated.PurchaseOrderId,
                 OutletId = updated.OutletId,
+                WarehouseId = updated.WarehouseId,
+                WarehouseName = updated.Warehouse?.Name,
                 PoNumber = updated.PoNumber,
                 SupplierId = updated.SupplierId,
                 SupplierName = updated.SupplierName,
@@ -749,10 +763,10 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
 
             var issuedQty = dto.IssuedQuantity > 0 ? dto.IssuedQuantity : req.RequestedQuantity;
 
-            // Find matching item in Central / Main Inventory (prioritize Central Warehouse Outlet #4 / WH-01)
-            var centralItems = await _repository.GetItemsAsync(campusId);
+            // Find matching item in Central / Main Inventory
+            var centralItems = await _repository.GetItemsAsync(campusId, storeType: "CentralWarehouse");
             var centralItem = centralItems.FirstOrDefault(i =>
-                (i.OutletId == 4 || i.Outlet?.Code == "WH-01" || (i.Outlet?.Name ?? "").Contains("Warehouse")) &&
+                (i.WarehouseId != null || i.StoreType == "CentralWarehouse") &&
                 (string.Equals(i.IngredientName.Trim(), req.ItemName.Trim(), StringComparison.OrdinalIgnoreCase) ||
                  (req.ItemId.HasValue && i.ItemId == req.ItemId.Value)))
                 ?? centralItems.FirstOrDefault(i =>
@@ -1004,7 +1018,12 @@ namespace CanteenManagement.API.Services.Implementations.Inventory
         {
             Id = i.ItemId,
             OutletId = i.OutletId,
-            OutletName = i.Outlet?.Name ?? "Main Canteen",
+            WarehouseId = i.WarehouseId,
+            StoreType = i.StoreType ?? (i.WarehouseId.HasValue ? "CentralWarehouse" : "KitchenOutlet"),
+            OutletName = i.StoreType == "CentralWarehouse" || i.WarehouseId.HasValue
+                ? (i.Warehouse?.Name ?? "Central Procurement Warehouse")
+                : (i.Outlet?.Name ?? (i.OutletId.HasValue ? $"Kitchen Outlet #{i.OutletId}" : "Main Canteen")),
+            WarehouseName = i.Warehouse?.Name ?? (i.WarehouseId.HasValue ? "Central Procurement Warehouse" : null),
             ItemCode = $"ING-{i.ItemId:D3}",
             IngredientName = i.IngredientName,
             Category = i.Category,

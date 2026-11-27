@@ -14,6 +14,10 @@ import { useCanteens } from '../../outlets/hooks/useCanteens';
 export const DashboardPage = () => {
   const { selectedOutlet, selectedOutletObj } = useCanteens();
 
+  const selectedOutletName = (!selectedOutlet || selectedOutlet === 'ALL')
+    ? 'All Campus Outlets'
+    : (selectedOutletObj?.name || `Outlet #${selectedOutlet}`);
+
   const {
     loading,
     summary,
@@ -113,9 +117,9 @@ export const DashboardPage = () => {
         <SalesAnalyticsChart salesData={salesData} loading={loading} />
         <LiveOrderQueue orders={liveOrders} loading={loading} />
         <TopSellingItems items={topSelling} loading={loading} />
-        <OutletSalesCard outletSales={outletSales} loading={loading} />
-        <StockAlertsCard alerts={stockAlerts} loading={loading} />
-        <KitchenRequestsCard requests={kitchenRequests} loading={loading} />
+        <OutletSalesCard outletSales={outletSales} loading={loading} selectedOutletName={selectedOutletName} />
+        <StockAlertsCard alerts={stockAlerts} loading={loading} selectedOutletName={selectedOutletName} />
+        <KitchenRequestsCard requests={kitchenRequests} loading={loading} selectedOutletName={selectedOutletName} />
       </div>
     </div>
   );

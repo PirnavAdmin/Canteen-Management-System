@@ -108,7 +108,6 @@ namespace CanteenManagement.API.Repositories.Implementations.Orders
 
                     var outlet = await _dbContext.CanteenOutlets.FindAsync(order.OutletId);
                     order.Outlet = outlet;
-                    
                 }
 
                 return order;
@@ -146,6 +145,22 @@ namespace CanteenManagement.API.Repositories.Implementations.Orders
 
         public async Task<Order> CreateAsync(Order order)
         {
+            if (order.Payments != null)
+            {
+                foreach (var payment in order.Payments)
+                {
+                    if (string.IsNullOrWhiteSpace(payment.TransactionId) ||
+                        payment.TransactionId.Equals("PENDING-COUNTER-COLLECTION", StringComparison.OrdinalIgnoreCase) ||
+                        await _dbContext.PaymentTransactions.AnyAsync(p => p.TransactionId == payment.TransactionId))
+                    {
+                        var methodPrefix = !string.IsNullOrWhiteSpace(payment.Method) && payment.Method.Contains("Cash", StringComparison.OrdinalIgnoreCase)
+                            ? "CASH"
+                            : (!string.IsNullOrWhiteSpace(payment.Method) && payment.Method.Contains("UPI", StringComparison.OrdinalIgnoreCase) ? "UPI" : "TXN");
+                        payment.TransactionId = $"{methodPrefix}-{order.OrderId.Replace("ORD-", "")}-{Guid.NewGuid().ToString("N")[..6].ToUpper()}";
+                    }
+                }
+            }
+
             await _dbContext.Orders.AddAsync(order);
             await _dbContext.SaveChangesAsync();
             return order;
@@ -175,6 +190,41 @@ namespace CanteenManagement.API.Repositories.Implementations.Orders
                 _dbContext.Orders.Update(order);
                 await _dbContext.SaveChangesAsync();
                 return order;
+            }
+        }
+
+        public async Task<bool> UpdatePaymentTransactionAsync(PaymentTransaction payment)
+        {
+            try
+            {
+                using var connection = _connectionFactory.CreateConnection();
+                var rows = await connection.ExecuteAsync(
+                    @"UPDATE PaymentTransactions 
+                      SET Status = @Status, PaidAt = @PaidAt, TransactionId = @TransactionId, Method = @Method
+                      WHERE OrderId = @OrderId;",
+                    new
+                    {
+                        payment.Status,
+                        payment.PaidAt,
+                        payment.TransactionId,
+                        payment.Method,
+                        payment.OrderId
+                    });
+                return rows > 0;
+            }
+            catch
+            {
+                var existing = await _dbContext.PaymentTransactions.FirstOrDefaultAsync(p => p.OrderId == payment.OrderId);
+                if (existing != null)
+                {
+                    existing.Status = payment.Status;
+                    existing.PaidAt = payment.PaidAt;
+                    existing.TransactionId = payment.TransactionId;
+                    existing.Method = payment.Method;
+                    await _dbContext.SaveChangesAsync();
+                    return true;
+                }
+                return false;
             }
         }
 

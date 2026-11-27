@@ -58,12 +58,9 @@ export const DashboardKPICards = ({ summary = {}, loading = false }) => {
 
   if (recentReq) {
     const s = (recentReq.status || 'Pending').toLowerCase();
-    const isIssued = s.includes('issued') || s.includes('dispatch') || s.includes('approved') || s.includes('fulfilled') || s.includes('received') || s.includes('completed');
-    const isReceived = s.includes('received') || s.includes('fulfilled') || s.includes('completed');
-    const isDispatched = s.includes('dispatch');
     const isRejected = s.includes('reject');
 
-    let reqValue = 'Not Issued';
+    let reqValue = 'Requested';
     let reqTag = 'Pending';
     let reqColor = '#d97706';
     let reqBg = '#fffbeb';
@@ -73,16 +70,16 @@ export const DashboardKPICards = ({ summary = {}, loading = false }) => {
       reqTag = 'Voided';
       reqColor = '#dc2626';
       reqBg = '#fef2f2';
-    } else if (isReceived) {
-      reqValue = 'Items Issued';
-      reqTag = 'Fulfilled';
-      reqColor = '#059669';
-      reqBg = '#ecfdf5';
-    } else if (isDispatched || isIssued) {
-      reqValue = 'Items Issued';
-      reqTag = isDispatched ? 'Dispatched' : 'Approved';
-      reqColor = '#059669';
-      reqBg = '#ecfdf5';
+    } else if (s.includes('pending review') || s.includes('review') || s.includes('pending')) {
+      reqValue = 'Pending';
+      reqTag = 'Pending';
+      reqColor = '#d97706';
+      reqBg = '#fffbeb';
+    } else {
+      reqValue = 'Pending';
+      reqTag = 'Pending';
+      reqColor = '#d97706';
+      reqBg = '#fffbeb';
     }
 
     const itemName = recentReq.itemName || recentReq.ingredientName || 'Kitchen Stock';
@@ -106,7 +103,7 @@ export const DashboardKPICards = ({ summary = {}, loading = false }) => {
       label: 'Kitchen Requisition',
       value: 'No Requests',
       tag: 'None',
-      subtext: 'No active kitchen requests',
+      subtext: 'No pending kitchen requests',
       icon: ChefHat,
       color: '#64748b',
       bg: '#f1f5f9',
