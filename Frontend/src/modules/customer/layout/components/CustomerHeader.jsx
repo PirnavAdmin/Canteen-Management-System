@@ -385,26 +385,6 @@ export const CustomerHeader = () => {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', textAlign: 'left', lineHeight: 1.15 }}>
                 <span className={`${styles.userName} ${styles.userNameText}`}>{studentName}</span>
-                {/* Status of the food shown below profile in small font with distinct color */}
-                {activeOrder && (
-                  <span
-                    onClick={handleTrackLiveOrder}
-                    style={{
-                      fontSize: '9.5px',
-                      fontWeight: 700,
-                      color: statusTheme.dot,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '3px',
-                      marginTop: '1px',
-                      cursor: 'pointer'
-                    }}
-                    title={`Chef Status: ${activeOrder.status} - Click to track live order`}
-                  >
-                    <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: statusTheme.dot }} />
-                    {statusTheme.label}
-                  </span>
-                )}
               </div>
               <ChevronDown
                 size={14}

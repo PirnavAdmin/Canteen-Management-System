@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Printer, Download, X, Loader2 } from 'lucide-react';
 import { formatTimeIST, formatDate } from '../../../../utils/formatters';
 
@@ -29,18 +29,8 @@ export const OrderReceiptModal = ({ isOpen, onClose, order }) => {
   const [printFormat, setPrintFormat] = useState('thermal'); // 'thermal' | 'a4'
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
-  if (!isOpen || !order) return null;
-
-  const outletName = typeof order.outletName === 'object'
-    ? (order.outletName?.name || order.outletName?.id || 'Main Canteen')
-    : (order.outletName || (typeof order.outlet === 'object' ? (order.outlet?.name || order.outlet?.id) : (order.outlet || 'Main Canteen')));
-
-  const orderDate = order.orderDate || order.createdAt;
-  const paymentMethod = order.payment?.method || (typeof order.payment === 'string' ? order.payment : 'Cash');
-  const paymentStatus = order.payment?.status || order.paymentStatus || 'Paid';
-  const items = Array.isArray(order.items) ? order.items : [];
-
   const utrNumber = useMemo(() => {
+    if (!order) return null;
     const rawTxn = order.payment?.transactionId || order.transactionId || order.paymentReference || '';
     if (rawTxn) {
       const match = rawTxn.match(/\b\d{12}\b/);
@@ -53,6 +43,17 @@ export const OrderReceiptModal = ({ isOpen, onClose, order }) => {
     if (rawTxn && !rawTxn.startsWith('PENDING-') && !rawTxn.startsWith('CASH-')) return rawTxn;
     return null;
   }, [order]);
+
+  if (!isOpen || !order) return null;
+
+  const outletName = typeof order.outletName === 'object'
+    ? (order.outletName?.name || order.outletName?.id || 'Main Canteen')
+    : (order.outletName || (typeof order.outlet === 'object' ? (order.outlet?.name || order.outlet?.id) : (order.outlet || 'Main Canteen')));
+
+  const orderDate = order.orderDate || order.createdAt;
+  const paymentMethod = order.payment?.method || (typeof order.payment === 'string' ? order.payment : 'Cash');
+  const paymentStatus = order.payment?.status || order.paymentStatus || 'Paid';
+  const items = Array.isArray(order.items) ? order.items : [];
 
   // Print via isolated iframe to prevent Chromium modal scroll clipping
   const handlePrint = () => {
