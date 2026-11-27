@@ -185,17 +185,40 @@ export const OrderTable = ({
     {
       key: 'payment',
       header: 'Payment',
-      render: (val) => (
-        <div style={{ fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-          <div>{val?.method || 'Campus Wallet'}</div>
-          <div style={{
-            color: val?.status === 'Paid' ? 'var(--color-success)' : val?.status === 'Refunded' ? '#d97706' : 'var(--color-danger)',
-            fontWeight: 600
-          }}>
-            {val?.status || 'Paid'}
+      render: (val) => {
+        const method = val?.method || 'Pay Cash at Counter Pickup';
+        const rawStatus = (val?.status || (method.toLowerCase().includes('cash') ? 'Pending' : 'Paid')).trim();
+        const statusLower = rawStatus.toLowerCase();
+        const isPaid = statusLower === 'paid';
+        const isPending = statusLower === 'pending';
+        const isRefunded = statusLower === 'refunded';
+
+        const statusColor = isPaid
+          ? 'var(--color-success, #16a34a)'
+          : isPending
+            ? '#d97706'
+            : isRefunded
+              ? '#64748b'
+              : 'var(--color-danger, #ef4444)';
+
+        return (
+          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+            <div>{method}</div>
+            <div style={{
+              color: statusColor,
+              fontWeight: 600,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}>
+              {isPending && (
+                <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#d97706', display: 'inline-block' }} />
+              )}
+              {rawStatus}
+            </div>
           </div>
-        </div>
-      )
+        );
+      }
     },
     {
       key: 'status',
@@ -214,6 +237,10 @@ export const OrderTable = ({
         const nextOperationalStatus = nextSteps.find(s => s !== ORDER_STATUS.CANCELLED && s !== ORDER_STATUS.REFUNDED);
         const StepIcon = nextOperationalStatus ? getStepIcon(nextOperationalStatus) : null;
         const isCancellable = orderStatus !== ORDER_STATUS.COMPLETED && orderStatus !== ORDER_STATUS.CANCELLED && orderStatus !== ORDER_STATUS.REFUNDED;
+        const isCashPending = orderStatus === ORDER_STATUS.PLACED && (
+          String(row?.payment?.status || '').toLowerCase() === 'pending' ||
+          String(row?.payment?.method || '').toLowerCase().includes('cash')
+        );
 
         return (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
@@ -254,11 +281,11 @@ export const OrderTable = ({
                 disabled={actionLoadingId === row.id}
                 onClick={() => onAdvanceStatus(row, nextOperationalStatus)}
                 style={{
-                  background: 'var(--color-primary-light)',
-                  border: '1px solid var(--color-primary-border)',
+                  background: isCashPending ? '#fef3c7' : 'var(--color-primary-light)',
+                  border: isCashPending ? '1px solid #fde68a' : '1px solid var(--color-primary-border)',
                   borderRadius: '4px',
                   padding: '5px',
-                  color: 'var(--color-primary)',
+                  color: isCashPending ? '#b45309' : 'var(--color-primary)',
                   cursor: actionLoadingId === row.id ? 'not-allowed' : 'pointer',
                   opacity: actionLoadingId === row.id ? 0.7 : 1,
                   display: 'inline-flex',
@@ -266,8 +293,8 @@ export const OrderTable = ({
                   justifyContent: 'center',
                   transition: 'all 0.15s ease'
                 }}
-                title={`Mark as ${nextOperationalStatus}`}
-                aria-label={`Mark as ${nextOperationalStatus}`}
+                title={isCashPending ? `Accept Order & Confirm Cash Collection (${formatCurrency(row?.totalAmount)})` : `Mark as ${nextOperationalStatus}`}
+                aria-label={isCashPending ? `Accept Order & Confirm Cash Collection (${formatCurrency(row?.totalAmount)})` : `Mark as ${nextOperationalStatus}`}
               >
                 {actionLoadingId === row.id ? (
                   <Loader2 size={14} style={{ animation: 'spin 0.8s linear infinite' }} />

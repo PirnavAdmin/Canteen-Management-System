@@ -151,6 +151,16 @@ namespace CanteenManagement.API.Services.Implementations.Orders
             decimal taxAmount = Math.Round(subtotal * (gstPercent / 100m), 2);
             decimal totalAmount = subtotal + taxAmount + packagingFee;
 
+            bool isCash = !string.IsNullOrWhiteSpace(dto.PaymentMethod) &&
+                          (dto.PaymentMethod.Contains("Cash", StringComparison.OrdinalIgnoreCase) ||
+                           dto.PaymentMethod.Contains("Counter", StringComparison.OrdinalIgnoreCase));
+
+            string initialPaymentStatus = isCash ? "Pending" : "Paid";
+            DateTime? paidAt = isCash ? null : now;
+            string initialTxnId = isCash
+                ? $"PENDING-CASH-{token}"
+                : $"TXN-{Guid.NewGuid().ToString("N")[..10].ToUpper()}";
+
             var order = new Order
             {
                 OrderId = orderId,
@@ -178,7 +188,7 @@ namespace CanteenManagement.API.Services.Implementations.Orders
                         OrderId = orderId,
                         Status = "Placed",
                         Note = string.IsNullOrWhiteSpace(dto.Notes)
-                            ? "Order placed via portal"
+                            ? (isCash ? "Order placed with Pay at Counter (Cash Pending)" : "Order placed via portal")
                             : $"Order placed via portal [Notes: {dto.Notes.Trim()}]",
                         Timestamp = now
                     }
@@ -187,12 +197,12 @@ namespace CanteenManagement.API.Services.Implementations.Orders
                 {
                     new()
                     {
-                        TransactionId = $"TXN-{Guid.NewGuid().ToString("N")[..10].ToUpper()}",
+                        TransactionId = initialTxnId,
                         OrderId = orderId,
                         Method = dto.PaymentMethod,
-                        Status = "Paid",
+                        Status = initialPaymentStatus,
                         Amount = totalAmount,
-                        PaidAt = now
+                        PaidAt = paidAt
                     }
                 }
             };
@@ -253,6 +263,26 @@ namespace CanteenManagement.API.Services.Implementations.Orders
 
             var updated = await _repository.UpdateAsync(order);
 
+            // Settle Pending Cash payment when order is Accepted or Collected by cashier
+            if (order.Payments != null)
+            {
+                var pendingCash = order.Payments.FirstOrDefault(p =>
+                    p.Status.Equals("Pending", StringComparison.OrdinalIgnoreCase) &&
+                    (!string.IsNullOrEmpty(p.Method) && (p.Method.Contains("Cash", StringComparison.OrdinalIgnoreCase) || p.Method.Contains("Counter", StringComparison.OrdinalIgnoreCase))));
+
+                if (pendingCash != null &&
+                    (targetStatus.Equals("Accepted", StringComparison.OrdinalIgnoreCase) ||
+                     targetStatus.Equals("Collected", StringComparison.OrdinalIgnoreCase)))
+                {
+                    pendingCash.Status = "Paid";
+                    pendingCash.PaidAt = now;
+                    pendingCash.TransactionId = $"CASH-{order.Token}-{now:HHmmss}";
+
+                    await _repository.UpdatePaymentTransactionAsync(pendingCash);
+                }
+                updated.Payments = order.Payments;
+            }
+
             // Restore menu remaining capacity if transitioned to Cancelled
             if (dto.Status == "Cancelled" && order.Items != null)
             {
@@ -302,6 +332,18 @@ namespace CanteenManagement.API.Services.Implementations.Orders
 
             var updated = await _repository.UpdateAsync(order);
 
+            // Void pending payment on cancellation
+            if (order.Payments != null)
+            {
+                var pendingPayment = order.Payments.FirstOrDefault(p => p.Status.Equals("Pending", StringComparison.OrdinalIgnoreCase));
+                if (pendingPayment != null)
+                {
+                    pendingPayment.Status = "Cancelled";
+                    await _repository.UpdatePaymentTransactionAsync(pendingPayment);
+                }
+                updated.Payments = order.Payments;
+            }
+
             // Restore menu remaining capacity for cancelled items atomically via Stored Procedure
             if (order.Items != null)
             {
@@ -344,6 +386,7 @@ namespace CanteenManagement.API.Services.Implementations.Orders
             if (payment != null)
             {
                 payment.Status = "Refunded";
+                await _repository.UpdatePaymentTransactionAsync(payment);
             }
 
             order.Timeline.Add(new OrderTimeline
@@ -355,6 +398,7 @@ namespace CanteenManagement.API.Services.Implementations.Orders
             });
 
             var updated = await _repository.UpdateAsync(order);
+            updated.Payments = order.Payments;
 
             await _auditService.LogActionAsync(
                 campusId,
@@ -458,8 +502,8 @@ namespace CanteenManagement.API.Services.Implementations.Orders
                 Notes = specialNotes,
                 Payment = new PaymentSummaryDto
                 {
-                    Method = payment?.Method ?? "UPI",
-                    Status = payment?.Status ?? "Paid",
+                    Method = payment?.Method ?? "Counter Cash",
+                    Status = payment?.Status ?? (payment?.Method?.Contains("Cash", StringComparison.OrdinalIgnoreCase) == true ? "Pending" : "Paid"),
                     TransactionId = payment?.TransactionId,
                     PaidAt = payment?.PaidAt
                 },

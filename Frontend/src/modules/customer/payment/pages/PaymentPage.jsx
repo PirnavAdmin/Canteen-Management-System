@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../../app/providers/AuthProvider';
 import { useCart } from '../../cart/hooks/useCart';
 import { customerOrderService } from '../../orders/services/customerOrderService';
+import { paymentService } from '../../../../services/paymentService';
 import { PageHeader } from '../../../../components/common/PageHeader';
 import { Card } from '../../../../components/common/Card';
 import { Button } from '../../../../components/common/Button';
+import { DynamicQrCode } from '../../../../components/common/DynamicQrCode';
 import {
   QrCode,
   Banknote,
@@ -14,7 +16,9 @@ import {
   AlertCircle,
   Copy,
   Check,
-  RefreshCw
+  RefreshCw,
+  CreditCard,
+  Wallet
 } from 'lucide-react';
 
 export const PaymentPage = () => {
@@ -23,7 +27,7 @@ export const PaymentPage = () => {
   const { clearCart } = useCart();
 
   const [draftOrder, setDraftOrder] = useState(null);
-  const [selectedMethod, setSelectedMethod] = useState('UPI'); // UPI, CASH
+  const [selectedMethod, setSelectedMethod] = useState('UPI'); // UPI, CASH, CARD, WALLET
   const [processing, setProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
   const [copiedVpa, setCopiedVpa] = useState(false);
@@ -31,6 +35,20 @@ export const PaymentPage = () => {
   // Method specific states
   const [upiTab, setUpiTab] = useState('vpa'); // 'vpa' or 'qr'
   const [upiId, setUpiId] = useState('student@okcampus');
+
+  // Live Public Configuration from Admin Settings
+  const [paymentConfig, setPaymentConfig] = useState({
+    upiEnabled: true,
+    upiVpa: 'canteen.apex@icici',
+    upiMerchantName: 'Apex Institute Canteen',
+    cardNetBankingEnabled: false,
+    gatewayProvider: 'Razorpay',
+    campusWalletEnabled: true,
+    campusWalletMaxBalance: 2000,
+    cashOnCounterEnabled: true
+  });
+
+  const pollingRef = useRef(null);
 
   // Customer identity resolution
   const rawRole = user?.role || user?.roleCode || user?.userType || 'Student';
@@ -46,6 +64,61 @@ export const PaymentPage = () => {
     setDraftOrder(raw);
   }, [location.state, navigate]);
 
+  // Fetch admin payment settings
+  useEffect(() => {
+    let isMounted = true;
+    paymentService.getPublicConfig().then(cfg => {
+      if (isMounted && cfg) {
+        setPaymentConfig(cfg);
+        if (selectedMethod === 'UPI' && cfg.upiEnabled === false) {
+          if (cfg.cashOnCounterEnabled) setSelectedMethod('CASH');
+          else if (cfg.campusWalletEnabled) setSelectedMethod('WALLET');
+        }
+      }
+    });
+    return () => { isMounted = false; };
+  }, []);
+
+  const orderTotal = Number(draftOrder?.pricing?.totalAmount || 0);
+  const activeVpa = paymentConfig.upiVpa || 'canteen.apex@icici';
+  const activeMerchantName = paymentConfig.upiMerchantName || 'Apex Institute Canteen';
+  const orderRefId = draftOrder?.orderId || draftOrder?.id || `ORD-${Date.now()}`;
+  const upiIntentUri = `upi://pay?pa=${encodeURIComponent(activeVpa)}&pn=${encodeURIComponent(activeMerchantName)}&am=${orderTotal.toFixed(2)}&cu=INR&tn=${encodeURIComponent(orderRefId)}`;
+
+  // Polling for Dynamic QR completion
+  const checkStatusCallback = useCallback(async () => {
+    if (!draftOrder?.id) return;
+    try {
+      const res = await paymentService.checkStatus(draftOrder.id);
+      if (res && res.status === 'Paid') {
+        clearCart();
+        window.__cms_customer_draft_order = null;
+        navigate('/customer/orders', {
+          state: {
+            newOrderId: draftOrder.id,
+            token: res.token || draftOrder.token,
+            paymentMethod: 'UPI Dynamic QR',
+            paymentStatus: 'Paid'
+          }
+        });
+      }
+    } catch {
+      // Ignore polling errors
+    }
+  }, [draftOrder, clearCart, navigate]);
+
+  useEffect(() => {
+    if (selectedMethod === 'UPI' && upiTab === 'qr' && draftOrder?.id) {
+      pollingRef.current = setInterval(checkStatusCallback, 3000);
+    }
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+  }, [selectedMethod, upiTab, draftOrder, checkStatusCallback]);
+
   if (!draftOrder) {
     return (
       <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>
@@ -53,8 +126,6 @@ export const PaymentPage = () => {
       </div>
     );
   }
-
-  const orderTotal = Number(draftOrder.pricing?.totalAmount || 0);
 
   // Handle Payment Submission
   const handleAuthorizePayment = async () => {
@@ -70,11 +141,8 @@ export const PaymentPage = () => {
     try {
       setProcessing(true);
 
-      // Simulate network gateway authorization round-trip (500ms)
-      await new Promise(resolve => setTimeout(resolve, 500));
-
       const paymentDetails = {
-        upiId
+        upiId: selectedMethod === 'UPI' ? upiId : undefined
       };
 
       // Create order and persist through customer order service
@@ -107,14 +175,14 @@ export const PaymentPage = () => {
   };
 
   const handleCopyVpa = () => {
-    navigator.clipboard.writeText('canteen.central@campusbank');
+    navigator.clipboard.writeText(activeVpa);
     setCopiedVpa(true);
     setTimeout(() => setCopiedVpa(false), 2000);
   };
 
   return (
     <div>
-      {/* Admin PageHeader */}
+      {/* PageHeader */}
       <PageHeader
         title="Payment & Order Confirmation"
         description="Select UPI instant payment or cash payment on counter pickup to authorize your meal order."
@@ -157,110 +225,224 @@ export const PaymentPage = () => {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {/* Option 1: UPI Dynamic QR & VPA */}
-              <label
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '12px',
-                  padding: '14px 16px',
-                  borderRadius: 'var(--border-radius-md)',
-                  border: '2px solid',
-                  borderColor: selectedMethod === 'UPI' ? 'var(--color-accent)' : 'var(--border-color)',
-                  backgroundColor: selectedMethod === 'UPI' ? 'var(--color-primary-light)' : 'var(--bg-app)',
-                  cursor: 'pointer',
-                  transition: 'all var(--transition-fast)'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: 1 }}>
-                  <input
-                    type="radio"
-                    name="payMethod"
-                    value="UPI"
-                    checked={selectedMethod === 'UPI'}
-                    onChange={(e) => {
-                      setSelectedMethod(e.target.value);
-                      setErrorMessage(null);
-                    }}
-                    style={{ cursor: 'pointer', width: '18px', height: '18px', flexShrink: 0 }}
-                  />
-                  <QrCode size={22} style={{ color: '#0284c7', flexShrink: 0 }} />
-                  <div style={{ minWidth: 0 }}>
-                    <span style={{ fontSize: '14.5px', fontWeight: 600, color: 'var(--text-primary)', display: 'block' }}>
-                      UPI Instant Payment (QR & VPA)
-                    </span>
-                    <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginTop: '2px', lineHeight: 1.3 }}>
-                      Google Pay, PhonePe, Paytm, BHIM or enter any UPI VPA ID
-                    </span>
+              {paymentConfig.upiEnabled !== false && (
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '12px',
+                    padding: '14px 16px',
+                    borderRadius: 'var(--border-radius-md)',
+                    border: '2px solid',
+                    borderColor: selectedMethod === 'UPI' ? 'var(--color-accent)' : 'var(--border-color)',
+                    backgroundColor: selectedMethod === 'UPI' ? 'var(--color-primary-light)' : 'var(--bg-app)',
+                    cursor: 'pointer',
+                    transition: 'all var(--transition-fast)'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: 1 }}>
+                    <input
+                      type="radio"
+                      name="payMethod"
+                      value="UPI"
+                      checked={selectedMethod === 'UPI'}
+                      onChange={(e) => {
+                        setSelectedMethod(e.target.value);
+                        setErrorMessage(null);
+                      }}
+                      style={{ cursor: 'pointer', width: '18px', height: '18px', flexShrink: 0 }}
+                    />
+                    <QrCode size={22} style={{ color: '#0284c7', flexShrink: 0 }} />
+                    <div style={{ minWidth: 0 }}>
+                      <span style={{ fontSize: '14.5px', fontWeight: 600, color: 'var(--text-primary)', display: 'block' }}>
+                        UPI Instant Payment (QR & VPA)
+                      </span>
+                      <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginTop: '2px', lineHeight: 1.3 }}>
+                        Google Pay, PhonePe, Paytm, BHIM or enter any UPI VPA ID
+                      </span>
+                    </div>
                   </div>
-                </div>
-                <span style={{
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  color: '#0284c7',
-                  backgroundColor: '#e0f2fe',
-                  padding: '3px 8px',
-                  borderRadius: 'var(--border-radius-full)',
-                  whiteSpace: 'nowrap',
-                  flexShrink: 0,
-                  lineHeight: '1.2'
-                }}>
-                  Instant 0% Fee
-                </span>
-              </label>
+                  <span style={{
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    color: '#0284c7',
+                    backgroundColor: '#e0f2fe',
+                    padding: '3px 8px',
+                    borderRadius: 'var(--border-radius-full)',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                    lineHeight: '1.2'
+                  }}>
+                    Instant 0% Fee
+                  </span>
+                </label>
+              )}
 
               {/* Option 2: Pay Cash at Counter Pickup */}
-              <label
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '12px',
-                  padding: '14px 16px',
-                  borderRadius: 'var(--border-radius-md)',
-                  border: '2px solid',
-                  borderColor: selectedMethod === 'CASH' ? 'var(--color-accent)' : 'var(--border-color)',
-                  backgroundColor: selectedMethod === 'CASH' ? 'var(--color-primary-light)' : 'var(--bg-app)',
-                  cursor: 'pointer',
-                  transition: 'all var(--transition-fast)'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: 1 }}>
-                  <input
-                    type="radio"
-                    name="payMethod"
-                    value="CASH"
-                    checked={selectedMethod === 'CASH'}
-                    onChange={(e) => {
-                      setSelectedMethod(e.target.value);
-                      setErrorMessage(null);
-                    }}
-                    style={{ cursor: 'pointer', width: '18px', height: '18px', flexShrink: 0 }}
-                  />
-                  <Banknote size={22} style={{ color: '#059669', flexShrink: 0 }} />
-                  <div style={{ minWidth: 0 }}>
-                    <span style={{ fontSize: '14.5px', fontWeight: 600, color: 'var(--text-primary)', display: 'block' }}>
-                      Pay Cash at Counter Pickup
-                    </span>
-                    <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginTop: '2px', lineHeight: 1.3 }}>
-                      Collect order token now; hand over physical cash at counter pickup
-                    </span>
+              {paymentConfig.cashOnCounterEnabled !== false && (
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '12px',
+                    padding: '14px 16px',
+                    borderRadius: 'var(--border-radius-md)',
+                    border: '2px solid',
+                    borderColor: selectedMethod === 'CASH' ? 'var(--color-accent)' : 'var(--border-color)',
+                    backgroundColor: selectedMethod === 'CASH' ? 'var(--color-primary-light)' : 'var(--bg-app)',
+                    cursor: 'pointer',
+                    transition: 'all var(--transition-fast)'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: 1 }}>
+                    <input
+                      type="radio"
+                      name="payMethod"
+                      value="CASH"
+                      checked={selectedMethod === 'CASH'}
+                      onChange={(e) => {
+                        setSelectedMethod(e.target.value);
+                        setErrorMessage(null);
+                      }}
+                      style={{ cursor: 'pointer', width: '18px', height: '18px', flexShrink: 0 }}
+                    />
+                    <Banknote size={22} style={{ color: '#059669', flexShrink: 0 }} />
+                    <div style={{ minWidth: 0 }}>
+                      <span style={{ fontSize: '14.5px', fontWeight: 600, color: 'var(--text-primary)', display: 'block' }}>
+                        Pay Cash at Counter Pickup
+                      </span>
+                      <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginTop: '2px', lineHeight: 1.3 }}>
+                        Collect order token now; hand over physical cash at counter pickup
+                      </span>
+                    </div>
                   </div>
-                </div>
-                <span style={{
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  color: '#059669',
-                  backgroundColor: '#d1fae5',
-                  padding: '3px 8px',
-                  borderRadius: 'var(--border-radius-full)',
-                  whiteSpace: 'nowrap',
-                  flexShrink: 0,
-                  lineHeight: '1.2'
-                }}>
-                  Pay on Pickup
-                </span>
-              </label>
+                  <span style={{
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    color: '#059669',
+                    backgroundColor: '#d1fae5',
+                    padding: '3px 8px',
+                    borderRadius: 'var(--border-radius-full)',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                    lineHeight: '1.2'
+                  }}>
+                    Pay on Pickup
+                  </span>
+                </label>
+              )}
+
+              {/* Option 3: Campus Smart ID / Student Wallet */}
+              {paymentConfig.campusWalletEnabled === true && (
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '12px',
+                    padding: '14px 16px',
+                    borderRadius: 'var(--border-radius-md)',
+                    border: '2px solid',
+                    borderColor: selectedMethod === 'WALLET' ? 'var(--color-accent)' : 'var(--border-color)',
+                    backgroundColor: selectedMethod === 'WALLET' ? 'var(--color-primary-light)' : 'var(--bg-app)',
+                    cursor: 'pointer',
+                    transition: 'all var(--transition-fast)'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: 1 }}>
+                    <input
+                      type="radio"
+                      name="payMethod"
+                      value="WALLET"
+                      checked={selectedMethod === 'WALLET'}
+                      onChange={(e) => {
+                        setSelectedMethod(e.target.value);
+                        setErrorMessage(null);
+                      }}
+                      style={{ cursor: 'pointer', width: '18px', height: '18px', flexShrink: 0 }}
+                    />
+                    <Wallet size={22} style={{ color: '#7c3aed', flexShrink: 0 }} />
+                    <div style={{ minWidth: 0 }}>
+                      <span style={{ fontSize: '14.5px', fontWeight: 600, color: 'var(--text-primary)', display: 'block' }}>
+                        Campus Smart ID Card / Student Wallet
+                      </span>
+                      <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginTop: '2px', lineHeight: 1.3 }}>
+                        Direct debit from student portal account balance
+                      </span>
+                    </div>
+                  </div>
+                  <span style={{
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    color: '#7c3aed',
+                    backgroundColor: '#ede9fe',
+                    padding: '3px 8px',
+                    borderRadius: 'var(--border-radius-full)',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                    lineHeight: '1.2'
+                  }}>
+                    Instant Debit
+                  </span>
+                </label>
+              )}
+
+              {/* Option 4: Cards & Institutional Net Banking */}
+              {paymentConfig.cardNetBankingEnabled === true && (
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '12px',
+                    padding: '14px 16px',
+                    borderRadius: 'var(--border-radius-md)',
+                    border: '2px solid',
+                    borderColor: selectedMethod === 'CARD' ? 'var(--color-accent)' : 'var(--border-color)',
+                    backgroundColor: selectedMethod === 'CARD' ? 'var(--color-primary-light)' : 'var(--bg-app)',
+                    cursor: 'pointer',
+                    transition: 'all var(--transition-fast)'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: 1 }}>
+                    <input
+                      type="radio"
+                      name="payMethod"
+                      value="CARD"
+                      checked={selectedMethod === 'CARD'}
+                      onChange={(e) => {
+                        setSelectedMethod(e.target.value);
+                        setErrorMessage(null);
+                      }}
+                      style={{ cursor: 'pointer', width: '18px', height: '18px', flexShrink: 0 }}
+                    />
+                    <CreditCard size={22} style={{ color: '#ea580c', flexShrink: 0 }} />
+                    <div style={{ minWidth: 0 }}>
+                      <span style={{ fontSize: '14.5px', fontWeight: 600, color: 'var(--text-primary)', display: 'block' }}>
+                        Cards & Institutional Net Banking
+                      </span>
+                      <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginTop: '2px', lineHeight: 1.3 }}>
+                        Debit, Credit Card & Net Banking via {paymentConfig.gatewayProvider || 'Payment Gateway'}
+                      </span>
+                    </div>
+                  </div>
+                  <span style={{
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    color: '#ea580c',
+                    backgroundColor: '#ffedd5',
+                    padding: '3px 8px',
+                    borderRadius: 'var(--border-radius-full)',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                    lineHeight: '1.2'
+                  }}>
+                    Gateway Secure
+                  </span>
+                </label>
+              )}
             </div>
 
             {/* Custom Interactive UI for UPI */}
@@ -350,14 +532,18 @@ export const PaymentPage = () => {
                       justifyContent: 'center',
                       boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
                     }}>
-                      <QrCode size={130} style={{ color: '#0f172a' }} />
+                      <DynamicQrCode
+                        value={upiIntentUri}
+                        size={130}
+                        alt={`Scan to pay ₹${orderTotal.toFixed(2)}`}
+                      />
                       <span style={{ fontSize: '11px', fontWeight: 700, color: '#0369a1', marginTop: '6px' }}>
                         ₹{orderTotal.toFixed(2)} • BHIM UPI
                       </span>
                     </div>
 
                     <div style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                      <span>Merchant VPA: <strong>canteen.central@campusbank</strong></span>
+                      <span>Merchant VPA: <strong>{activeVpa}</strong></span>
                       <button
                         type="button"
                         onClick={handleCopyVpa}
@@ -367,6 +553,9 @@ export const PaymentPage = () => {
                         {copiedVpa ? <Check size={14} /> : <Copy size={14} />}
                       </button>
                     </div>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginTop: '4px' }}>
+                      Auto-detecting payment from UPI app in real time...
+                    </span>
                   </div>
                 )}
               </div>

@@ -12,6 +12,11 @@ export const settingsService = {
     return response?.data ?? response;
   },
 
+  getPublicPaymentConfig: async () => {
+    const response = await apiClient.get(API_ENDPOINTS.SETTINGS.PUBLIC_PAYMENT_CONFIG);
+    return response?.data ?? response;
+  },
+
   updatePaymentSettings: async (paymentData) => {
     const response = await apiClient.put(API_ENDPOINTS.SETTINGS.PAYMENTS, paymentData);
     return response?.data ?? response;

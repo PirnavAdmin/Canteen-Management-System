@@ -29,6 +29,15 @@ namespace CanteenManagement.API.Controllers.V1
             return Ok(ApiResponse<SystemSettingsResponseDto>.SuccessResponse(settings));
         }
 
+        [AllowAnonymous]
+        [HttpGet("public-payment-config")]
+        public async Task<IActionResult> GetPublicPaymentConfig()
+        {
+            var campusId = User.Identity?.IsAuthenticated == true ? User.ResolveCampusId() : 1;
+            var config = await _settingsService.GetPublicPaymentConfigAsync(campusId);
+            return Ok(ApiResponse<PublicPaymentConfigDto>.SuccessResponse(config));
+        }
+
         [HttpPut("payments")]
         public async Task<IActionResult> UpdatePaymentSettings([FromBody] PaymentSettingsDto dto)
         {
@@ -48,4 +57,3 @@ namespace CanteenManagement.API.Controllers.V1
         }
     }
 }
-
